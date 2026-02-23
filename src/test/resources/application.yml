@@ -15,6 +15,12 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
+app:
+  jwt:
+    secret: bXktc3VwZXItc2VjcmV0LWtleS1mb3ItbmVpZ2hib3Job29k
+    access-token-expiry-ms: 900000
+    refresh-token-expiry-ms: 2592000000
+
 mybatis-plus:
   configuration:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

@@ -14,6 +14,10 @@ public final class CacheKeys {
                 nvl(city), nvl(district), nvl(keyword), page, size);
     }
 
+    public static String jwtBlacklist(String jti) {
+        return "auth:blacklist:jti:" + jti;
+    }
+
     private static String nvl(String s) {
         return s != null ? s : "_";
     }
