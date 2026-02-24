@@ -4,6 +4,7 @@ import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ApiResponse;
 import com.example.app.common.result.PageResult;
 import com.example.app.common.result.ResultCode;
+import com.example.app.dto.neighborhood.NeighborhoodRecommendResponse;
 import com.example.app.dto.neighborhood.NeighborhoodResponse;
 import com.example.app.entity.Neighborhood;
 import com.example.app.service.NeighborhoodQueryService;
@@ -14,11 +15,16 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/neighborhoods")
@@ -60,6 +66,21 @@ public class NeighborhoodController {
         PageResult<Neighborhood> result =
                 neighborhoodQueryService.list(keyword, cityCode, districtCode, page, size);
         return ApiResponse.success(NeighborhoodResponse.fromPage(result));
+    }
+
+    @GetMapping("/recommend")
+    @Operation(
+            summary = "依座標推薦最近鄰里",
+            description = "回傳距離最近的 5 筆（status=1 且已設定座標），依距離升冪排列"
+    )
+    public ApiResponse<List<NeighborhoodRecommendResponse>> recommend(
+            @Parameter(description = "緯度 [-90, 90]", required = true, in = ParameterIn.QUERY)
+            @RequestParam(required = false) @NotNull @DecimalMin("-90.0") @DecimalMax("90.0") Double lat,
+
+            @Parameter(description = "經度 [-180, 180]", required = true, in = ParameterIn.QUERY)
+            @RequestParam(required = false) @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") Double lng
+    ) {
+        return ApiResponse.success(neighborhoodQueryService.recommend(lat, lng));
     }
 
     @GetMapping("/{id}")

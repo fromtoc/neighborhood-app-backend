@@ -3,6 +3,7 @@ package com.example.app.controller;
 import com.example.app.common.context.NeighborhoodContext;
 import com.example.app.common.interceptor.NeighborhoodInterceptor;
 import com.example.app.common.result.PageResult;
+import com.example.app.dto.neighborhood.NeighborhoodRecommendResponse;
 import com.example.app.entity.Neighborhood;
 import com.example.app.service.NeighborhoodQueryService;
 import org.junit.jupiter.api.Test;
@@ -146,7 +147,53 @@ class NeighborhoodControllerTest {
                 .andExpect(jsonPath("$.code").value(400));
     }
 
+    // ── GET /recommend ────────────────────────────────────────
+
+    @Test
+    void recommend_success_returnsSortedList() throws Exception {
+        when(neighborhoodQueryService.recommend(25.033, 121.565)).thenReturn(List.of(
+                recommend(1L, "台北市信義區信義里", 120),
+                recommend(2L, "台北市信義區大安里", 342)
+        ));
+
+        mockMvc.perform(get("/api/v1/neighborhoods/recommend")
+                        .param("lat", "25.033")
+                        .param("lng", "121.565"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].id").value(1))
+                .andExpect(jsonPath("$.data[0].fullName").value("台北市信義區信義里"))
+                .andExpect(jsonPath("$.data[0].distanceMeter").value(120))
+                .andExpect(jsonPath("$.data[1].distanceMeter").value(342));
+    }
+
+    @Test
+    void recommend_missingLat_returns422() throws Exception {
+        mockMvc.perform(get("/api/v1/neighborhoods/recommend")
+                        .param("lng", "121.565"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+    }
+
+    @Test
+    void recommend_latOutOfRange_returns422() throws Exception {
+        mockMvc.perform(get("/api/v1/neighborhoods/recommend")
+                        .param("lat", "200")
+                        .param("lng", "121.565"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+    }
+
     // ── helpers ──────────────────────────────────────────────
+
+    private NeighborhoodRecommendResponse recommend(Long id, String fullName, int distanceMeter) {
+        return NeighborhoodRecommendResponse.builder()
+                .id(id)
+                .fullName(fullName)
+                .distanceMeter(distanceMeter)
+                .build();
+    }
 
     private Neighborhood neighborhood(Long id, String name, String district, String city) {
         Neighborhood n = new Neighborhood();
