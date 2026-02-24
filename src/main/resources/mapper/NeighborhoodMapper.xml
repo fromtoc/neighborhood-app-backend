@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.app.mapper.NeighborhoodMapper">
+
+    <!--
+        Batch upsert via MySQL ON DUPLICATE KEY UPDATE.
+        The unique key uk_li_code drives conflict detection.
+        `deleted` is intentionally excluded so that a re-import
+        does NOT resurrect a logically-deleted row.
+    -->
+    <insert id="batchUpsert" parameterType="list">
+        INSERT INTO neighborhood (li_code, name, full_name, district, city, lat, lng, status)
+        VALUES
+        <foreach collection="list" item="n" separator=",">
+            (
+                #{n.liCode},
+                #{n.name},
+                #{n.fullName},
+                #{n.district},
+                #{n.city},
+                #{n.lat},
+                #{n.lng},
+                #{n.status}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            name       = VALUES(name),
+            full_name  = VALUES(full_name),
+            district   = VALUES(district),
+            city       = VALUES(city),
+            lat        = VALUES(lat),
+            lng        = VALUES(lng),
+            status     = VALUES(status),
+            updated_at = NOW()
+    </insert>
+
+</mapper>
