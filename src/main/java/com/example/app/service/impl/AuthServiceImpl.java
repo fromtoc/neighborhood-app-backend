@@ -14,15 +14,14 @@ import com.example.app.dto.auth.RefreshRequest;
 import com.example.app.entity.AuthSession;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.User;
-import com.example.app.event.UserGuestCreatedEvent;
 import com.example.app.mapper.AuthSessionMapper;
 import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.UserMapper;
+import com.example.app.messaging.UserEventProducer;
 import com.example.app.service.AuthService;
 import com.example.app.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +43,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper          userMapper;
     private final AuthSessionMapper   authSessionMapper;
     private final JwtService          jwtService;
-    private final ApplicationEventPublisher eventPublisher;
+    private final UserEventProducer   userEventProducer;
 
     // ── guest login ──────────────────────────────────────────
 
@@ -69,10 +68,9 @@ public class AuthServiceImpl implements AuthService {
         // 4. Persist refresh token hash (never store plaintext)
         saveSession(user.getId(), pair.getRefreshToken());
 
-        // 5. Publish domain event — delivered after TX commits via @TransactionalEventListener
-        eventPublisher.publishEvent(
-                new UserGuestCreatedEvent(user.getId(), req.getNeighborhoodId(),
-                        req.getDeviceId(), Instant.now()));
+        // 5. Publish domain event — TX-safe (sent after commit via TransactionSynchronization)
+        userEventProducer.publishGuestCreated(
+                user.getId(), req.getNeighborhoodId(), req.getDeviceId(), Instant.now());
 
         return buildResponse(pair, user.getId(), true, req.getNeighborhoodId());
     }

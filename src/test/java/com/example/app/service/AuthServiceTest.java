@@ -11,17 +11,16 @@ import com.example.app.dto.auth.RefreshRequest;
 import com.example.app.entity.AuthSession;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.User;
-import com.example.app.event.UserGuestCreatedEvent;
 import com.example.app.mapper.AuthSessionMapper;
 import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.UserMapper;
+import com.example.app.messaging.UserEventProducer;
 import com.example.app.service.impl.AuthServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -42,7 +41,7 @@ class AuthServiceTest {
     @Mock UserMapper           userMapper;
     @Mock AuthSessionMapper    authSessionMapper;
     @Mock JwtService           jwtService;
-    @Mock ApplicationEventPublisher eventPublisher;
+    @Mock UserEventProducer    userEventProducer;
 
     @InjectMocks AuthServiceImpl service;
 
@@ -71,8 +70,8 @@ class AuthServiceTest {
                 s.getUserId().equals(1L) && s.getRefreshTokenHash() != null
                         && !s.getRefreshTokenHash().equals("ref")));
 
-        // domain event must be published for RabbitMQ delivery after commit
-        verify(eventPublisher).publishEvent(any(UserGuestCreatedEvent.class));
+        // domain event must be published via UserEventProducer
+        verify(userEventProducer).publishGuestCreated(eq(1L), eq(10L), eq("device-abc"), any(Instant.class));
     }
 
     @Test
