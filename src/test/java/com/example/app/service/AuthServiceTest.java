@@ -13,6 +13,7 @@ import com.example.app.entity.Neighborhood;
 import com.example.app.entity.User;
 import com.example.app.mapper.AuthSessionMapper;
 import com.example.app.mapper.NeighborhoodMapper;
+import com.example.app.mapper.UserIdentityMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.messaging.UserEventProducer;
 import com.example.app.service.impl.AuthServiceImpl;
@@ -39,6 +40,7 @@ class AuthServiceTest {
 
     @Mock NeighborhoodMapper   neighborhoodMapper;
     @Mock UserMapper           userMapper;
+    @Mock UserIdentityMapper   userIdentityMapper;
     @Mock AuthSessionMapper    authSessionMapper;
     @Mock JwtService           jwtService;
     @Mock UserEventProducer    userEventProducer;

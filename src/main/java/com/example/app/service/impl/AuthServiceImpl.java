@@ -9,19 +9,25 @@ import com.example.app.common.result.ResultCode;
 import com.example.app.dto.JwtClaims;
 import com.example.app.dto.TokenPair;
 import com.example.app.dto.auth.AuthResponse;
+import com.example.app.dto.auth.FirebaseLoginRequest;
 import com.example.app.dto.auth.GuestLoginRequest;
 import com.example.app.dto.auth.RefreshRequest;
+import com.example.app.dto.firebase.FirebasePrincipal;
 import com.example.app.entity.AuthSession;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.User;
+import com.example.app.entity.UserIdentity;
 import com.example.app.mapper.AuthSessionMapper;
 import com.example.app.mapper.NeighborhoodMapper;
+import com.example.app.mapper.UserIdentityMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.messaging.UserEventProducer;
 import com.example.app.service.AuthService;
+import com.example.app.service.FirebaseTokenVerifier;
 import com.example.app.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,50 +45,124 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final NeighborhoodMapper neighborhoodMapper;
-    private final UserMapper          userMapper;
-    private final AuthSessionMapper   authSessionMapper;
-    private final JwtService          jwtService;
-    private final UserEventProducer   userEventProducer;
+    private final NeighborhoodMapper  neighborhoodMapper;
+    private final UserMapper           userMapper;
+    private final UserIdentityMapper   userIdentityMapper;
+    private final AuthSessionMapper    authSessionMapper;
+    private final JwtService           jwtService;
+    private final UserEventProducer    userEventProducer;
+
+    /** Optional — present only when Firebase Admin SDK is configured. */
+    @Autowired(required = false)
+    private FirebaseTokenVerifier firebaseTokenVerifier;
 
     // ── guest login ──────────────────────────────────────────
 
     @Override
     public AuthResponse guestLogin(GuestLoginRequest req) {
-        // 1. Validate neighborhood
         Neighborhood hood = neighborhoodMapper.selectById(req.getNeighborhoodId());
         if (hood == null || !Objects.equals(hood.getStatus(), 1)) {
             throw new BusinessException(ResultCode.NOT_FOUND, "Neighborhood not found or inactive");
         }
 
-        // 2. Create guest user
         User user = new User();
         user.setIsGuest(1);
         user.setDefaultNeighborhoodId(req.getNeighborhoodId());
-        userMapper.insert(user); // MyBatis-Plus populates user.id via useGeneratedKeys
+        userMapper.insert(user);
 
-        // 3. Generate JWT pair
         TokenPair pair = jwtService.generateTokenPair(
                 user.getId(), UserRole.GUEST, req.getNeighborhoodId());
-
-        // 4. Persist refresh token hash (never store plaintext)
         saveSession(user.getId(), pair.getRefreshToken());
 
-        // 5. Publish domain event — TX-safe (sent after commit via TransactionSynchronization)
         userEventProducer.publishGuestCreated(
                 user.getId(), req.getNeighborhoodId(), req.getDeviceId(), Instant.now());
 
         return buildResponse(pair, user.getId(), true, req.getNeighborhoodId());
     }
 
+    // ── Firebase login ────────────────────────────────────────
+
+    @Override
+    public AuthResponse firebaseLogin(FirebaseLoginRequest req) {
+        if (firebaseTokenVerifier == null) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR,
+                    "Firebase authentication is not configured on this server");
+        }
+
+        // 1. Verify Firebase ID token
+        FirebasePrincipal principal = firebaseTokenVerifier.verifyIdToken(req.getIdToken());
+
+        // 2. Validate neighborhood
+        Neighborhood hood = neighborhoodMapper.selectById(req.getNeighborhoodId());
+        if (hood == null || !Objects.equals(hood.getStatus(), 1)) {
+            throw new BusinessException(ResultCode.NOT_FOUND, "Neighborhood not found or inactive");
+        }
+
+        // 3. Look up identity by (provider, providerUid)
+        String providerName = principal.getProvider().name();   // e.g. "GOOGLE"
+        UserIdentity identity = userIdentityMapper.selectOne(
+                new LambdaQueryWrapper<UserIdentity>()
+                        .eq(UserIdentity::getProvider, providerName)
+                        .eq(UserIdentity::getProviderUid, principal.getUid()));
+
+        final Long userId;
+        final boolean isNewUser;
+
+        if (identity != null) {
+            // 4a. Existing user — login path
+            userId = identity.getUserId();
+
+            // Keep defaultNeighborhoodId in sync with the request
+            User patch = new User();
+            patch.setId(userId);
+            patch.setDefaultNeighborhoodId(req.getNeighborhoodId());
+            userMapper.updateById(patch);
+
+            isNewUser = false;
+            log.debug("Firebase login: existing userId={} provider={}", userId, providerName);
+        } else {
+            // 4b. New user — registration path
+            User user = new User();
+            user.setIsGuest(0);
+            user.setNickname(principal.getName());
+            user.setAvatarUrl(principal.getPicture());
+            user.setDefaultNeighborhoodId(req.getNeighborhoodId());
+            userMapper.insert(user);
+            userId = user.getId();
+
+            UserIdentity newIdentity = new UserIdentity();
+            newIdentity.setUserId(userId);
+            newIdentity.setProvider(providerName);
+            newIdentity.setProviderUid(principal.getUid());
+            userIdentityMapper.insert(newIdentity);
+
+            isNewUser = true;
+            log.debug("Firebase register: new userId={} provider={}", userId, providerName);
+        }
+
+        // 5. Issue tokens & persist session
+        TokenPair pair = jwtService.generateTokenPair(
+                userId, UserRole.USER, req.getNeighborhoodId());
+        saveSession(userId, pair.getRefreshToken());
+
+        // 6. Publish domain event (TX-safe: sent after commit)
+        if (isNewUser) {
+            userEventProducer.publishRegistered(
+                    userId, providerName, req.getDeviceId(), Instant.now());
+        } else {
+            userEventProducer.publishLogin(
+                    userId, providerName, req.getDeviceId(), Instant.now());
+        }
+
+        return buildResponse(pair, userId, false, req.getNeighborhoodId());
+    }
+
     // ── refresh ──────────────────────────────────────────────
 
     @Override
     public AuthResponse refresh(RefreshRequest req) {
-        // 1. Parse & validate token type
         JwtClaims claims = parseRefreshClaims(req.getRefreshToken());
 
-        // 2. Look up session by hash + userId (prevents cross-user replay)
         String hash = hashToken(req.getRefreshToken());
         AuthSession session = authSessionMapper.selectOne(
                 new LambdaQueryWrapper<AuthSession>()
@@ -93,7 +173,6 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "Session expired or not found");
         }
 
-        // 3. Rotate: delete old session, issue new pair
         authSessionMapper.deleteById(session.getId());
 
         User user = userMapper.selectById(claims.getUserId());
@@ -113,7 +192,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public void logout(String accessToken, String refreshToken) {
-        // Blacklist access token jti with remaining TTL
         if (accessToken != null) {
             try {
                 JwtClaims claims = jwtService.parseToken(accessToken);
@@ -122,7 +200,6 @@ public class AuthServiceImpl implements AuthService {
                 log.debug("Access token already invalid on logout, skipping blacklist");
             }
         }
-        // Hard-delete session by refresh token hash
         if (refreshToken != null) {
             authSessionMapper.delete(
                     new LambdaQueryWrapper<AuthSession>()

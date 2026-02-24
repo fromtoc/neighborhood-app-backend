@@ -37,6 +37,34 @@ public class UserEventProducer {
         sendAfterCommit("user.guest.created", msg);
     }
 
+    public void publishLogin(Long userId, String provider,
+                             String deviceId, Instant occurredAt) {
+        UserEventMessage msg = UserEventMessage.builder()
+                .eventType("user.login")
+                .userId(userId)
+                .provider(provider)
+                .isGuest(false)
+                .deviceId(deviceId)
+                .traceId(MDC.get("traceId"))
+                .occurredAt(occurredAt)
+                .build();
+        sendAfterCommit("user.login", msg);
+    }
+
+    public void publishRegistered(Long userId, String provider,
+                                  String deviceId, Instant occurredAt) {
+        UserEventMessage msg = UserEventMessage.builder()
+                .eventType("user.registered")
+                .userId(userId)
+                .provider(provider)
+                .isGuest(false)
+                .deviceId(deviceId)
+                .traceId(MDC.get("traceId"))
+                .occurredAt(occurredAt)
+                .build();
+        sendAfterCommit("user.registered", msg);
+    }
+
     // ── internal ─────────────────────────────────────────────
 
     private void sendAfterCommit(String routingKey, UserEventMessage message) {

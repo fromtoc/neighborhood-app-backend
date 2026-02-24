@@ -2,6 +2,7 @@ package com.example.app.controller;
 
 import com.example.app.common.result.ApiResponse;
 import com.example.app.dto.auth.AuthResponse;
+import com.example.app.dto.auth.FirebaseLoginRequest;
 import com.example.app.dto.auth.GuestLoginRequest;
 import com.example.app.dto.auth.LogoutRequest;
 import com.example.app.dto.auth.RefreshRequest;
@@ -21,6 +22,11 @@ public class AuthController {
     @PostMapping("/guest")
     public ApiResponse<AuthResponse> guestLogin(@Valid @RequestBody GuestLoginRequest req) {
         return ApiResponse.success(authService.guestLogin(req));
+    }
+
+    @PostMapping("/firebase")
+    public ApiResponse<AuthResponse> firebaseLogin(@Valid @RequestBody FirebaseLoginRequest req) {
+        return ApiResponse.success(authService.firebaseLogin(req));
     }
 
     @PostMapping("/refresh")
