@@ -1,5 +1,7 @@
 package com.example.app.controller;
 
+import com.example.app.common.context.NeighborhoodContext;
+import com.example.app.common.interceptor.NeighborhoodInterceptor;
 import com.example.app.common.result.PageResult;
 import com.example.app.entity.Neighborhood;
 import com.example.app.service.NeighborhoodQueryService;
@@ -111,6 +113,37 @@ class NeighborhoodControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(404))
                 .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    // ── X-NGB-ID interceptor ─────────────────────────────────
+
+    @Test
+    void ngbIdHeader_valid_proceedsAndSetsContext() throws Exception {
+        // Interceptor calls getById to validate; controller list call also uses the mock.
+        when(neighborhoodQueryService.getById(10L))
+                .thenReturn(neighborhood(10L, "信義里", "信義區", "台北市"));
+        when(neighborhoodQueryService.list(isNull(), isNull(), isNull(), eq(1), eq(20)))
+                .thenReturn(new PageResult<>(0L, List.of()));
+
+        mockMvc.perform(get("/api/v1/neighborhoods")
+                        .header(NeighborhoodInterceptor.HEADER, "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200));
+
+        // ThreadLocal must be cleared after the request completes
+        org.assertj.core.api.Assertions.assertThat(NeighborhoodContext.getCurrentId()).isNull();
+    }
+
+    @Test
+    void ngbIdHeader_notFound_returnsCode400() throws Exception {
+        when(neighborhoodQueryService.getById(99L)).thenReturn(null);
+
+        // GlobalExceptionHandler#handleBusiness has no @ResponseStatus → HTTP 200,
+        // application-level error code 400 in body.
+        mockMvc.perform(get("/api/v1/neighborhoods")
+                        .header(NeighborhoodInterceptor.HEADER, "99"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
     }
 
     // ── helpers ──────────────────────────────────────────────
