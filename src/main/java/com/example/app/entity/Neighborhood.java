@@ -16,6 +16,7 @@ public class Neighborhood {
     private String name;
     private String district;
     private String city;
+    private Integer status;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
