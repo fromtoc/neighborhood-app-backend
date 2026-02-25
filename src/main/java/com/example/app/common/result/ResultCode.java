@@ -13,6 +13,7 @@ public enum ResultCode {
     FORBIDDEN(403, "Forbidden"),
     NOT_FOUND(404, "Not Found"),
     VALIDATION_ERROR(422, "Validation Failed"),
+    TOO_MANY_REQUESTS(429, "Too Many Requests"),
     INTERNAL_ERROR(500, "Internal Server Error");
 
     private final int code;

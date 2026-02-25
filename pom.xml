@@ -120,6 +120,12 @@
       <optional>true</optional>
     </dependency>
 
+    <!-- AOP -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-aop</artifactId>
+    </dependency>
+
     <!-- Apache Commons CSV -->
     <dependency>
       <groupId>org.apache.commons</groupId>

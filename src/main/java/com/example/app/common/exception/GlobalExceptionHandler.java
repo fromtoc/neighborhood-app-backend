@@ -49,6 +49,12 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(ex.getCode(), ex.getMessage());
     }
 
+    @ExceptionHandler(RateLimitException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiResponse<Void> handleRateLimit(RateLimitException ex) {
+        return ApiResponse.fail(ResultCode.TOO_MANY_REQUESTS, ex.getMessage());
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleAuthentication(AuthenticationException ex) {
