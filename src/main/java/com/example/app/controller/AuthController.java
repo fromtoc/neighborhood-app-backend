@@ -4,9 +4,12 @@ import com.example.app.common.result.ApiResponse;
 import com.example.app.dto.auth.AuthResponse;
 import com.example.app.dto.auth.FirebaseLoginRequest;
 import com.example.app.dto.auth.GuestLoginRequest;
+import com.example.app.dto.auth.LineCustomTokenRequest;
+import com.example.app.dto.auth.LineCustomTokenResponse;
 import com.example.app.dto.auth.LogoutRequest;
 import com.example.app.dto.auth.RefreshRequest;
 import com.example.app.service.AuthService;
+import com.example.app.service.LineCustomTokenService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final LineCustomTokenService lineCustomTokenService;
 
     @PostMapping("/guest")
     public ApiResponse<AuthResponse> guestLogin(@Valid @RequestBody GuestLoginRequest req) {
@@ -27,6 +31,13 @@ public class AuthController {
     @PostMapping("/firebase")
     public ApiResponse<AuthResponse> firebaseLogin(@Valid @RequestBody FirebaseLoginRequest req) {
         return ApiResponse.success(authService.firebaseLogin(req));
+    }
+
+    @PostMapping("/line/custom-token")
+    public ApiResponse<LineCustomTokenResponse> lineCustomToken(
+            @Valid @RequestBody LineCustomTokenRequest req) {
+        String customToken = lineCustomTokenService.createCustomToken(req);
+        return ApiResponse.success(new LineCustomTokenResponse(customToken));
     }
 
     @PostMapping("/refresh")

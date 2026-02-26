@@ -66,6 +66,16 @@ app:
   # firebase:
   #   credentials-path: ${FIREBASE_CREDENTIALS_PATH}
 
+# LINE Login (disabled by default).
+# Set environment variables LINE_CHANNEL_ID and LINE_CHANNEL_SECRET,
+# then uncomment the block below.
+# line:
+#   channel-id: ${LINE_CHANNEL_ID}
+#   channel-secret: ${LINE_CHANNEL_SECRET}
+#   # Optionally override endpoints (defaults shown):
+#   # token-endpoint: https://api.line.me/oauth2/v2.1/token
+#   # verify-endpoint: https://api.line.me/oauth2/v2.1/verify
+
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} -- %msg%n"

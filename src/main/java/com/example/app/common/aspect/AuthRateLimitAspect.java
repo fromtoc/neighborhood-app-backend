@@ -4,6 +4,7 @@ import com.example.app.common.exception.RateLimitException;
 import com.example.app.common.ratelimit.RateLimiter;
 import com.example.app.dto.auth.FirebaseLoginRequest;
 import com.example.app.dto.auth.GuestLoginRequest;
+import com.example.app.dto.auth.LineCustomTokenRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +38,8 @@ public class AuthRateLimitAspect {
     private final RateLimiter rateLimiter;
 
     @Around("execution(* com.example.app.controller.AuthController.guestLogin(..)) || " +
-            "execution(* com.example.app.controller.AuthController.firebaseLogin(..))")
+            "execution(* com.example.app.controller.AuthController.firebaseLogin(..)) || " +
+            "execution(* com.example.app.controller.AuthController.lineCustomToken(..))")
     public Object rateLimit(ProceedingJoinPoint pjp) throws Throwable {
         HttpServletRequest request = currentRequest();
         String ip = extractIp(request);
@@ -74,8 +76,9 @@ public class AuthRateLimitAspect {
 
     private static String extractDeviceId(Object[] args) {
         for (Object arg : args) {
-            if (arg instanceof GuestLoginRequest r)   return r.getDeviceId();
-            if (arg instanceof FirebaseLoginRequest r) return r.getDeviceId();
+            if (arg instanceof GuestLoginRequest r)       return r.getDeviceId();
+            if (arg instanceof FirebaseLoginRequest r)    return r.getDeviceId();
+            if (arg instanceof LineCustomTokenRequest r)  return r.getDeviceId();
         }
         return null;
     }
