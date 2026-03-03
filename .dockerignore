@@ -1,0 +1,12 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+target/
+*.md
+*.log
+nginx/
+scripts/
+docker-compose.yml
+docker-compose.prod.yml

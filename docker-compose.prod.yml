@@ -1,0 +1,160 @@
+version: '3.9'
+
+# Production docker-compose — tuned for Linode 2GB (2GB RAM, 1 vCPU).
+# Memory budget:
+#   mysql:    512 MB
+#   redis:    128 MB
+#   rabbitmq: 300 MB
+#   app:      512 MB
+#   OS+nginx: ~350 MB  (overhead)
+#   ──────────────────
+#   total:  ~1802 MB  ✓
+#
+# All secrets are read from a .env file (never commit .env to git).
+# Run: docker compose -f docker-compose.prod.yml up -d
+
+services:
+
+  # ── Infrastructure ─────────────────────────────────────────────
+
+  mysql:
+    image: mysql:8.0
+    container_name: app-mysql
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-appdb}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # NOT exposed to host — app connects via internal Docker network
+    expose:
+      - "3306"
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+      --innodb-buffer-pool-size=256M
+      --max-connections=50
+      --performance-schema=OFF
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost",
+             "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: app-redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --maxmemory 96mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-alpine
+    container_name: app-rabbitmq
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-appuser}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 0.4
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    expose:
+      - "5672"
+    # Management UI is NOT exposed in prod; SSH tunnel to access:
+    #   ssh -L 15672:localhost:15672 linode-app
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Application ────────────────────────────────────────────────
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: neighborhood-app:latest
+    container_name: app-backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    # Bind to localhost only — Nginx proxies inbound traffic
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # JVM: cap heap at 380 MB, leave room for metaspace + threads
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+      # DataSource
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-appdb}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Taipei&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_USER:-appuser}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: 5
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: 2
+      # Redis
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD}
+      SPRING_DATA_REDIS_LETTUCE_POOL_MAX_ACTIVE: 4
+      SPRING_DATA_REDIS_LETTUCE_POOL_MAX_IDLE: 4
+      SPRING_DATA_REDIS_LETTUCE_POOL_MIN_IDLE: 0
+      # RabbitMQ
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER:-appuser}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      # JWT
+      JWT_SECRET: ${JWT_SECRET}
+      # Firebase (optional)
+      FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
+      # TGOS (optional)
+      TGOS_API_KEY: ${TGOS_API_KEY:-}
+    volumes:
+      - app_logs:/app/logs
+      # Mount Firebase service-account JSON if path is set
+      - ${FIREBASE_CREDENTIALS_DIR:-/dev/null}:${FIREBASE_CREDENTIALS_DIR:-/dev/null}:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
+  redis_data:
+  rabbitmq_data:
+  app_logs:
