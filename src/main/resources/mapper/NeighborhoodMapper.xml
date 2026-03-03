@@ -11,7 +11,7 @@
         does NOT resurrect a logically-deleted row.
     -->
     <insert id="batchUpsert" parameterType="list">
-        INSERT INTO neighborhood (li_code, name, full_name, district, city, lat, lng, status)
+        INSERT INTO neighborhood (li_code, name, full_name, district, city, lat, lng, status, boundary)
         VALUES
         <foreach collection="list" item="n" separator=",">
             (
@@ -22,7 +22,8 @@
                 #{n.city},
                 #{n.lat},
                 #{n.lng},
-                #{n.status}
+                #{n.status},
+                ST_GeomFromGeoJSON(#{n.boundaryGeoJson})
             )
         </foreach>
         ON DUPLICATE KEY UPDATE
@@ -33,7 +34,46 @@
             lat        = VALUES(lat),
             lng        = VALUES(lng),
             status     = VALUES(status),
+            boundary   = VALUES(boundary),
             updated_at = NOW()
     </insert>
+
+    <!--
+        Point-in-Polygon: returns the neighborhood whose boundary polygon contains the given point.
+        SRID 4326; WKT point format: POINT(lng lat).
+    -->
+    <select id="findContaining" resultType="com.example.app.entity.Neighborhood">
+        SELECT id, li_code, name, full_name, district, city, lat, lng, status
+        FROM neighborhood
+        WHERE deleted = 0
+          AND status = 1
+          AND boundary IS NOT NULL
+          AND ST_Contains(
+                boundary,
+                ST_GeomFromText(CONCAT('POINT(', #{lng}, ' ', #{lat}, ')'), 4326)
+              )
+        LIMIT 1
+    </select>
+
+    <!--
+        Circle intersection: returns all neighborhoods whose boundary intersects
+        the approximate circle polygon (WKT), ordered by distance from the query point.
+    -->
+    <select id="findIntersecting" resultType="com.example.app.entity.Neighborhood">
+        SELECT id, li_code, name, full_name, district, city, lat, lng, status
+        FROM neighborhood
+        WHERE deleted = 0
+          AND status = 1
+          AND boundary IS NOT NULL
+          AND ST_Intersects(
+                boundary,
+                ST_GeomFromText(#{circleWkt}, 4326)
+              )
+        ORDER BY
+            ST_Distance_Sphere(
+                ST_GeomFromText(CONCAT('POINT(', lng, ' ', lat, ')'), 4326),
+                ST_GeomFromText(CONCAT('POINT(', #{lng}, ' ', #{lat}, ')'), 4326)
+            )
+    </select>
 
 </mapper>

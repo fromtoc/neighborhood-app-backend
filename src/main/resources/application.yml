@@ -2,6 +2,11 @@ spring:
   profiles:
     active: dev
 
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
   datasource:
     url: jdbc:mysql://localhost:3306/appdb?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Taipei&allowPublicKeyRetrieval=true
     username: root
@@ -65,6 +70,11 @@ app:
   # then uncomment the block below.  NEVER commit the JSON file to the repo.
   # firebase:
   #   credentials-path: ${FIREBASE_CREDENTIALS_PATH}
+
+# TGOS 地址查詢（需申請 Key：https://api.tgos.tw/ ）
+# 申請後設定環境變數 TGOS_API_KEY，再取消下方區塊的註解。
+# tgos:
+#   api-key: ${TGOS_API_KEY}
 
 # LINE Login (disabled by default).
 # Set environment variables LINE_CHANNEL_ID and LINE_CHANNEL_SECRET,

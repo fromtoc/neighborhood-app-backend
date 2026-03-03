@@ -22,6 +22,10 @@ public class Neighborhood {
     private BigDecimal lat;
     private BigDecimal lng;
 
+    /** GeoJSON string for import only — not persisted as a column. */
+    @TableField(exist = false)
+    private String boundaryGeoJson;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

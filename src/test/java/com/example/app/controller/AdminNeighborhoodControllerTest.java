@@ -2,6 +2,7 @@ package com.example.app.controller;
 
 import com.example.app.dto.admin.CsvRowError;
 import com.example.app.dto.admin.ImportResult;
+import com.example.app.service.NeighborhoodGeoJsonImportService;
 import com.example.app.service.NeighborhoodImportService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,19 +24,23 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * MockMvc integration tests for {@link AdminNeighborhoodController}.
  * Uses the full Spring Boot context (H2, no Redis/Rabbit)
- * with {@link NeighborhoodImportService} mocked at the service boundary.
+ * with service layer mocked at the service boundary.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
 class AdminNeighborhoodControllerTest {
 
-    private static final String IMPORT_URL = "/api/v1/admin/neighborhood/import";
+    private static final String IMPORT_URL         = "/api/v1/admin/neighborhood/import";
+    private static final String IMPORT_GEOJSON_URL = "/api/v1/admin/neighborhood/import-geojson";
 
     @Autowired
     MockMvc mockMvc;
 
     @MockBean
     NeighborhoodImportService neighborhoodImportService;
+
+    @MockBean
+    NeighborhoodGeoJsonImportService neighborhoodGeoJsonImportService;
 
     // ── success ──────────────────────────────────────────────────
 
@@ -122,12 +127,55 @@ class AdminNeighborhoodControllerTest {
                 .andExpect(jsonPath("$.code").value(400));
     }
 
+    // ── GeoJSON import ────────────────────────────────────────────
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void importGeoJson_success() throws Exception {
+        when(neighborhoodGeoJsonImportService.importGeoJson(any()))
+                .thenReturn(ImportResult.builder()
+                        .successCount(7956)
+                        .failureCount(0)
+                        .errors(List.of())
+                        .build());
+
+        mockMvc.perform(multipart(IMPORT_GEOJSON_URL).file(geoJsonFile("{\"type\":\"FeatureCollection\",\"features\":[]}")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.successCount").value(7956))
+                .andExpect(jsonPath("$.data.failureCount").value(0));
+    }
+
+    @Test
+    void importGeoJson_noAuth_returns401() throws Exception {
+        mockMvc.perform(multipart(IMPORT_GEOJSON_URL).file(geoJsonFile("{}")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void importGeoJson_emptyFile_returns400() throws Exception {
+        MockMultipartFile empty = new MockMultipartFile(
+                "file", "empty.json", MediaType.APPLICATION_JSON_VALUE, new byte[0]);
+
+        mockMvc.perform(multipart(IMPORT_GEOJSON_URL).file(empty))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400));
+    }
+
     // ── helpers ───────────────────────────────────────────────────
 
     private MockMultipartFile csvFile(String content) {
         return new MockMultipartFile(
                 "file", "neighborhoods.csv",
                 MediaType.TEXT_PLAIN_VALUE,
+                content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private MockMultipartFile geoJsonFile(String content) {
+        return new MockMultipartFile(
+                "file", "neighborhoods.json",
+                MediaType.APPLICATION_JSON_VALUE,
                 content.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

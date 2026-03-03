@@ -4,10 +4,13 @@ import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ApiResponse;
 import com.example.app.common.result.PageResult;
 import com.example.app.common.result.ResultCode;
+import com.example.app.dto.neighborhood.IntersectResponse;
+import com.example.app.dto.neighborhood.LocateResponse;
 import com.example.app.dto.neighborhood.NeighborhoodRecommendResponse;
 import com.example.app.dto.neighborhood.NeighborhoodResponse;
 import com.example.app.entity.Neighborhood;
 import com.example.app.service.NeighborhoodQueryService;
+import com.example.app.service.NeighborhoodSpatialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -20,6 +23,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -33,7 +37,8 @@ import java.util.List;
 @Tag(name = "Neighborhood", description = "鄰里查詢 API")
 public class NeighborhoodController {
 
-    private final NeighborhoodQueryService neighborhoodQueryService;
+    private final NeighborhoodQueryService   neighborhoodQueryService;
+    private final NeighborhoodSpatialService neighborhoodSpatialService;
 
     @GetMapping
     @Operation(
@@ -81,6 +86,57 @@ public class NeighborhoodController {
             @RequestParam(required = false) @NotNull @DecimalMin("-180.0") @DecimalMax("180.0") Double lng
     ) {
         return ApiResponse.success(neighborhoodQueryService.recommend(lat, lng));
+    }
+
+    @GetMapping("/locate")
+    @Operation(
+            summary = "依座標或地址定位所在里",
+            description = "傳入 lat/lng（GPS）或 address（地址，需設定 TGOS_API_KEY）。lat/lng 優先。"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+                    description = "定位成功，或 code=400/404/503"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422",
+                    description = "參數格式錯誤")
+    })
+    public ApiResponse<LocateResponse> locate(
+            @Parameter(description = "緯度 [-90, 90]", in = ParameterIn.QUERY)
+            @RequestParam(required = false)
+            @DecimalMin("-90") @DecimalMax("90") Double lat,
+
+            @Parameter(description = "經度 [-180, 180]", in = ParameterIn.QUERY)
+            @RequestParam(required = false)
+            @DecimalMin("-180") @DecimalMax("180") Double lng,
+
+            @Parameter(description = "地址（需設定 TGOS_API_KEY）", in = ParameterIn.QUERY)
+            @RequestParam(required = false)
+            @Size(max = 200) String address
+    ) {
+        return ApiResponse.success(neighborhoodSpatialService.locate(lat, lng, address));
+    }
+
+    @GetMapping("/nearby")
+    @Operation(
+            summary = "依座標與半徑查詢附近鄰里",
+            description = "找出多邊形邊界與指定圓形範圍有任何交疊的里，依中心距升冪排序"
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200",
+                    description = "查詢成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "422",
+                    description = "參數驗證失敗（radius 超出範圍）")
+    })
+    public ApiResponse<List<IntersectResponse>> nearby(
+            @Parameter(description = "緯度 [-90, 90]", required = true, in = ParameterIn.QUERY)
+            @RequestParam @NotNull @DecimalMin("-90") @DecimalMax("90") Double lat,
+
+            @Parameter(description = "經度 [-180, 180]", required = true, in = ParameterIn.QUERY)
+            @RequestParam @NotNull @DecimalMin("-180") @DecimalMax("180") Double lng,
+
+            @Parameter(description = "半徑（公尺，1–50000）", required = true, in = ParameterIn.QUERY)
+            @RequestParam @NotNull @Min(1) @Max(50000) Integer radius
+    ) {
+        return ApiResponse.success(neighborhoodSpatialService.nearby(lat, lng, radius));
     }
 
     @GetMapping("/{id}")

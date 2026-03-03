@@ -4,6 +4,7 @@ import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ApiResponse;
 import com.example.app.common.result.ResultCode;
 import com.example.app.dto.admin.ImportResult;
+import com.example.app.service.NeighborhoodGeoJsonImportService;
 import com.example.app.service.NeighborhoodImportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -23,7 +24,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class AdminNeighborhoodController {
 
-    private final NeighborhoodImportService neighborhoodImportService;
+    private final NeighborhoodImportService        neighborhoodImportService;
+    private final NeighborhoodGeoJsonImportService neighborhoodGeoJsonImportService;
 
     @Operation(
             summary = "Bulk-import neighborhoods from CSV",
@@ -39,6 +41,23 @@ public class AdminNeighborhoodController {
         }
 
         ImportResult result = neighborhoodImportService.importCsv(file.getInputStream());
+        return ApiResponse.success(result);
+    }
+
+    @Operation(
+            summary = "Bulk-import neighborhoods from NLSC GeoJSON",
+            description = "Accepts a GeoJSON FeatureCollection (VILLAGE_NLSC format) and upserts records by li_code (VILLCODE). Requires ADMIN role.",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/import-geojson")
+    public ApiResponse<ImportResult> importGeoJson(
+            @RequestParam("file") MultipartFile file) throws IOException {
+
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "file must not be empty");
+        }
+
+        ImportResult result = neighborhoodGeoJsonImportService.importGeoJson(file.getInputStream());
         return ApiResponse.success(result);
     }
 }
