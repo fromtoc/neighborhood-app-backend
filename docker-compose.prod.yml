@@ -74,7 +74,7 @@ services:
       retries: 5
 
   rabbitmq:
-    image: rabbitmq:3-alpine
+    image: rabbitmq:3
     container_name: app-rabbitmq
     restart: unless-stopped
     deploy:
@@ -84,7 +84,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-appuser}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
-      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: 0.4
+      RABBITMQ_VM_MEMORY_HIGH_WATERMARK: "0.4"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     expose:
@@ -92,10 +92,11 @@ services:
     # Management UI is NOT exposed in prod; SSH tunnel to access:
     #   ssh -L 15672:localhost:15672 linode-app
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
   # ── Application ────────────────────────────────────────────────
 
