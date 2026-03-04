@@ -32,9 +32,9 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-    # NOT exposed to host — app connects via internal Docker network
-    expose:
-      - "3306"
+    # Bind to localhost only for SSH tunnel access (DBeaver etc.)
+    ports:
+      - "127.0.0.1:3306:3306"
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci

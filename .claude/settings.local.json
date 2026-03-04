@@ -17,7 +17,9 @@
       "Bash(sleep 20:*)",
       "Bash(git add:*)",
       "Bash(expect:*)",
-      "Bash(pip3 install:*)"
+      "Bash(pip3 install:*)",
+      "Bash(python3:*)",
+      "Bash(git push:*)"
     ]
   }
 }
