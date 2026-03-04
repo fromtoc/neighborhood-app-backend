@@ -122,10 +122,7 @@
     });
 
     // ── Login handlers ────────────────────────────────────────────
-    let popupInProgress = false;
     window.login = async (provider) => {
-      if (popupInProgress) return;
-      popupInProgress = true;
       try {
         let p;
         if (provider === 'google')   p = new GoogleAuthProvider();
@@ -137,8 +134,6 @@
         if (!ignored.includes(e.code)) {
           setStatus('tokenStatus', '登入失敗：' + e.message, 'err');
         }
-      } finally {
-        popupInProgress = false;
       }
     };
 
