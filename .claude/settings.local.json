@@ -10,7 +10,10 @@
       "Bash(echo === List \\(桃園市龜山區\\) ===:*)",
       "Bash(echo === List \\(cityCode=桃園市 districtCode=龜山區\\) ===:*)",
       "Bash(echo === GPS locate \\(台北信義區\\) ===:*)",
-      "Bash(echo === Guest login ===:*)"
+      "Bash(echo === Guest login ===:*)",
+      "Bash(echo ── Step 1: 取得縣市清單 ──:*)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
     ]
   }
 }

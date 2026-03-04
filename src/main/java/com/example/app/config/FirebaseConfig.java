@@ -9,8 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ResourceLoader;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 
 /**
@@ -36,8 +36,7 @@ public class FirebaseConfig {
 
     @Bean
     public FirebaseApp firebaseApp(
-            @Value("${app.firebase.credentials-path}") String credentialsPath,
-            ResourceLoader resourceLoader) throws IOException {
+            @Value("${app.firebase.credentials-path}") String credentialsPath) throws IOException {
 
         // Re-use an already-initialised app (e.g. when context is refreshed in tests)
         if (!FirebaseApp.getApps().isEmpty()) {
@@ -46,7 +45,7 @@ public class FirebaseConfig {
         }
 
         GoogleCredentials credentials = GoogleCredentials
-                .fromStream(resourceLoader.getResource(credentialsPath).getInputStream());
+                .fromStream(new FileInputStream(credentialsPath));
 
         FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(credentials)
