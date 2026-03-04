@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>Firebase 登入測試</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 40px auto; padding: 0 20px; }
+    button { margin: 6px 4px; padding: 10px 20px; font-size: 14px; cursor: pointer; border: none; border-radius: 6px; color: white; }
+    .google   { background: #4285f4; }
+    .facebook { background: #1877f2; }
+    .apple    { background: #000; }
+    .line     { background: #06c755; }
+    .logout   { background: #e53e3e; }
+    pre { background: #f4f4f4; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+    .section { margin: 20px 0; padding: 16px; border: 1px solid #ddd; border-radius: 8px; }
+    label { display: block; margin-bottom: 4px; font-weight: bold; font-size: 14px; }
+    input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+    .status { padding: 8px 12px; border-radius: 4px; margin: 8px 0; font-size: 13px; }
+    .ok  { background: #c6f6d5; color: #276749; }
+    .err { background: #fed7d7; color: #9b2c2c; }
+    .info { background: #bee3f8; color: #2a69ac; }
+  </style>
+</head>
+<body>
+  <h2>登入流程測試</h2>
+
+  <div class="section">
+    <h3>Step 1 — 選擇登入方式</h3>
+    <button class="google"   onclick="login('google')">Google</button>
+    <button class="facebook" onclick="login('facebook')">Facebook</button>
+    <button class="apple"    onclick="login('apple')">Apple</button>
+    <button class="line"     onclick="lineLogin()">LINE</button>
+    <button class="logout"   onclick="logout()">登出</button>
+    <div id="tokenStatus"></div>
+  </div>
+
+  <div class="section">
+    <h3>Step 2 — Firebase ID Token</h3>
+    <pre id="idToken">（登入後顯示）</pre>
+  </div>
+
+  <div class="section">
+    <h3>Step 3 — 呼叫後端 /api/v1/auth/firebase</h3>
+    <label>neighborhoodId</label>
+    <input id="neighborhoodId" type="number" value="5519" />
+    <br><br>
+    <button style="background:#38a169" onclick="callBackend()">送出到後端</button>
+    <div id="backendStatus"></div>
+    <pre id="backendResult">（等待中）</pre>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import { getAuth, GoogleAuthProvider, FacebookAuthProvider, OAuthProvider,
+             signInWithPopup, signInWithCustomToken, signOut, onAuthStateChanged }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const LINE_CHANNEL_ID = '2009316343';
+    const REDIRECT_URI    = 'https://api.room18.top/test.html';
+    const BACKEND         = 'https://api.room18.top';
+
+    const app  = initializeApp({
+      apiKey:            "AIzaSyDz8YAOs-KE2-UKNOWBgDBT8xbtO4Tones",
+      authDomain:        "golocal-4065a.firebaseapp.com",
+      projectId:         "golocal-4065a",
+      storageBucket:     "golocal-4065a.firebasestorage.app",
+      messagingSenderId: "811824553721",
+      appId:             "1:811824553721:web:4e10d485779f4ad8358c28"
+    });
+    const auth = getAuth(app);
+    let currentToken = null;
+
+    // ── LINE PKCE helpers ──────────────────────────────────────────
+    function base64url(buf) {
+      return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    }
+    async function generatePKCE() {
+      const verifier  = base64url(crypto.getRandomValues(new Uint8Array(32)));
+      const challenge = base64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+      return { verifier, challenge };
+    }
+
+    // ── Handle LINE callback on page load ─────────────────────────
+    (async () => {
+      const params = new URLSearchParams(location.search);
+      const code   = params.get('code');
+      if (!code) return;
+
+      // Clean URL
+      history.replaceState({}, '', location.pathname);
+
+      const verifier = sessionStorage.getItem('line_verifier');
+      if (!verifier) { setStatus('tokenStatus', 'LINE verifier 遺失，請重新登入', 'err'); return; }
+      sessionStorage.removeItem('line_verifier');
+
+      setStatus('tokenStatus', 'LINE 授權成功，換取 Firebase token 中…', 'info');
+      try {
+        const res = await fetch(`${BACKEND}/api/v1/auth/line/custom-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, redirectUri: REDIRECT_URI, codeVerifier: verifier })
+        });
+        const data = await res.json();
+        if (data.code !== 200) throw new Error(data.message);
+        await signInWithCustomToken(auth, data.data.firebaseCustomToken);
+      } catch (e) {
+        setStatus('tokenStatus', 'LINE 登入失敗：' + e.message, 'err');
+      }
+    })();
+
+    // ── Auth state ────────────────────────────────────────────────
+    onAuthStateChanged(auth, async user => {
+      if (user) {
+        currentToken = await user.getIdToken();
+        document.getElementById('idToken').textContent = currentToken;
+        setStatus('tokenStatus', `已登入：${user.displayName || user.email || user.uid}`, 'ok');
+      } else {
+        currentToken = null;
+        document.getElementById('idToken').textContent = '（尚未登入）';
+      }
+    });
+
+    // ── Login handlers ────────────────────────────────────────────
+    window.login = async (provider) => {
+      try {
+        let p;
+        if (provider === 'google')   p = new GoogleAuthProvider();
+        if (provider === 'facebook') p = new FacebookAuthProvider();
+        if (provider === 'apple')    { p = new OAuthProvider('apple.com'); p.addScope('email'); p.addScope('name'); }
+        await signInWithPopup(auth, p);
+      } catch (e) {
+        setStatus('tokenStatus', '登入失敗：' + e.message, 'err');
+      }
+    };
+
+    window.lineLogin = async () => {
+      const { verifier, challenge } = await generatePKCE();
+      sessionStorage.setItem('line_verifier', verifier);
+      const state = base64url(crypto.getRandomValues(new Uint8Array(8)));
+      const url = `https://access.line.me/oauth2/v2.1/authorize?` +
+        `response_type=code&client_id=${LINE_CHANNEL_ID}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT_URI)}` +
+        `&state=${state}&scope=profile%20openid` +
+        `&code_challenge=${challenge}&code_challenge_method=S256`;
+      location.href = url;
+    };
+
+    window.logout = () => signOut(auth);
+
+    // ── Call backend ──────────────────────────────────────────────
+    window.callBackend = async () => {
+      if (!currentToken) { alert('請先登入取得 ID Token'); return; }
+      const neighborhoodId = parseInt(document.getElementById('neighborhoodId').value);
+      document.getElementById('backendResult').textContent = '呼叫中...';
+      try {
+        const res = await fetch(`${BACKEND}/api/v1/auth/firebase`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: currentToken, neighborhoodId })
+        });
+        const data = await res.json();
+        document.getElementById('backendResult').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('backendStatus').innerHTML = data.code === 200
+          ? `<div class="status ok">登入成功！userId=${data.data?.user?.id}, isGuest=${data.data?.user?.isGuest}</div>`
+          : `<div class="status err">錯誤 code=${data.code}：${data.message}</div>`;
+      } catch (e) {
+        document.getElementById('backendResult').textContent = e.message;
+      }
+    };
+
+    function setStatus(id, msg, type) {
+      document.getElementById(id).innerHTML = `<div class="status ${type}">${msg}</div>`;
+    }
+  </script>
+</body>
+</html>
