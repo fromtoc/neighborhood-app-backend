@@ -64,12 +64,12 @@ app:
     secret: ${JWT_SECRET:bXktc3VwZXItc2VjcmV0LWtleS1mb3ItbmVpZ2hib3Job29k}
     access-token-expiry-ms: 900000
     refresh-token-expiry-ms: 2592000000
-  # Firebase Admin SDK (disabled by default).
+  # Firebase Admin SDK.
   # Set the path to your service-account JSON via the environment variable:
   #   FIREBASE_CREDENTIALS_PATH=/path/to/service-account.json
-  # then uncomment the block below.  NEVER commit the JSON file to the repo.
-  # firebase:
-  #   credentials-path: ${FIREBASE_CREDENTIALS_PATH}
+  # NEVER commit the JSON file to the repo.
+  firebase:
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
 
 # 地址轉座標服務（擇一設定，TGOS 優先）
 #
