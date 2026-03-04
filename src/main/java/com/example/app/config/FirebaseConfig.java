@@ -1,5 +1,7 @@
 package com.example.app.config;
 
+import com.example.app.service.FirebaseTokenVerifier;
+import com.example.app.service.impl.FirebaseTokenVerifierImpl;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
@@ -59,5 +61,10 @@ public class FirebaseConfig {
     @Bean
     public FirebaseAuth firebaseAuth(FirebaseApp firebaseApp) {
         return FirebaseAuth.getInstance(firebaseApp);
+    }
+
+    @Bean
+    public FirebaseTokenVerifier firebaseTokenVerifier(FirebaseAuth firebaseAuth) {
+        return new FirebaseTokenVerifierImpl(firebaseAuth);
     }
 }
