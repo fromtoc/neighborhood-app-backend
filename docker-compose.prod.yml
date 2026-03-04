@@ -140,9 +140,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # Firebase (optional)
       FIREBASE_CREDENTIALS_PATH: ${FIREBASE_CREDENTIALS_PATH:-}
-      # 地址轉座標：Google Geocoding（目前）或 TGOS（之後），擇一設定
+      # 地址轉座標：Google Geocoding（目前）或 TGOS（之後），擇一在 .env 設定
+      # 切換到 TGOS 時：移除 GOOGLE_GEOCODING_API_KEY，改加 TGOS_API_KEY
       GOOGLE_GEOCODING_API_KEY: ${GOOGLE_GEOCODING_API_KEY:-}
-      TGOS_API_KEY: ${TGOS_API_KEY:-}
     volumes:
       - app_logs:/app/logs
       # Mount Firebase service-account JSON if path is set

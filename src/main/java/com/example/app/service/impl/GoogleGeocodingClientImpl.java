@@ -8,9 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -19,18 +17,12 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Google Geocoding API 地址轉座標實作。
- *
- * <p>僅在設定 {@code google.geocoding.api-key} 時啟用；
- * 設定 {@code tgos.api-key} 時請改用 {@link TgosGeocodingClientImpl}。
- *
- * <p>API 文件：
- * <a href="https://developers.google.com/maps/documentation/geocoding">
+ * Bean 由 {@link com.example.app.config.GeocodingClientConfig} 統一管理。
+ * API 文件：<a href="https://developers.google.com/maps/documentation/geocoding">
  *     Google Geocoding API</a>
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "google.geocoding.api-key")
 public class GoogleGeocodingClientImpl implements GeocodingClient {
 
     private final GoogleGeocodingProperties properties;

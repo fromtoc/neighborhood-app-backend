@@ -8,9 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -19,16 +17,11 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * TGOS 地址查詢服務實作。
- *
- * <p>僅在設定 {@code tgos.api-key} 時啟用。
+ * Bean 由 {@link com.example.app.config.GeocodingClientConfig} 統一管理。
  * 官方文件：<a href="https://api.tgos.tw/">https://api.tgos.tw/</a>
- *
- * <p><b>注意</b>：TGOS 實際 response 格式需依官網文件確認後調整 parsing 邏輯。
  */
 @Slf4j
-@Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "tgos.api-key")
 public class TgosGeocodingClientImpl implements GeocodingClient {
 
     private final TgosProperties tgosProperties;

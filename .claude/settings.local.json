@@ -3,7 +3,8 @@
     "allow": [
       "Bash(grep:*)",
       "WebSearch",
-      "WebFetch(domain:repo1.maven.org)"
+      "WebFetch(domain:repo1.maven.org)",
+      "Bash(grep Tests run\\\\|BUILD:*)"
     ]
   }
 }
