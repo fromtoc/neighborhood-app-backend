@@ -133,7 +133,8 @@
         if (provider === 'apple')    { p = new OAuthProvider('apple.com'); p.addScope('email'); p.addScope('name'); }
         await signInWithPopup(auth, p);
       } catch (e) {
-        if (e.code !== 'auth/cancelled-popup-request') {
+        const ignored = ['auth/cancelled-popup-request', 'auth/popup-closed-by-user'];
+        if (!ignored.includes(e.code)) {
           setStatus('tokenStatus', '登入失敗：' + e.message, 'err');
         }
       } finally {
