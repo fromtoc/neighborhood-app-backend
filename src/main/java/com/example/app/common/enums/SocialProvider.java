@@ -13,7 +13,8 @@ public enum SocialProvider {
     GOOGLE,
     APPLE,
     FACEBOOK,
-    LINE;
+    LINE,
+    PHONE;
 
     /**
      * Maps a raw {@code sign_in_provider} value from a Firebase token to a
@@ -31,6 +32,7 @@ public enum SocialProvider {
             case "apple.com"    -> APPLE;
             case "facebook.com" -> FACEBOOK;
             case "oidc.line"    -> LINE;
+            case "phone"        -> PHONE;
             default -> throw new BusinessException(ResultCode.BAD_REQUEST,
                     "Unsupported social provider: " + raw);
         };

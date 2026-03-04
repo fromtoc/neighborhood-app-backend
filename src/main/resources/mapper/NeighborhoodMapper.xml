@@ -38,6 +38,27 @@
             updated_at = NOW()
     </insert>
 
+    <!-- 縣市清單（去重排序） -->
+    <select id="selectDistinctCities" resultType="string">
+        SELECT DISTINCT city
+        FROM neighborhood
+        WHERE deleted = 0
+          AND status = 1
+          AND city IS NOT NULL
+        ORDER BY city
+    </select>
+
+    <!-- 行政區清單（指定縣市，去重排序） -->
+    <select id="selectDistinctDistricts" resultType="string">
+        SELECT DISTINCT district
+        FROM neighborhood
+        WHERE deleted = 0
+          AND status = 1
+          AND city = #{city}
+          AND district IS NOT NULL
+        ORDER BY district
+    </select>
+
     <!--
         Point-in-Polygon: returns the neighborhood whose boundary polygon contains the given point.
         SRID 4326; WKT point format: POINT(lng lat).

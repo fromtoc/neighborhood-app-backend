@@ -71,8 +71,18 @@ app:
   # firebase:
   #   credentials-path: ${FIREBASE_CREDENTIALS_PATH}
 
-# TGOS 地址查詢（需申請 Key：https://api.tgos.tw/ ）
-# 申請後設定環境變數 TGOS_API_KEY，再取消下方區塊的註解。
+# 地址轉座標服務（擇一設定，TGOS 優先）
+#
+# ── Google Geocoding API（目前使用）──────────────────────────────
+# 申請：https://console.cloud.google.com/ → Geocoding API
+# 設定環境變數 GOOGLE_GEOCODING_API_KEY，再取消下方區塊的註解。
+google:
+  geocoding:
+    api-key: ${GOOGLE_GEOCODING_API_KEY}
+#
+# ── TGOS 地址查詢（預計切換）────────────────────────────────────
+# 申請：https://api.tgos.tw/
+# 設定環境變數 TGOS_API_KEY，再取消下方區塊的註解（並將 Google 區塊重新註解）。
 # tgos:
 #   api-key: ${TGOS_API_KEY}
 

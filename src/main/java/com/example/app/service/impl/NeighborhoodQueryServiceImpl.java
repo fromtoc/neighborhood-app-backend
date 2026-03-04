@@ -25,6 +25,7 @@ public class NeighborhoodQueryServiceImpl implements NeighborhoodQueryService {
 
     private static final Duration DETAIL_TTL    = Duration.ofMinutes(30);
     private static final Duration LIST_TTL      = Duration.ofMinutes(20);
+    private static final Duration OPTIONS_TTL   = Duration.ofHours(1);
     private static final int      RECOMMEND_TOP = 5;
     private static final double   EARTH_RADIUS_M = 6_371_000.0;
 
@@ -94,6 +95,36 @@ public class NeighborhoodQueryServiceImpl implements NeighborhoodQueryService {
                 .sorted(Comparator.comparingInt(NeighborhoodRecommendResponse::getDistanceMeter))
                 .limit(RECOMMEND_TOP)
                 .toList();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<String> cities() {
+        String key = CacheKeys.neighborhoodCities();
+        if (redisTemplate != null) {
+            Object cached = redisTemplate.opsForValue().get(key);
+            if (cached instanceof List<?> list) return (List<String>) list;
+        }
+        List<String> result = neighborhoodMapper.selectDistinctCities();
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(key, result, OPTIONS_TTL);
+        }
+        return result;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<String> districts(String city) {
+        String key = CacheKeys.neighborhoodDistricts(city);
+        if (redisTemplate != null) {
+            Object cached = redisTemplate.opsForValue().get(key);
+            if (cached instanceof List<?> list) return (List<String>) list;
+        }
+        List<String> result = neighborhoodMapper.selectDistinctDistricts(city);
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(key, result, OPTIONS_TTL);
+        }
+        return result;
     }
 
     // ── Haversine ────────────────────────────────────────────────

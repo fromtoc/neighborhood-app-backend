@@ -104,6 +104,50 @@ class NeighborhoodQueryServiceTest {
         );
     }
 
+    // ── cities ──────────────────────────────────────────────
+
+    @Test
+    void cities_cacheHit() {
+        List<String> cached = List.of("台北市", "新北市");
+        when(valueOps.get(CacheKeys.neighborhoodCities())).thenReturn(cached);
+
+        assertThat(service.cities()).containsExactly("台北市", "新北市");
+        verifyNoInteractions(neighborhoodMapper);
+    }
+
+    @Test
+    void cities_cacheMiss_queriesDbAndCaches() {
+        List<String> cities = List.of("台北市", "桃園市");
+        when(neighborhoodMapper.selectDistinctCities()).thenReturn(cities);
+
+        assertThat(service.cities()).containsExactly("台北市", "桃園市");
+        verify(valueOps).set(eq(CacheKeys.neighborhoodCities()), eq(cities), eq(Duration.ofHours(1)));
+    }
+
+    // ── districts ────────────────────────────────────────────
+
+    @Test
+    void districts_cacheHit() {
+        List<String> cached = List.of("中壢區", "龜山區");
+        when(valueOps.get(CacheKeys.neighborhoodDistricts("桃園市"))).thenReturn(cached);
+
+        assertThat(service.districts("桃園市")).containsExactly("中壢區", "龜山區");
+        verifyNoInteractions(neighborhoodMapper);
+    }
+
+    @Test
+    void districts_cacheMiss_queriesDbAndCaches() {
+        List<String> districts = List.of("中壢區", "龜山區");
+        when(neighborhoodMapper.selectDistinctDistricts("桃園市")).thenReturn(districts);
+
+        assertThat(service.districts("桃園市")).containsExactly("中壢區", "龜山區");
+        verify(valueOps).set(
+                eq(CacheKeys.neighborhoodDistricts("桃園市")),
+                eq(districts),
+                eq(Duration.ofHours(1))
+        );
+    }
+
     // ── recommend ───────────────────────────────────────────────
 
     /**

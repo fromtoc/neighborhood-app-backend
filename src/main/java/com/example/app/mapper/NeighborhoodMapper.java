@@ -12,6 +12,12 @@ public interface NeighborhoodMapper extends BaseMapper<Neighborhood> {
 
     int batchUpsert(@Param("list") List<Neighborhood> list);
 
+    /** 取得所有有效縣市清單（去重、排序）。 */
+    List<String> selectDistinctCities();
+
+    /** 取得指定縣市下所有有效行政區清單（去重、排序）。 */
+    List<String> selectDistinctDistricts(@Param("city") String city);
+
     /** Point-in-Polygon：找出包含指定座標的里（最多 1 筆）。 */
     Neighborhood findContaining(@Param("lng") double lng, @Param("lat") double lat);
 

@@ -22,6 +22,7 @@ import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +72,27 @@ public class NeighborhoodController {
         PageResult<Neighborhood> result =
                 neighborhoodQueryService.list(keyword, cityCode, districtCode, page, size);
         return ApiResponse.success(NeighborhoodResponse.fromPage(result));
+    }
+
+    @GetMapping("/cities")
+    @Operation(
+            summary = "取得縣市清單",
+            description = "回傳所有有效鄰里涵蓋的縣市，供篩選下拉選單使用（Redis 快取 1 小時）"
+    )
+    public ApiResponse<List<String>> cities() {
+        return ApiResponse.success(neighborhoodQueryService.cities());
+    }
+
+    @GetMapping("/districts")
+    @Operation(
+            summary = "取得行政區清單",
+            description = "回傳指定縣市下的所有行政區，供篩選下拉選單使用（Redis 快取 1 小時）"
+    )
+    public ApiResponse<List<String>> districts(
+            @Parameter(description = "縣市名稱，例如「桃園市」", required = true, in = ParameterIn.QUERY)
+            @RequestParam(required = false) @NotBlank String city
+    ) {
+        return ApiResponse.success(neighborhoodQueryService.districts(city));
     }
 
     @GetMapping("/recommend")

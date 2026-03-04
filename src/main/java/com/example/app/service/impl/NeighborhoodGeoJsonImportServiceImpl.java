@@ -235,6 +235,8 @@ public class NeighborhoodGeoJsonImportServiceImpl implements NeighborhoodGeoJson
         if (redisTemplate == null) return;
         deleteByPattern("neighborhood:list:*");
         deleteByPattern("neighborhood:detail:*");
+        deleteByPattern("neighborhood:districts:*");
+        redisTemplate.delete("neighborhood:cities");
     }
 
     private void deleteByPattern(String pattern) {

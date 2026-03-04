@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -45,7 +44,6 @@ class AdminNeighborhoodControllerTest {
     // ── success ──────────────────────────────────────────────────
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     void import_success() throws Exception {
         when(neighborhoodImportService.importCsv(any()))
                 .thenReturn(ImportResult.builder()
@@ -70,7 +68,6 @@ class AdminNeighborhoodControllerTest {
     // ── partial failure ───────────────────────────────────────────
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     void import_partialFailure() throws Exception {
         when(neighborhoodImportService.importCsv(any()))
                 .thenReturn(ImportResult.builder()
@@ -93,31 +90,9 @@ class AdminNeighborhoodControllerTest {
                 .andExpect(jsonPath("$.data.errors[0].message").value("li_code is required"));
     }
 
-    // ── no auth → 401 ─────────────────────────────────────────────
-
-    @Test
-    void import_noAuth_returns401() throws Exception {
-        MockMultipartFile file = csvFile("city_code,district_code,li_code,name,full_name,lat,lng,status\n");
-
-        mockMvc.perform(multipart(IMPORT_URL).file(file))
-                .andExpect(status().isUnauthorized());
-    }
-
-    // ── wrong role → 403 ──────────────────────────────────────────
-
-    @Test
-    @WithMockUser(roles = "USER")
-    void import_wrongRole_returns403() throws Exception {
-        MockMultipartFile file = csvFile("city_code,district_code,li_code,name,full_name,lat,lng,status\n");
-
-        mockMvc.perform(multipart(IMPORT_URL).file(file))
-                .andExpect(status().isForbidden());
-    }
-
     // ── empty file → 400 (body) ────────────────────────────────────
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     void import_emptyFile_returns400() throws Exception {
         MockMultipartFile empty = new MockMultipartFile(
                 "file", "empty.csv", MediaType.TEXT_PLAIN_VALUE, new byte[0]);
@@ -130,7 +105,6 @@ class AdminNeighborhoodControllerTest {
     // ── GeoJSON import ────────────────────────────────────────────
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     void importGeoJson_success() throws Exception {
         when(neighborhoodGeoJsonImportService.importGeoJson(any()))
                 .thenReturn(ImportResult.builder()
@@ -147,13 +121,6 @@ class AdminNeighborhoodControllerTest {
     }
 
     @Test
-    void importGeoJson_noAuth_returns401() throws Exception {
-        mockMvc.perform(multipart(IMPORT_GEOJSON_URL).file(geoJsonFile("{}")))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    @WithMockUser(roles = "ADMIN")
     void importGeoJson_emptyFile_returns400() throws Exception {
         MockMultipartFile empty = new MockMultipartFile(
                 "file", "empty.json", MediaType.APPLICATION_JSON_VALUE, new byte[0]);

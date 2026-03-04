@@ -14,6 +14,14 @@ public final class CacheKeys {
                 nvl(city), nvl(district), nvl(keyword), page, size);
     }
 
+    public static String neighborhoodCities() {
+        return "neighborhood:cities";
+    }
+
+    public static String neighborhoodDistricts(String city) {
+        return "neighborhood:districts:" + city;
+    }
+
     public static String jwtBlacklist(String jti) {
         return "auth:blacklist:jti:" + jti;
     }

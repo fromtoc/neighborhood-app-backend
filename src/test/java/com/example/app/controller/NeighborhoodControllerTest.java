@@ -147,6 +147,42 @@ class NeighborhoodControllerTest {
                 .andExpect(jsonPath("$.code").value(400));
     }
 
+    // ── GET /cities ───────────────────────────────────────────
+
+    @Test
+    void cities_returnsList() throws Exception {
+        when(neighborhoodQueryService.cities())
+                .thenReturn(List.of("台北市", "新北市", "桃園市"));
+
+        mockMvc.perform(get("/api/v1/neighborhoods/cities"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[0]").value("台北市"))
+                .andExpect(jsonPath("$.data[2]").value("桃園市"));
+    }
+
+    // ── GET /districts ────────────────────────────────────────
+
+    @Test
+    void districts_withCity_returnsList() throws Exception {
+        when(neighborhoodQueryService.districts("桃園市"))
+                .thenReturn(List.of("中壢區", "桃園區", "龜山區"));
+
+        mockMvc.perform(get("/api/v1/neighborhoods/districts").param("city", "桃園市"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.length()").value(3))
+                .andExpect(jsonPath("$.data[0]").value("中壢區"));
+    }
+
+    @Test
+    void districts_missingCity_returns422() throws Exception {
+        mockMvc.perform(get("/api/v1/neighborhoods/districts"))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value(422));
+    }
+
     // ── GET /recommend ────────────────────────────────────────
 
     @Test
