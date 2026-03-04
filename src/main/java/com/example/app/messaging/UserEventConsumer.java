@@ -4,6 +4,7 @@ import com.example.app.config.RabbitMQConfig;
 import com.example.app.dto.UserEventMessage;
 import com.example.app.entity.UserLoginLog;
 import com.example.app.mapper.UserLoginLogMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -19,9 +20,18 @@ import org.springframework.stereotype.Component;
 public class UserEventConsumer {
 
     private final UserLoginLogMapper userLoginLogMapper;
+    private final ObjectMapper objectMapper;
 
     @RabbitListener(queues = RabbitMQConfig.USER_EVENTS_QUEUE)
-    public void onUserEvent(UserEventMessage message) {
+    public void onUserEvent(String payload) {
+        UserEventMessage message;
+        try {
+            message = objectMapper.readValue(payload, UserEventMessage.class);
+        } catch (Exception e) {
+            log.error("Failed to deserialize user event: {}", payload, e);
+            return;
+        }
+
         if (message.getTraceId() != null) {
             MDC.put("traceId", message.getTraceId());
         }

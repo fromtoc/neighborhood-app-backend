@@ -2,6 +2,7 @@ package com.example.app.messaging;
 
 import com.example.app.config.RabbitMQConfig;
 import com.example.app.dto.UserEventMessage;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
@@ -23,6 +24,9 @@ public class UserEventProducer {
 
     @Autowired(required = false)
     private RabbitTemplate rabbitTemplate;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     public void publishGuestCreated(Long userId, Long neighborhoodId,
                                     String deviceId, Instant occurredAt) {
@@ -85,8 +89,9 @@ public class UserEventProducer {
 
     private void doSend(String routingKey, UserEventMessage message) {
         try {
+            String json = objectMapper.writeValueAsString(message);
             rabbitTemplate.convertAndSend(
-                    RabbitMQConfig.USER_EVENTS_EXCHANGE, routingKey, message);
+                    RabbitMQConfig.USER_EVENTS_EXCHANGE, routingKey, json);
             log.debug("Published {} for userId={}", routingKey, message.getUserId());
         } catch (Exception e) {
             log.error("Failed to publish {} for userId={}", routingKey, message.getUserId(), e);

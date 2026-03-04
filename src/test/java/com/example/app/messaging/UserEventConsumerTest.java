@@ -3,12 +3,17 @@ package com.example.app.messaging;
 import com.example.app.dto.UserEventMessage;
 import com.example.app.entity.UserLoginLog;
 import com.example.app.mapper.UserLoginLogMapper;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 
@@ -20,6 +25,20 @@ class UserEventConsumerTest {
 
     @Mock  UserLoginLogMapper userLoginLogMapper;
     @InjectMocks UserEventConsumer consumer;
+
+    private final ObjectMapper objectMapper = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(consumer, "objectMapper", objectMapper);
+    }
+
+    private String toJson(UserEventMessage msg) {
+        try { return objectMapper.writeValueAsString(msg); }
+        catch (Exception e) { throw new RuntimeException(e); }
+    }
 
     // ── user.guest.created ───────────────────────────────────
 
@@ -35,7 +54,7 @@ class UserEventConsumerTest {
                 .occurredAt(Instant.now())
                 .build();
 
-        consumer.onUserEvent(msg);
+        consumer.onUserEvent(toJson(msg));
 
         ArgumentCaptor<UserLoginLog> captor = ArgumentCaptor.forClass(UserLoginLog.class);
         verify(userLoginLogMapper).insert(captor.capture());
@@ -62,7 +81,7 @@ class UserEventConsumerTest {
                 .occurredAt(Instant.now())
                 .build();
 
-        consumer.onUserEvent(msg);
+        consumer.onUserEvent(toJson(msg));
 
         ArgumentCaptor<UserLoginLog> captor = ArgumentCaptor.forClass(UserLoginLog.class);
         verify(userLoginLogMapper).insert(captor.capture());
@@ -88,7 +107,7 @@ class UserEventConsumerTest {
                 .occurredAt(Instant.now())
                 .build();
 
-        consumer.onUserEvent(msg);
+        consumer.onUserEvent(toJson(msg));
 
         ArgumentCaptor<UserLoginLog> captor = ArgumentCaptor.forClass(UserLoginLog.class);
         verify(userLoginLogMapper).insert(captor.capture());
