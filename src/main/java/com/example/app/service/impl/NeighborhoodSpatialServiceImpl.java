@@ -86,12 +86,12 @@ public class NeighborhoodSpatialServiceImpl implements NeighborhoodSpatialServic
 
     /**
      * 以 36 個頂點近似圓形，產生 WKT POLYGON。
-     * 座標順序：(lng lat)，SRID 4326。
+     * 座標順序：SRID 4326 軸序 (lat lng)。
      *
      * @param lat          中心緯度
      * @param lng          中心經度
      * @param radiusMeters 半徑（公尺）
-     * @return WKT 字串，例如 {@code POLYGON((lng0 lat0, lng1 lat1, ..., lng0 lat0))}
+     * @return WKT 字串，例如 {@code POLYGON((lat0 lng0, lat1 lng1, ..., lat0 lng0))}
      */
     static String buildCircleWkt(double lat, double lng, int radiusMeters) {
         double latDeg = radiusMeters / 111_320.0;
@@ -100,10 +100,10 @@ public class NeighborhoodSpatialServiceImpl implements NeighborhoodSpatialServic
         StringBuilder sb = new StringBuilder("POLYGON((");
         for (int i = 0; i <= CIRCLE_SEGMENTS; i++) {
             double angle = 2 * Math.PI * i / CIRCLE_SEGMENTS;
-            double ptLng = lng + lngDeg * Math.cos(angle);
             double ptLat = lat + latDeg * Math.sin(angle);
+            double ptLng = lng + lngDeg * Math.cos(angle);
             if (i > 0) sb.append(", ");
-            sb.append(ptLng).append(' ').append(ptLat);
+            sb.append(ptLat).append(' ').append(ptLng);
         }
         sb.append("))");
         return sb.toString();

@@ -61,7 +61,7 @@
 
     <!--
         Point-in-Polygon: returns the neighborhood whose boundary polygon contains the given point.
-        SRID 4326; WKT point format: POINT(lng lat).
+        SRID 4326 axis order: latitude first, longitude second → POINT(lat lng).
     -->
     <select id="findContaining" resultType="com.example.app.entity.Neighborhood">
         SELECT id, li_code, name, full_name, district, city, lat, lng, status
@@ -71,7 +71,7 @@
           AND boundary IS NOT NULL
           AND ST_Contains(
                 boundary,
-                ST_GeomFromText(CONCAT('POINT(', #{lng}, ' ', #{lat}, ')'), 4326)
+                ST_GeomFromText(CONCAT('POINT(', #{lat}, ' ', #{lng}, ')'), 4326)
               )
         LIMIT 1
     </select>
@@ -92,8 +92,8 @@
               )
         ORDER BY
             ST_Distance_Sphere(
-                ST_GeomFromText(CONCAT('POINT(', lng, ' ', lat, ')'), 4326),
-                ST_GeomFromText(CONCAT('POINT(', #{lng}, ' ', #{lat}, ')'), 4326)
+                ST_GeomFromText(CONCAT('POINT(', lat, ' ', lng, ')'), 4326),
+                ST_GeomFromText(CONCAT('POINT(', #{lat}, ' ', #{lng}, ')'), 4326)
             )
     </select>
 

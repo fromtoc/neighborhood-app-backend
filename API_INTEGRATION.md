@@ -205,7 +205,7 @@ GET /api/v1/neighborhoods/locate?lat=25.0356&lng=121.3967
 
 ---
 
-### 1.5 依 GPS 推薦最近的里
+### 1.6 依 GPS 推薦最近的里
 
 ```
 GET /api/v1/neighborhoods/recommend?lat=25.0356&lng=121.3967
@@ -399,6 +399,7 @@ Authorization: Bearer <accessToken>
 使用者選縣市 → 取得行政區 GET /api/v1/neighborhoods/districts?city=xxx
   ↓
 使用者選行政區 → 搜尋里列表 GET /api/v1/neighborhoods?city=&district=
+  （或）輸入地址    GET /api/v1/neighborhoods/locate?address=xxx
   （或）GPS 定位    GET /api/v1/neighborhoods/locate?lat=&lng=
   （或）推薦最近    GET /api/v1/neighborhoods/recommend?lat=&lng=
   ↓
