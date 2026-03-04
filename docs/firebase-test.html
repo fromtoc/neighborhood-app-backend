@@ -122,7 +122,10 @@
     });
 
     // ── Login handlers ────────────────────────────────────────────
+    let popupInProgress = false;
     window.login = async (provider) => {
+      if (popupInProgress) return;
+      popupInProgress = true;
       try {
         let p;
         if (provider === 'google')   p = new GoogleAuthProvider();
@@ -130,7 +133,11 @@
         if (provider === 'apple')    { p = new OAuthProvider('apple.com'); p.addScope('email'); p.addScope('name'); }
         await signInWithPopup(auth, p);
       } catch (e) {
-        setStatus('tokenStatus', '登入失敗：' + e.message, 'err');
+        if (e.code !== 'auth/cancelled-popup-request') {
+          setStatus('tokenStatus', '登入失敗：' + e.message, 'err');
+        }
+      } finally {
+        popupInProgress = false;
       }
     };
 
