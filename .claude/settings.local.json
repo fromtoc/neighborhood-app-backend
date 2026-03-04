@@ -13,7 +13,11 @@
       "Bash(echo === Guest login ===:*)",
       "Bash(echo ── Step 1: 取得縣市清單 ──:*)",
       "Bash(ssh:*)",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "Bash(sleep 20:*)",
+      "Bash(git add:*)",
+      "Bash(expect:*)",
+      "Bash(pip3 install:*)"
     ]
   }
 }
