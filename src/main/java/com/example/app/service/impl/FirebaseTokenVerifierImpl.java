@@ -38,6 +38,12 @@ public class FirebaseTokenVerifierImpl implements FirebaseTokenVerifier {
                 ? (String) firebaseClaims.get("sign_in_provider")
                 : null;
 
+        // Custom token sign-in: infer provider from uid prefix (e.g. "line:Uxxx")
+        if ("custom".equals(signInProvider)) {
+            String uid = token.getUid();
+            if (uid.startsWith("line:")) signInProvider = "oidc.line";
+        }
+
         SocialProvider provider = SocialProvider.fromFirebaseProvider(signInProvider);
 
         return FirebasePrincipal.builder()

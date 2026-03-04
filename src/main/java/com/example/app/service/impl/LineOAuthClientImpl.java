@@ -57,8 +57,10 @@ public class LineOAuthClientImpl implements LineOAuthClient {
                 .body(params)
                 .retrieve()
                 .onStatus(status -> status.isError(), (req, res) -> {
+                    String body = new String(res.getBody().readAllBytes());
+                    log.warn("LINE token exchange failed: status={} body={}", res.getStatusCode(), body);
                     throw new BusinessException(ResultCode.BAD_REQUEST,
-                            "LINE token exchange failed (HTTP " + res.getStatusCode() + ")");
+                            "LINE token exchange failed: " + body);
                 })
                 .body(LineTokenResponse.class);
 

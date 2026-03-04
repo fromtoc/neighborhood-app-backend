@@ -143,6 +143,9 @@ services:
       # 地址轉座標：Google Geocoding（目前）或 TGOS（之後），擇一在 .env 設定
       # 切換到 TGOS 時：移除 GOOGLE_GEOCODING_API_KEY，改加 TGOS_API_KEY
       GOOGLE_GEOCODING_API_KEY: ${GOOGLE_GEOCODING_API_KEY:-}
+      # LINE Login (optional)
+      LINE_CHANNEL_ID: ${LINE_CHANNEL_ID:-}
+      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
     volumes:
       - app_logs:/app/logs
       # Mount Firebase service-account JSON if path is set
