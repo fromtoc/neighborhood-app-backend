@@ -35,7 +35,12 @@ public class LineOAuthClientImpl implements LineOAuthClient {
     @Override
     public String fetchSub(String code, String redirectUri, String codeVerifier) {
         String idToken = exchangeCodeForIdToken(code, redirectUri, codeVerifier);
-        return verifyIdToken(idToken);
+        return verifyIdToken(idToken, null);
+    }
+
+    @Override
+    public String fetchSubFromIdToken(String idToken, String nonce) {
+        return verifyIdToken(idToken, nonce);
     }
 
     // ── step 1: code → id_token ───────────────────────────────────
@@ -73,10 +78,11 @@ public class LineOAuthClientImpl implements LineOAuthClient {
 
     // ── step 2: id_token → sub ────────────────────────────────────
 
-    private String verifyIdToken(String idToken) {
+    private String verifyIdToken(String idToken, String nonce) {
         MultiValueMap<String, String> params = new LinkedMultiValueMap<>();
         params.add("id_token",  idToken);
         params.add("client_id", props.getChannelId());
+        if (nonce != null) params.add("nonce", nonce);
 
         LineVerifyResponse resp = restClient.post()
                 .uri(props.getVerifyEndpoint())

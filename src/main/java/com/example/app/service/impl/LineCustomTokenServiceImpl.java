@@ -3,6 +3,7 @@ package com.example.app.service.impl;
 import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ResultCode;
 import com.example.app.dto.auth.LineCustomTokenRequest;
+import com.example.app.dto.auth.LineIdTokenRequest;
 import com.example.app.service.LineCustomTokenService;
 import com.example.app.service.LineOAuthClient;
 import com.google.firebase.auth.FirebaseAuth;
@@ -56,6 +57,35 @@ public class LineCustomTokenServiceImpl implements LineCustomTokenService {
         try {
             String customToken = firebaseAuth.createCustomToken(uid, claims);
             log.debug("LINE custom token created: uid={}", uid);
+            return customToken;
+        } catch (FirebaseAuthException e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR,
+                    "Failed to create Firebase custom token: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public String createCustomTokenFromIdToken(LineIdTokenRequest req) {
+        if (lineOAuthClient == null) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR,
+                    "LINE OAuth is not configured (set LINE_CHANNEL_ID + LINE_CHANNEL_SECRET)");
+        }
+        if (firebaseAuth == null) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR,
+                    "Firebase is not configured (set FIREBASE_CREDENTIALS_PATH)");
+        }
+
+        String sub = lineOAuthClient.fetchSubFromIdToken(req.getIdToken(), req.getNonce());
+        String uid = "line:" + sub;
+
+        Map<String, Object> claims = Map.of(
+                "provider",    "LINE",
+                "providerUid", sub
+        );
+
+        try {
+            String customToken = firebaseAuth.createCustomToken(uid, claims);
+            log.debug("LINE custom token created from id_token: uid={}", uid);
             return customToken;
         } catch (FirebaseAuthException e) {
             throw new BusinessException(ResultCode.INTERNAL_ERROR,

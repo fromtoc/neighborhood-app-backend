@@ -6,6 +6,7 @@ import com.example.app.dto.auth.FirebaseLoginRequest;
 import com.example.app.dto.auth.GuestLoginRequest;
 import com.example.app.dto.auth.LineCustomTokenRequest;
 import com.example.app.dto.auth.LineCustomTokenResponse;
+import com.example.app.dto.auth.LineIdTokenRequest;
 import com.example.app.dto.auth.LogoutRequest;
 import com.example.app.dto.auth.RefreshRequest;
 import com.example.app.service.AuthService;
@@ -37,6 +38,13 @@ public class AuthController {
     public ApiResponse<LineCustomTokenResponse> lineCustomToken(
             @Valid @RequestBody LineCustomTokenRequest req) {
         String customToken = lineCustomTokenService.createCustomToken(req);
+        return ApiResponse.success(new LineCustomTokenResponse(customToken));
+    }
+
+    @PostMapping("/line/id-token")
+    public ApiResponse<LineCustomTokenResponse> lineIdToken(
+            @Valid @RequestBody LineIdTokenRequest req) {
+        String customToken = lineCustomTokenService.createCustomTokenFromIdToken(req);
         return ApiResponse.success(new LineCustomTokenResponse(customToken));
     }
 
