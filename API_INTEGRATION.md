@@ -264,6 +264,12 @@ POST /api/v1/auth/firebase
 
 ### 2.2 LINE 登入（兩步驟）
 
+依前端使用方式選擇對應的 Step 1，Step 2 兩者相同。
+
+---
+
+#### 方式 A — Web / expo-auth-session（PKCE code flow）
+
 **Step 1** — 前端完成 LINE OAuth PKCE 流程，取得 `code` 後呼叫：
 
 ```
@@ -280,7 +286,41 @@ POST /api/v1/auth/line/custom-token
 }
 ```
 
-**Response**
+| 欄位 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| `code` | String | ✅ | LINE 授權後回傳的授權碼 |
+| `redirectUri` | String | ✅ | 與發起授權時完全一致的 redirect URI |
+| `codeVerifier` | String | ✅ | PKCE 原始隨機字串 |
+| `deviceId` | String | ✗ | 裝置識別碼（用於限流） |
+
+---
+
+#### 方式 B — React Native 原生 LINE SDK
+
+**Step 1** — 前端使用 `@xmartlabs/react-native-line` SDK 完成登入，取得 `idToken` 後呼叫：
+
+```
+POST /api/v1/auth/line/id-token
+```
+
+**Request Body**
+```json
+{
+  "idToken": "<LINE id_token from SDK>",
+  "nonce": "<idTokenNonce from SDK login result>",
+  "deviceId": "optional-device-id"
+}
+```
+
+| 欄位 | 型別 | 必填 | 說明 |
+|------|------|------|------|
+| `idToken` | String | ✅ | SDK 登入結果中的 `accessToken.idToken` |
+| `nonce` | String | ✗ | SDK 登入結果中的 `idTokenNonce`（建議帶，防重放） |
+| `deviceId` | String | ✗ | 裝置識別碼（用於限流） |
+
+---
+
+**兩種方式的 Response 相同：**
 ```json
 {
   "code": 200,
@@ -406,9 +446,12 @@ Authorization: Bearer <accessToken>
 使用者確認所在里（記下 neighborhoodId）
   ↓
 選擇登入方式
-  ├─ LINE     → POST /auth/line/custom-token
-  │              → Firebase signInWithCustomToken
-  │              → POST /auth/firebase
+  ├─ LINE (Web)   → POST /auth/line/custom-token  (PKCE code flow)
+  │                  → Firebase signInWithCustomToken
+  │                  → POST /auth/firebase
+  ├─ LINE (App)   → POST /auth/line/id-token      (原生 SDK id_token)
+  │                  → Firebase signInWithCustomToken
+  │                  → POST /auth/firebase
   ├─ Google   → Firebase signInWithGoogle   → POST /auth/firebase
   ├─ Apple    → Firebase signInWithApple    → POST /auth/firebase
   ├─ Facebook → Firebase signInWithFacebook → POST /auth/firebase
@@ -442,7 +485,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 
 ## 六、速率限制
 
-登入相關 API（`/auth/guest`、`/auth/firebase`）有速率限制：
+登入相關 API（`/auth/guest`、`/auth/firebase`、`/auth/line/custom-token`、`/auth/line/id-token`）有速率限制：
 
 - 同一 IP：**10 次 / 60 秒**
 - 同一 deviceId：**10 次 / 60 秒**
