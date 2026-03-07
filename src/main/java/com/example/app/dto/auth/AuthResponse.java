@@ -17,6 +17,7 @@ public class AuthResponse {
     public static class UserInfo {
         private Long id;
         private Boolean isGuest;
+        private String nickname;
         private Long defaultNeighborhoodId;
     }
 }

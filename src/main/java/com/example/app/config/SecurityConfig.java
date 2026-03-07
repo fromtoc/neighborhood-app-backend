@@ -1,6 +1,8 @@
 package com.example.app.config;
 
+import com.example.app.common.filter.AdminTokenFilter;
 import com.example.app.common.filter.JwtAuthenticationFilter;
+import com.example.app.config.AdminProperties;
 import com.example.app.service.JwtService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -8,6 +10,7 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -26,6 +29,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtService jwtService;
+    private final AdminProperties adminProperties;
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
@@ -42,6 +46,19 @@ public class SecurityConfig {
     }
 
     @Bean
+    public AdminTokenFilter adminTokenFilter() {
+        return new AdminTokenFilter(adminProperties);
+    }
+
+    @Bean
+    public FilterRegistrationBean<AdminTokenFilter> adminTokenFilterRegistration() {
+        FilterRegistrationBean<AdminTokenFilter> reg =
+                new FilterRegistrationBean<>(adminTokenFilter());
+        reg.setEnabled(false);
+        return reg;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -51,12 +68,22 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/v1/auth/**",
                                 "/api/v1/neighborhoods/**",
+                                "/api/v1/geo/**",
+                                "/api/v1/categories/**",
+                                "/api/v1/places/**",
                                 "/api/v1/admin/**",
                                 "/actuator/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/ws/**"          // WebSocket handshake + SockJS
                         ).permitAll()
+                        // 後台管理需登入（ADMIN / SUPER_ADMIN 在 controller 層驗）
+                        .requestMatchers("/api/v1/mgmt/**").authenticated()
+                        // GET posts / chat 公開，POST 需登入
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/chat/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/places/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
@@ -73,6 +100,7 @@ public class SecurityConfig {
                                     "{\"code\":403,\"message\":\"Forbidden\",\"data\":null,\"traceId\":null}");
                         })
                 )
+                .addFilterBefore(adminTokenFilter(), UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -81,7 +109,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

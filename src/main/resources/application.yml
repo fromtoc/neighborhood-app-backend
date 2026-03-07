@@ -64,6 +64,9 @@ app:
     secret: ${JWT_SECRET:bXktc3VwZXItc2VjcmV0LWtleS1mb3ItbmVpZ2hib3Job29k}
     access-token-expiry-ms: 900000
     refresh-token-expiry-ms: 2592000000
+  admin:
+    # X-Admin-Token header 驗證。留空則停用保護（僅限開發環境）
+    token: ${ADMIN_TOKEN:}
   # Firebase Admin SDK.
   # Set the path to your service-account JSON via the environment variable:
   #   FIREBASE_CREDENTIALS_PATH=/path/to/service-account.json
@@ -78,7 +81,7 @@ app:
 # 設定環境變數 GOOGLE_GEOCODING_API_KEY，再取消下方區塊的註解。
 google:
   geocoding:
-    api-key: ${GOOGLE_GEOCODING_API_KEY}
+    api-key: ${GOOGLE_GEOCODING_API_KEY:}
 #
 # ── TGOS 地址查詢（預計切換）────────────────────────────────────
 # 申請：https://api.tgos.tw/

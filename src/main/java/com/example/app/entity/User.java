@@ -15,6 +15,8 @@ public class User {
     private String nickname;
     private String avatarUrl;
     private Integer isGuest;
+    private Integer isAdmin;
+    private Integer isSuperAdmin;
     private Long defaultNeighborhoodId;
 
     private LocalDateTime createdAt;

@@ -71,6 +71,9 @@ class FirebaseAuthServiceTest {
         existing.setProviderUid("uid-google-1");
         when(userIdentityMapper.selectOne(any())).thenReturn(existing);
 
+        // stub user fetch for resolveRole
+        when(userMapper.selectById(42L)).thenReturn(normalUser(42L));
+
         // stub JWT generation
         when(jwtService.generateTokenPair(42L, UserRole.USER, 10L))
                 .thenReturn(new TokenPair("acc", "ref", 900L));
@@ -118,6 +121,9 @@ class FirebaseAuthServiceTest {
             ((User) inv.getArgument(0)).setId(99L);
             return 1;
         }).when(userMapper).insert(argThat((User u) -> true));
+
+        // stub user fetch for resolveRole (called after insert sets id=99)
+        when(userMapper.selectById(99L)).thenReturn(normalUser(99L));
 
         when(jwtService.generateTokenPair(99L, UserRole.USER, 20L))
                 .thenReturn(new TokenPair("new-acc", "new-ref", 900L));
@@ -201,5 +207,14 @@ class FirebaseAuthServiceTest {
         n.setId(id);
         n.setStatus(status);
         return n;
+    }
+
+    private com.example.app.entity.User normalUser(Long id) {
+        com.example.app.entity.User u = new com.example.app.entity.User();
+        u.setId(id);
+        u.setIsGuest(0);
+        u.setIsAdmin(0);
+        u.setIsSuperAdmin(0);
+        return u;
     }
 }

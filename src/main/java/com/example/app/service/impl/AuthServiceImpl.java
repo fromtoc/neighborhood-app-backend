@@ -141,8 +141,9 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // 5. Issue tokens & persist session
-        TokenPair pair = jwtService.generateTokenPair(
-                userId, UserRole.USER, req.getNeighborhoodId());
+        User userForRole = userMapper.selectById(userId);
+        UserRole role = resolveRole(userForRole);
+        TokenPair pair = jwtService.generateTokenPair(userId, role, req.getNeighborhoodId());
         saveSession(userId, pair.getRefreshToken());
 
         // 6. Publish domain event (TX-safe: sent after commit)
@@ -179,7 +180,7 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "User not found");
         }
-        UserRole role = Objects.equals(user.getIsGuest(), 1) ? UserRole.GUEST : UserRole.USER;
+        UserRole role = resolveRole(user);
         TokenPair pair = jwtService.generateTokenPair(
                 user.getId(), role, user.getDefaultNeighborhoodId());
         saveSession(user.getId(), pair.getRefreshToken());
@@ -231,6 +232,8 @@ public class AuthServiceImpl implements AuthService {
 
     private AuthResponse buildResponse(TokenPair pair, Long userId,
                                         boolean isGuest, Long defaultNeighborhoodId) {
+        User u = userMapper.selectById(userId);
+        String nickname = (u != null) ? u.getNickname() : null;
         return AuthResponse.builder()
                 .accessToken(pair.getAccessToken())
                 .refreshToken(pair.getRefreshToken())
@@ -238,9 +241,18 @@ public class AuthServiceImpl implements AuthService {
                 .user(AuthResponse.UserInfo.builder()
                         .id(userId)
                         .isGuest(isGuest)
+                        .nickname(nickname)
                         .defaultNeighborhoodId(defaultNeighborhoodId)
                         .build())
                 .build();
+    }
+
+    private static UserRole resolveRole(User user) {
+        if (user == null) return UserRole.GUEST;
+        if (Integer.valueOf(1).equals(user.getIsGuest()))      return UserRole.GUEST;
+        if (Integer.valueOf(1).equals(user.getIsSuperAdmin())) return UserRole.SUPER_ADMIN;
+        if (Integer.valueOf(1).equals(user.getIsAdmin()))      return UserRole.ADMIN;
+        return UserRole.USER;
     }
 
     /** SHA-256 hex of the token. */

@@ -63,7 +63,10 @@ public class NeighborhoodQueryServiceImpl implements NeighborhoodQueryService {
             }
         }
         LambdaQueryWrapper<Neighborhood> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.hasText(keyword), Neighborhood::getName, keyword)
+        wrapper.and(StringUtils.hasText(keyword), w -> w
+                    .like(Neighborhood::getName, keyword)
+                    .or().like(Neighborhood::getCity, keyword)
+                    .or().like(Neighborhood::getDistrict, keyword))
                .eq(StringUtils.hasText(city),     Neighborhood::getCity, city)
                .eq(StringUtils.hasText(district), Neighborhood::getDistrict, district);
 
