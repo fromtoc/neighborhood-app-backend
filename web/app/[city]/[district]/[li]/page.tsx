@@ -8,6 +8,7 @@ import HomeBanner from '@/components/HomeBanner';
 import HomeInfoList from '@/components/HomeInfoList';
 import HomeCommunityList from '@/components/HomeCommunityList';
 import CommunitySection from '@/components/CommunitySection';
+import InfoSection from '@/components/InfoSection';
 import ChatSection from '@/components/ChatSection';
 import SaveNeighborhood from '@/components/SaveNeighborhood';
 import SwitchNeighborhoodLink from '@/components/SwitchNeighborhoodLink';
@@ -124,11 +125,10 @@ export default async function LiPage({ params, searchParams }: Props) {
 
       {/* 資訊 */}
       {tab === 'info' && (
-        <CommunitySection
+        <InfoSection
           neighborhoodId={liDetail.id}
-          type="info"
-          title={`${district}${liName} 相關資訊`}
-          mode="info"
+          district={district}
+          liName={liName}
         />
       )}
 

@@ -148,7 +148,7 @@ services:
       LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
       # On-demand revalidation（通知 Next.js 重新產生頁面）
       WEB_BASE_URL: http://web:3000
-      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}\n      AGGREGATOR_NCDR_ENABLED: ${AGGREGATOR_NCDR_ENABLED:-true}
     volumes:
       - app_logs:/app/logs
       # Mount Firebase service-account JSON if path is set

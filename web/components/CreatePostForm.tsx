@@ -10,6 +10,8 @@ type Mode = 'info' | 'community';
 interface Props {
   neighborhoodId: number;
   mode?: Mode;
+  defaultPostType?: string;
+  allowedPostTypes?: string[];
   onCreated?: () => void;
 }
 
@@ -40,7 +42,7 @@ const URGENCY_OPTIONS = [
   { value: 'urgent', label: '緊急' },
 ];
 
-export default function CreatePostForm({ neighborhoodId, mode = 'community', onCreated }: Props) {
+export default function CreatePostForm({ neighborhoodId, mode = 'community', defaultPostType, allowedPostTypes, onCreated }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
@@ -57,7 +59,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', onC
   }, [expanded]);
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
-  const [type, setType] = useState(mode === 'info' ? 'district_info' : 'fresh');
+  const [type, setType] = useState(defaultPostType ?? (mode === 'info' ? 'district_info' : 'fresh'));
   const [urgency, setUrgency] = useState('normal');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -87,7 +89,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', onC
       if (json.code !== 200) throw new Error(json.message);
       setContent('');
       setTitle('');
-      setType(mode === 'info' ? 'district_info' : 'fresh');
+      setType(defaultPostType ?? (mode === 'info' ? 'district_info' : 'fresh'));
       setUrgency('normal');
       setExpanded(false);
       onCreated?.();
@@ -130,7 +132,10 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', onC
     );
   }
 
-  const typeOptions = mode === 'info' ? INFO_TYPES : COMMUNITY_TYPES;
+  const baseInfoTypes = allowedPostTypes
+    ? INFO_TYPES.filter(t => allowedPostTypes.includes(t.value))
+    : INFO_TYPES;
+  const typeOptions = mode === 'info' ? baseInfoTypes : COMMUNITY_TYPES;
   const placeholder = mode === 'info' ? '發布在地資訊或廣播...' : '分享你的社區動態...';
   const selfName = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`

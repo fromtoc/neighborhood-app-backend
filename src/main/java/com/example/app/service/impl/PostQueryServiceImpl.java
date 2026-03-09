@@ -49,9 +49,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                 .eq(Post::getStatus, 1);
 
         if ("info".equals(type)) {
-            // 資訊 tab：
-            //   - li_info / broadcast / info（向下相容）：只顯示當前里
-            //   - district_info：顯示同一行政區所有里
+            // 舊版/整合資訊 tab：里資訊 + 區資訊（向下相容）
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
             wrapper.and(w -> w
                     .and(inner -> inner
@@ -60,6 +58,15 @@ public class PostQueryServiceImpl implements PostQueryService {
                     .or(inner -> inner
                             .eq(Post::getType, "district_info")
                             .in(Post::getNeighborhoodId, districtNhIds)));
+        } else if ("district_info".equals(type)) {
+            // 區資訊：同一行政區所有里的 district_info
+            List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
+            wrapper.eq(Post::getType, "district_info")
+                   .in(Post::getNeighborhoodId, districtNhIds);
+        } else if ("li_info".equals(type)) {
+            // 里資訊：當前里的 li_info + info（向下相容）+ broadcast
+            wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
+                   .in(Post::getType, LOCAL_ADMIN_TYPES);
         } else if (StringUtils.hasText(type)) {
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .eq(Post::getType, type);

@@ -33,12 +33,14 @@ interface Props {
   type?: string;
   title: string;
   mode?: Mode;
+  defaultPostType?: string;
+  allowedPostTypes?: string[];
   hideCreateForm?: boolean;
   pageSize?: number;
   readOnly?: boolean;
 }
 
-export default function CommunitySection({ neighborhoodId, type, title, mode = 'community', hideCreateForm = false, pageSize = 20, readOnly = false }: Props) {
+export default function CommunitySection({ neighborhoodId, type, title, mode = 'community', defaultPostType, allowedPostTypes, hideCreateForm = false, pageSize = 20, readOnly = false }: Props) {
   const { user, showLoginModal } = useAuth();
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export default function CommunitySection({ neighborhoodId, type, title, mode = '
       )}
 
       {!hideCreateForm && (mode === 'community' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
-        <CreatePostForm neighborhoodId={neighborhoodId} mode={mode} onCreated={fetchPosts} />
+        <CreatePostForm neighborhoodId={neighborhoodId} mode={mode} defaultPostType={defaultPostType} allowedPostTypes={allowedPostTypes} onCreated={fetchPosts} />
       )}
 
       {loading ? (

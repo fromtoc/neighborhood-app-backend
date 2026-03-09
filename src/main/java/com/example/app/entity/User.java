@@ -17,6 +17,7 @@ public class User {
     private Integer isGuest;
     private Integer isAdmin;
     private Integer isSuperAdmin;
+    private Integer isSystem;
     private Long defaultNeighborhoodId;
 
     private LocalDateTime createdAt;

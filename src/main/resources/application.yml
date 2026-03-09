@@ -102,7 +102,7 @@ web:
   # Next.js container URL（Docker Compose 內部通訊，空字串則停用）
   base-url: ${WEB_BASE_URL:}
   # 與 Next.js /api/revalidate 共用的 secret
-  revalidate-secret: ${REVALIDATE_SECRET:}
+  revalidate-secret: ${REVALIDATE_SECRET:}\n\naggregator:\n  ncdr:\n    # 設為 true 啟用 NCDR 防災資訊定時爬蟲\n    enabled: ${AGGREGATOR_NCDR_ENABLED:false}\n    # 每次執行間隔（ms），預設 30 分鐘\n    interval-ms: ${AGGREGATOR_NCDR_INTERVAL_MS:1800000}\n    # 啟動後多久首次執行（ms），預設 15 秒\n    initial-delay-ms: ${AGGREGATOR_NCDR_INITIAL_DELAY_MS:15000}
 
 logging:
   pattern:
