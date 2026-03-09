@@ -158,6 +158,34 @@ services:
       rabbitmq:
         condition: service_healthy
 
+  # ── Frontend (Next.js) ─────────────────────────────────────────
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* 在 build 時 bundle 進 JS，必須用 build args 傳入
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    image: neighborhood-web:latest
+    container_name: app-web
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 300m
+    environment:
+      NODE_ENV: production
+      # API_BASE_URL 供 Server Component 用（container → container，不走公網）
+      API_BASE_URL: http://app:8080
+      PORT: 3000
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - app
+
 volumes:
   mysql_data:
   redis_data:
