@@ -13,6 +13,7 @@ interface Comment {
   userId: number;
   nickname: string | null;
   content: string;
+  likeCount: number;
   createdAt: string;
   replyCount: number;
   topRepliers: string[];

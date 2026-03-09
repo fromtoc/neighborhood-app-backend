@@ -18,7 +18,7 @@ ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 
-RUN npm run build
+RUN npm run build && mkdir -p public
 
 # ── Stage 3: Runtime ───────────────────────────────────────────
 FROM node:20-alpine AS runner
