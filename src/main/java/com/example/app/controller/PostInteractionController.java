@@ -4,6 +4,7 @@ import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ApiResponse;
 import com.example.app.common.result.ResultCode;
 import com.example.app.dto.JwtClaims;
+import com.example.app.dto.post.CommentThreadResponse;
 import com.example.app.dto.post.PostCommentResponse;
 import com.example.app.dto.post.PostLikeResponse;
 import com.example.app.service.PostInteractionService;
@@ -49,6 +50,17 @@ public class PostInteractionController {
             @RequestParam(required = false) Long parentId
     ) {
         return ApiResponse.success(interactionService.listComments(postId, parentId));
+    }
+
+    @GetMapping("/comments/{commentId}/thread")
+    @Operation(summary = "取得完整討論串（祖先鏈 + 每層回覆），供分享連結一次載入")
+    public ApiResponse<CommentThreadResponse> getCommentThread(
+            @PathVariable Long postId,
+            @PathVariable Long commentId
+    ) {
+        CommentThreadResponse res = interactionService.getCommentThread(postId, commentId);
+        if (res == null) throw new BusinessException(ResultCode.NOT_FOUND, "留言不存在");
+        return ApiResponse.success(res);
     }
 
     @GetMapping("/comments/{commentId}")

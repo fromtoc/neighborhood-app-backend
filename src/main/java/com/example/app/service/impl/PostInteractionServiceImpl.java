@@ -1,6 +1,7 @@
 package com.example.app.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.app.dto.post.CommentThreadResponse;
 import com.example.app.dto.post.PostCommentResponse;
 import com.example.app.dto.post.PostLikeResponse;
 import com.example.app.entity.Post;
@@ -187,6 +188,81 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         PostComment comment = postCommentMapper.selectById(commentId);
         int likeCount = (comment != null && comment.getLikeCount() != null) ? comment.getLikeCount() : 0;
         return new PostLikeResponse(liked, likeCount);
+    }
+
+    @Override
+    public CommentThreadResponse getCommentThread(Long postId, Long commentId) {
+        // 1. 從目標往上爬，建立祖先鏈 [root, ..., target]
+        List<PostComment> chain = new ArrayList<>();
+        Long cur = commentId;
+        while (cur != null) {
+            PostComment c = postCommentMapper.selectById(cur);
+            if (c == null || !c.getPostId().equals(postId)) break;
+            chain.add(0, c);
+            cur = c.getParentId();
+        }
+        if (chain.isEmpty()) return null;
+
+        List<Long> chainIds = chain.stream().map(PostComment::getId).toList();
+
+        // 2. 一次撈出所有鏈節點的直接回覆
+        List<PostComment> allReplies = postCommentMapper.selectList(
+                new LambdaQueryWrapper<PostComment>()
+                        .in(PostComment::getParentId, chainIds)
+                        .orderByAsc(PostComment::getCreatedAt)
+        );
+        Map<Long, List<PostComment>> repliesByParentRaw = allReplies.stream()
+                .collect(Collectors.groupingBy(PostComment::getParentId));
+
+        // 3. 撈所有回覆的子孫（只需要 count + top replier），用來填 replyCount/topRepliers
+        List<Long> allReplyIds = allReplies.stream().map(PostComment::getId).toList();
+        List<PostComment> grandchildren = allReplyIds.isEmpty() ? List.of() :
+                postCommentMapper.selectList(
+                        new LambdaQueryWrapper<PostComment>()
+                                .in(PostComment::getParentId, allReplyIds)
+                                .orderByAsc(PostComment::getCreatedAt)
+                );
+
+        Map<Long, Integer> grandReplyCount = grandchildren.stream()
+                .collect(Collectors.groupingBy(PostComment::getParentId,
+                        Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
+
+        Map<Long, List<Long>> grandTopUserIds = new LinkedHashMap<>();
+        for (PostComment gc : grandchildren) {
+            grandTopUserIds.computeIfAbsent(gc.getParentId(), k -> new ArrayList<>());
+            List<Long> list = grandTopUserIds.get(gc.getParentId());
+            if (list.size() < 3) list.add(gc.getUserId());
+        }
+
+        // 4. 批次查暱稱
+        Set<Long> allUserIds = new HashSet<>();
+        chain.forEach(c -> allUserIds.add(c.getUserId()));
+        allReplies.forEach(c -> allUserIds.add(c.getUserId()));
+        grandchildren.forEach(c -> allUserIds.add(c.getUserId()));
+        Map<Long, String> nicknameMap = buildNicknameMap(new ArrayList<>(allUserIds));
+
+        // 5. 組裝鏈（每個鏈節點的 replyCount 來自 repliesByParentRaw）
+        List<PostCommentResponse> chainResp = chain.stream().map(c -> {
+            List<PostComment> children = repliesByParentRaw.getOrDefault(c.getId(), List.of());
+            int count = children.size();
+            List<String> top = children.stream().limit(3)
+                    .map(r -> nicknameMap.getOrDefault(r.getUserId(), "用戶")).toList();
+            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, top);
+        }).toList();
+
+        // 6. 組裝每層回覆（每個回覆的 replyCount 來自 grandchildren）
+        Map<Long, List<PostCommentResponse>> repliesByParent = new HashMap<>();
+        for (Map.Entry<Long, List<PostComment>> entry : repliesByParentRaw.entrySet()) {
+            List<PostCommentResponse> rList = entry.getValue().stream().map(r -> {
+                int cnt = grandReplyCount.getOrDefault(r.getId(), 0);
+                List<String> top = grandTopUserIds.getOrDefault(r.getId(), List.of())
+                        .stream().map(uid -> nicknameMap.getOrDefault(uid, "用戶")).toList();
+                return PostCommentResponse.from(r, nicknameMap.get(r.getUserId()), cnt, top);
+            }).toList();
+            repliesByParent.put(entry.getKey(), rList);
+        }
+
+        return new CommentThreadResponse(chainResp, repliesByParent);
     }
 
     private String resolveNickname(Long userId) {

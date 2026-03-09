@@ -273,11 +273,14 @@ function ReplyComposer({
 
 /** 滑入式討論面板（可無限堆疊） */
 function ThreadPanel({
-  postId, rootComment, selfName, isSelf, onClose, onReplied, initialChain,
+  postId, rootComment, selfName, isSelf, onClose, onReplied,
+  initialChain, preloadedRepliesMap,
 }: {
   postId: number; rootComment: Comment; selfName: string;
   isSelf: boolean; onClose: () => void; onReplied?: () => void;
-  initialChain?: number[]; // [nextId, grandchildId, ...] — 需要自動展開的子代 id 路徑
+  initialChain?: number[];
+  /** 分享連結預載的回覆 map（key = commentId），避免每層各自 fetch */
+  preloadedRepliesMap?: Record<number, Comment[]>;
 }) {
   const [replies, setReplies] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -288,6 +291,18 @@ function ThreadPanel({
   const name = isSelf ? selfName : (rootComment.nickname ?? `用戶 #${rootComment.userId}`);
 
   const fetchReplies = useCallback(async () => {
+    // 優先使用預載資料（分享連結進入時）
+    const preloaded = preloadedRepliesMap?.[rootComment.id];
+    if (preloaded !== undefined && !autoSubDone.current) {
+      setReplies(preloaded);
+      setLoading(false);
+      if (initialChain && initialChain.length > 0) {
+        const sub = preloaded.find(r => r.id === initialChain[0]);
+        if (sub) { setSubThread(sub); autoSubDone.current = true; }
+      }
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch(
@@ -297,7 +312,6 @@ function ThreadPanel({
       if (json.code === 200) {
         const list: Comment[] = json.data ?? [];
         setReplies(list);
-        // 從 URL 分享進來時，按 chain 自動展開下一層（只做一次）
         if (!autoSubDone.current && initialChain && initialChain.length > 0) {
           const sub = list.find(r => r.id === initialChain[0]);
           if (sub) { setSubThread(sub); autoSubDone.current = true; }
@@ -306,7 +320,7 @@ function ThreadPanel({
     } finally {
       setLoading(false);
     }
-  }, [postId, rootComment.id, initialChain]);
+  }, [postId, rootComment.id, initialChain, preloadedRepliesMap]);
 
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
 
@@ -427,6 +441,7 @@ function ThreadPanel({
           onClose={() => { setSubThread(null); fetchReplies(); }}
           onReplied={() => { fetchReplies(); onReplied?.(); }}
           initialChain={initialChain && initialChain.length > 1 ? initialChain.slice(1) : undefined}
+          preloadedRepliesMap={preloadedRepliesMap}
         />
       )}
 
@@ -452,27 +467,11 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
   const [loading, setLoading] = useState(true);
   const [activeThread, setActiveThread] = useState<Comment | null>(null);
   const [initialChain, setInitialChain] = useState<number[]>([]);
+  const [preloadedRepliesMap, setPreloadedRepliesMap] = useState<Record<number, Comment[]> | undefined>();
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoOpenDone = useRef(false);
-
-  /** 從目標往上逐層 fetch，建立 [root, …, target] 的祖先鏈 */
-  const buildAncestorChain = useCallback(async (commentId: number): Promise<Comment[]> => {
-    const chain: Comment[] = [];
-    let currentId: number | null = commentId;
-    while (currentId !== null) {
-      try {
-        const r = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${currentId}`);
-        const j = await r.json();
-        if (j.code !== 200) break;
-        const c: Comment = j.data;
-        chain.unshift(c); // 前插，最終順序為 root → ... → target
-        currentId = c.parentId;
-      } catch { break; }
-    }
-    return chain;
-  }, [postId]);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
@@ -486,28 +485,33 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
         if (!autoOpenDone.current && initialCommentId) {
           autoOpenDone.current = true;
 
-          // 在頂層直接找到
+          // 在頂層直接找到（頂層留言，無須 /thread）
           const topLevel = list.find(c => c.id === initialCommentId);
           if (topLevel) { setActiveThread(topLevel); return; }
 
-          // 是巢狀回覆：建立完整祖先鏈
-          const chain = await buildAncestorChain(initialCommentId);
-          if (chain.length === 0) return;
+          // 巢狀回覆：呼叫 /thread 一次取得完整祖先鏈 + 每層回覆
+          try {
+            const tr = await fetch(
+              `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${initialCommentId}/thread`
+            );
+            const tj = await tr.json();
+            if (tj.code === 200) {
+              const chain: Comment[] = tj.data.chain;
+              const repliesMap: Record<number, Comment[]> = tj.data.repliesByParent;
+              if (chain.length === 0) return;
 
-          // chain[0] 是最上層祖先，優先用頂層列表的版本（有完整 replyCount）
-          const root = list.find(c => c.id === chain[0].id) ?? chain[0];
-          setActiveThread(root);
-
-          // chain[1..] 是從 root 子代到 target 的 id 路徑
-          if (chain.length > 1) {
-            setInitialChain(chain.slice(1).map(c => c.id));
-          }
+              const root = list.find(c => c.id === chain[0].id) ?? chain[0];
+              setActiveThread(root);
+              setPreloadedRepliesMap(repliesMap);
+              if (chain.length > 1) setInitialChain(chain.slice(1).map(c => c.id));
+            }
+          } catch { /* 靜默失敗，不開 panel */ }
         }
       }
     } finally {
       setLoading(false);
     }
-  }, [postId, initialCommentId, buildAncestorChain]);
+  }, [postId, initialCommentId]);
 
   useEffect(() => { fetchComments(); }, [fetchComments]);
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
@@ -612,9 +616,10 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
           rootComment={activeThread}
           selfName={selfName ?? ''}
           isSelf={user?.userId === activeThread.userId}
-          onClose={() => { setActiveThread(null); setInitialChain([]); fetchComments(); }}
+          onClose={() => { setActiveThread(null); setInitialChain([]); setPreloadedRepliesMap(undefined); fetchComments(); }}
           onReplied={fetchComments}
           initialChain={initialChain.length > 0 ? initialChain : undefined}
+          preloadedRepliesMap={preloadedRepliesMap}
         />
       )}
     </div>
