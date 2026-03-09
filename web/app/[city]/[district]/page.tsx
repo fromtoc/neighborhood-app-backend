@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 
+export const dynamic = 'force-dynamic';
+
 interface LiItem {
   id: number;
   name: string;
