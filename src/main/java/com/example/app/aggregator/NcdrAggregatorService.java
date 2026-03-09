@@ -74,11 +74,18 @@ public class NcdrAggregatorService {
         for (Neighborhood nh : all) {
             if (nh.getCity() == null || nh.getDistrict() == null || nh.getName() == null) continue;
             fn.put(nh.getCity() + nh.getDistrict() + nh.getName(), nh.getId());
+            // also index by fullName if present
+            if (nh.getFullName() != null && !nh.getFullName().isBlank()) {
+                fn.putIfAbsent(nh.getFullName(), nh.getId());
+            }
             dm.putIfAbsent(nh.getCity() + "@@" + nh.getDistrict(), nh.getId());
         }
         fullNameMap = fn;
         districtMap = dm;
         log.info("NCDR: loaded {} neighborhoods, {} districts", fn.size(), dm.size());
+        // log a sample so we can verify format
+        fn.entrySet().stream().limit(3)
+                .forEach(e -> log.debug("NCDR sample key: [{}] → {}", e.getKey(), e.getValue()));
     }
 
     @Scheduled(fixedDelayString = "${aggregator.ncdr.interval-ms:1800000}",
@@ -116,10 +123,10 @@ public class NcdrAggregatorService {
     }
 
     private int processCapFile(String capId, String capUrl) {
-        String xml;
+        byte[] xmlBytes;
         try {
-            xml = restTemplate.getForObject(capUrl, String.class);
-            if (xml == null || xml.isBlank()) return 0;
+            xmlBytes = restTemplate.getForObject(capUrl, byte[].class);
+            if (xmlBytes == null || xmlBytes.length == 0) return 0;
         } catch (Exception e) {
             log.debug("NCDR: failed to fetch CAP {}", capUrl, e);
             return 0;
@@ -130,7 +137,7 @@ public class NcdrAggregatorService {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(false);
             DocumentBuilder builder = factory.newDocumentBuilder();
-            doc = builder.parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
+            doc = builder.parse(new ByteArrayInputStream(xmlBytes));
         } catch (Exception e) {
             log.debug("NCDR: failed to parse CAP XML for {}", capId, e);
             return 0;
@@ -138,6 +145,8 @@ public class NcdrAggregatorService {
 
         NodeList infoList = doc.getElementsByTagName("info");
         int created = 0;
+        // 跨 info block 去重：同一個 CAP 裡同一個 nhId+type 只建一篇
+        Set<String> capSeenNh = new LinkedHashSet<>();
 
         for (int i = 0; i < infoList.getLength(); i++) {
             Element info = (Element) infoList.item(i);
@@ -161,7 +170,7 @@ public class NcdrAggregatorService {
 
             for (int j = 0; j < areaList.getLength(); j++) {
                 Element area    = (Element) areaList.item(j);
-                String areaDesc = text(area, "areaDesc"); // e.g. "高雄市左營區新中里"
+                String areaDesc = text(area, "areaDesc");
 
                 Long nhId = fullNameMap.get(areaDesc);
                 if (nhId != null) {
@@ -170,8 +179,8 @@ public class NcdrAggregatorService {
                 }
                 // 嘗試比對 city+district（截取前兩段）
                 for (Map.Entry<String, Long> de : districtMap.entrySet()) {
-                    String[] parts   = de.getKey().split("@@");
-                    String cityDistrict = parts[0] + parts[1]; // e.g. "高雄市左營區"
+                    String[] parts      = de.getKey().split("@@");
+                    String cityDistrict = parts[0] + parts[1];
                     if (areaDesc.startsWith(cityDistrict)) {
                         matched.add(new MatchedArea(de.getValue(), "district_info"));
                         break;
@@ -184,24 +193,42 @@ public class NcdrAggregatorService {
                 continue;
             }
 
-            // 去重：同一個 nhId+type 只建一篇
-            Set<String> seen = new LinkedHashSet<>();
+            // 去重：同一個 nhId+type，整個 CAP 只建一篇（避免多個 info block 重複）
+            String title = headline.isBlank() ? event : headline;
+            String content = buildContent(description, expires, senderName);
+            String urgencyVal = resolveUrgency(urgency, event);
+
             for (MatchedArea m : matched) {
                 String dedup = m.nhId + ":" + m.type;
-                if (!seen.add(dedup)) continue;
+                if (!capSeenNh.add(dedup)) continue;
 
-                Post post = new Post();
-                post.setNeighborhoodId(m.nhId);
-                post.setUserId(systemUserId);
-                post.setTitle(headline.isBlank() ? event : headline);
-                post.setContent(buildContent(description, expires, senderName));
-                post.setType(m.type);
-                post.setUrgency(resolveUrgency(urgency, event));
-                post.setLikeCount(0);
-                post.setCommentCount(0);
-                post.setStatus(1);
-                postMapper.insert(post);
-                created++;
+                // 同里+同標題在近 30 天內已有系統貼文 → 更新內容，不重複新增
+                Post existing = postMapper.selectOne(
+                        new LambdaQueryWrapper<Post>()
+                                .eq(Post::getNeighborhoodId, m.nhId)
+                                .eq(Post::getUserId, systemUserId)
+                                .eq(Post::getTitle, title)
+                                .eq(Post::getType, m.type)
+                                .ge(Post::getCreatedAt, LocalDateTime.now().minusDays(30))
+                                .last("LIMIT 1"));
+                if (existing != null) {
+                    existing.setContent(content);
+                    existing.setUrgency(urgencyVal);
+                    postMapper.updateById(existing);
+                } else {
+                    Post post = new Post();
+                    post.setNeighborhoodId(m.nhId);
+                    post.setUserId(systemUserId);
+                    post.setTitle(title);
+                    post.setContent(content);
+                    post.setType(m.type);
+                    post.setUrgency(urgencyVal);
+                    post.setLikeCount(0);
+                    post.setCommentCount(0);
+                    post.setStatus(1);
+                    postMapper.insert(post);
+                    created++;
+                }
             }
 
             markCrawled(key);
@@ -241,9 +268,27 @@ public class NcdrAggregatorService {
 
     private static String buildContent(String desc, String expires, String sender) {
         StringBuilder sb = new StringBuilder(desc);
-        if (!expires.isBlank())  sb.append("\n\n到期時間：").append(expires);
-        if (!sender.isBlank())   sb.append("\n來源：").append(sender);
+        if (!expires.isBlank()) {
+            sb.append("\n\n到期時間：").append(formatExpires(expires));
+        }
+        if (!sender.isBlank()) sb.append("\n來源：").append(sender);
         return sb.toString();
+    }
+
+    private static String formatExpires(String iso) {
+        try {
+            java.time.OffsetDateTime odt = java.time.OffsetDateTime.parse(iso);
+            int hour = odt.getHour();
+            int minute = odt.getMinute();
+            String ampm = hour < 12 ? "上午" : "下午";
+            int h12 = hour % 12 == 0 ? 12 : hour % 12;
+            String time = minute == 0
+                    ? ampm + h12 + "點"
+                    : String.format("%s%d:%02d", ampm, h12, minute);
+            return odt.getMonthValue() + "/" + odt.getDayOfMonth() + " " + time;
+        } catch (Exception e) {
+            return iso;
+        }
     }
 
     private static String text(Element parent, String tag) {

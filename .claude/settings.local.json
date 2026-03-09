@@ -55,7 +55,15 @@
       "Bash(/Users/gaojingmin/.nvm/versions/node/v20.20.1/bin/npx tsc:*)",
       "Bash(/Users/gaojingmin/.nvm/versions/node/v20.20.1/bin/node:*)",
       "Bash(PATH=\"/Users/gaojingmin/.nvm/versions/node/v20.20.1/bin:$PATH\" npx tsc:*)",
-      "Bash(PATH=\"/Users/gaojingmin/.nvm/versions/node/v20.20.1/bin:$PATH\" node:*)"
+      "Bash(PATH=\"/Users/gaojingmin/.nvm/versions/node/v20.20.1/bin:$PATH\" node:*)",
+      "Bash(gh auth:*)",
+      "Bash(brew install:*)",
+      "Bash(sshpass:*)",
+      "Bash(rsync:*)",
+      "Bash(docker version:*)",
+      "Bash(docker buildx:*)",
+      "Bash(docker build:*)",
+      "Bash(git:*)"
     ]
   }
 }
