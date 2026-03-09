@@ -1,11 +1,11 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { signInWithCustomToken } from 'firebase/auth';
 import { firebaseAuth } from '@/lib/firebase';
 import { getLineCallbackData, clearLineCallbackData } from '@/lib/line-auth';
-import { saveAuth } from '@/lib/auth-client';
+import { saveAuth, saveNickname } from '@/lib/auth-client';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import type { AuthUser } from '@/lib/auth-client';
 
@@ -17,8 +17,16 @@ export default function LineCallbackPage() {
   );
 }
 
+function decodeJwtRole(token: string): string {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.role ?? 'USER';
+  } catch {
+    return 'USER';
+  }
+}
+
 function LineCallback() {
-  const router       = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('處理 LINE 授權中...');
   const [error,  setError]  = useState('');
@@ -36,7 +44,7 @@ function LineCallback() {
       try {
         // Step 1: code + verifier → Firebase custom token
         setStatus('取得 Firebase token 中...');
-        const r1   = await fetch(`${CLIENT_BASE_URL}/api/v1/auth/line/custom-token`, {
+        const r1 = await fetch(`${CLIENT_BASE_URL}/api/v1/auth/line/custom-token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, redirectUri, codeVerifier: verifier }),
@@ -46,7 +54,7 @@ function LineCallback() {
 
         // Step 2: Firebase custom token → Firebase user
         setStatus('Firebase 登入中...');
-        const cred = await signInWithCustomToken(firebaseAuth, d1.data.firebaseCustomToken);
+        const cred    = await signInWithCustomToken(firebaseAuth, d1.data.firebaseCustomToken);
         const idToken = await cred.user.getIdToken();
 
         // Step 3: Firebase idToken → 後端 JWT
@@ -65,13 +73,18 @@ function LineCallback() {
         const authUser: AuthUser = {
           userId:         u.id,
           neighborhoodId: u.defaultNeighborhoodId ?? nid,
-          role:           u.isGuest ? 'GUEST' : 'USER',
+          role:           decodeJwtRole(accessToken),
         };
         saveAuth(accessToken, authUser);
-        clearLineCallbackData();
 
+        // 回填暱稱，避免重新登入後被清空
+        if (u.nickname) saveNickname(u.nickname);
+
+        clearLineCallbackData();
         setStatus('登入成功！返回頁面...');
-        router.replace(returnUrl ?? '/');
+
+        // 完整頁面導向（非 SPA router），讓 AuthProvider 重新從 localStorage 讀取最新狀態
+        window.location.replace(returnUrl ?? '/');
       } catch (e) {
         setError((e as Error).message);
       }
@@ -89,7 +102,7 @@ function LineCallback() {
           <p style={{ fontSize: '2rem' }}>❌</p>
           <p style={{ color: '#e53e3e', fontWeight: 600 }}>LINE 登入失敗</p>
           <p style={{ color: '#828282', fontSize: '0.9rem' }}>{error}</p>
-          <button onClick={() => router.back()} style={{
+          <button onClick={() => window.history.back()} style={{
             background: '#1c5373', color: '#fff', border: 'none',
             borderRadius: 8, padding: '0.5rem 1.5rem', cursor: 'pointer',
           }}>返回</button>
