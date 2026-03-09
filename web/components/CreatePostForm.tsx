@@ -29,8 +29,9 @@ const COMMUNITY_TYPES = [
 ];
 
 const INFO_TYPES = [
-  { value: 'info',      label: '資訊' },
-  { value: 'broadcast', label: '廣播' },
+  { value: 'district_info', label: '區資訊' },
+  { value: 'li_info',       label: '里資訊' },
+  { value: 'broadcast',     label: '廣播' },
 ];
 
 const URGENCY_OPTIONS = [
@@ -56,7 +57,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', onC
   }, [expanded]);
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
-  const [type, setType] = useState(mode === 'info' ? 'info' : 'fresh');
+  const [type, setType] = useState(mode === 'info' ? 'district_info' : 'fresh');
   const [urgency, setUrgency] = useState('normal');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -86,7 +87,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', onC
       if (json.code !== 200) throw new Error(json.message);
       setContent('');
       setTitle('');
-      setType(mode === 'info' ? 'info' : 'fresh');
+      setType(mode === 'info' ? 'district_info' : 'fresh');
       setUrgency('normal');
       setExpanded(false);
       onCreated?.();

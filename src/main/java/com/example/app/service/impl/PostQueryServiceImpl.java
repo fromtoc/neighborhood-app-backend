@@ -10,8 +10,10 @@ import com.example.app.common.result.PageResult;
 import com.example.app.common.result.ResultCode;
 import com.example.app.dto.post.CreatePostRequest;
 import com.example.app.dto.post.PostResponse;
+import com.example.app.entity.Neighborhood;
 import com.example.app.entity.Post;
 import com.example.app.entity.User;
+import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.service.PostQueryService;
@@ -31,26 +33,40 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class PostQueryServiceImpl implements PostQueryService {
 
-    private final PostMapper postMapper;
-    private final UserMapper userMapper;
-    private final ObjectMapper objectMapper;
+    private final PostMapper          postMapper;
+    private final UserMapper          userMapper;
+    private final NeighborhoodMapper  neighborhoodMapper;
+    private final ObjectMapper        objectMapper;
 
-    private static final List<String> ADMIN_TYPES = List.of("info", "broadcast");
+    /** 所有管理員類型（用於社群 tab 排除） */
+    private static final List<String> ADMIN_TYPES       = List.of("info", "broadcast", "district_info", "li_info");
+    /** 里層管理員類型（district_info 除外） */
+    private static final List<String> LOCAL_ADMIN_TYPES = List.of("info", "li_info", "broadcast");
 
     @Override
     public PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size) {
         LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
-                .eq(Post::getNeighborhoodId, neighborhoodId)
                 .eq(Post::getStatus, 1);
 
         if ("info".equals(type)) {
-            // 資訊 tab：顯示 info + broadcast 兩種管理員貼文
-            wrapper.in(Post::getType, ADMIN_TYPES);
+            // 資訊 tab：
+            //   - li_info / broadcast / info（向下相容）：只顯示當前里
+            //   - district_info：顯示同一行政區所有里
+            List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
+            wrapper.and(w -> w
+                    .and(inner -> inner
+                            .eq(Post::getNeighborhoodId, neighborhoodId)
+                            .in(Post::getType, LOCAL_ADMIN_TYPES))
+                    .or(inner -> inner
+                            .eq(Post::getType, "district_info")
+                            .in(Post::getNeighborhoodId, districtNhIds)));
         } else if (StringUtils.hasText(type)) {
-            wrapper.eq(Post::getType, type);
+            wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
+                   .eq(Post::getType, type);
         } else {
-            // 社群 tab：排除管理員貼文
-            wrapper.notIn(Post::getType, ADMIN_TYPES);
+            // 社群 tab：排除所有管理員類型貼文
+            wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
+                   .notIn(Post::getType, ADMIN_TYPES);
         }
 
         wrapper.orderByDesc(Post::getCreatedAt);
@@ -146,6 +162,20 @@ public class PostQueryServiceImpl implements PostQueryService {
         }
 
         postMapper.deleteById(postId);
+    }
+
+    /** 取得同一行政區（city + district）所有 status=1 里的 ID */
+    private List<Long> getDistrictNeighborhoodIds(Long neighborhoodId) {
+        Neighborhood hood = neighborhoodMapper.selectById(neighborhoodId);
+        if (hood == null || hood.getCity() == null || hood.getDistrict() == null) {
+            return List.of(neighborhoodId);
+        }
+        return neighborhoodMapper.selectList(
+                new LambdaQueryWrapper<Neighborhood>()
+                        .eq(Neighborhood::getCity, hood.getCity())
+                        .eq(Neighborhood::getDistrict, hood.getDistrict())
+                        .eq(Neighborhood::getStatus, 1)
+        ).stream().map(Neighborhood::getId).toList();
     }
 
     private static UserRole resolveRoleFromUser(User user) {

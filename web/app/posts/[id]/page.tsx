@@ -75,8 +75,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  info:        '資訊',
-  broadcast:   '廣播',
+  info:          '資訊',
+  broadcast:     '廣播',
+  district_info: '區資訊',
+  li_info:       '里資訊',
   fresh:       '新鮮事',
   store_visit: '探店',
   selling:     '我要賣',
@@ -230,7 +232,7 @@ export default async function PostDetailPage({ params }: Props) {
 
         {/* Back */}
         {liUrl && (() => {
-          const isInfo = ['info', 'broadcast'].includes(post.type);
+          const isInfo = ['info', 'broadcast', 'district_info', 'li_info'].includes(post.type);
           return (
             <div style={{ marginTop: '1.25rem' }}>
               <Link

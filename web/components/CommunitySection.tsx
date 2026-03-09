@@ -156,7 +156,7 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const isAdminType = ['info', 'broadcast'].includes(post.type);
+  const isAdminType = ['info', 'broadcast', 'district_info', 'li_info'].includes(post.type);
   const isOwn = currentUser?.userId === post.userId;
   const role = currentUser?.role;
   const canEdit = !readOnly && isOwn && (role === 'SUPER_ADMIN' || role === 'ADMIN' || !isAdminType);
@@ -200,7 +200,7 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
   }
 
   const typeLabel: Record<string, string> = {
-    info: '資訊', broadcast: '廣播',
+    info: '資訊', broadcast: '廣播', district_info: '區資訊', li_info: '里資訊',
     fresh: '新鮮事', store_visit: '探店', selling: '我要賣', renting: '要出租',
     group_buy: '發團購', group_event: '揪團活動', free_give: '免費贈',
     help: '生活求助', want_rent: '想承租', find: '尋人找物',

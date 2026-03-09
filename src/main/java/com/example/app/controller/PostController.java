@@ -72,7 +72,8 @@ public class PostController {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
         }
         String type = req.getType() != null ? req.getType() : "fresh";
-        boolean isAdminType = "info".equals(type) || "broadcast".equals(type);
+        boolean isAdminType = "info".equals(type) || "broadcast".equals(type)
+                || "district_info".equals(type) || "li_info".equals(type);
         if (isAdminType && claims.getRole() != UserRole.ADMIN && claims.getRole() != UserRole.SUPER_ADMIN) {
             throw new BusinessException(ResultCode.FORBIDDEN, "只有管理員可以發布資訊/廣播");
         }
