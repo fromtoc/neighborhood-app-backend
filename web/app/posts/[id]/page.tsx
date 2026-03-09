@@ -4,6 +4,7 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import ShareButton from '@/components/ShareButton';
+import PostDetailComments from '@/components/PostDetailComments';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
 
@@ -223,6 +224,9 @@ export default async function PostDetailPage({ params }: Props) {
           <span>💬 {post.commentCount} 則留言</span>
           <ShareButton title={post.title ?? post.content.slice(0, 40)} path={`/posts/${post.id}`} style={{ marginLeft: 'auto' }} />
         </div>
+
+        {/* 留言區 */}
+        <PostDetailComments postId={post.id} />
 
         {/* Back */}
         {liUrl && (() => {

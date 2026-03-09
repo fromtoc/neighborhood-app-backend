@@ -10,8 +10,6 @@ import com.example.app.service.PostInteractionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
@@ -45,26 +43,57 @@ public class PostInteractionController {
     /* ── 留言 ─────────────────────────────────────────── */
 
     @GetMapping("/comments")
-    @Operation(summary = "取得貼文留言列表")
-    public ApiResponse<List<PostCommentResponse>> listComments(@PathVariable Long postId) {
-        return ApiResponse.success(interactionService.listComments(postId));
+    @Operation(summary = "取得留言列表（parentId=null 為頂層；傳 parentId 取回覆）")
+    public ApiResponse<List<PostCommentResponse>> listComments(
+            @PathVariable Long postId,
+            @RequestParam(required = false) Long parentId
+    ) {
+        return ApiResponse.success(interactionService.listComments(postId, parentId));
+    }
+
+    @GetMapping("/comments/{commentId}")
+    @Operation(summary = "取得單則留言")
+    public ApiResponse<PostCommentResponse> getComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId
+    ) {
+        PostCommentResponse res = interactionService.getComment(postId, commentId);
+        if (res == null) throw new BusinessException(ResultCode.NOT_FOUND, "留言不存在");
+        return ApiResponse.success(res);
+    }
+
+    @PostMapping("/comments/{commentId}/like")
+    @Operation(summary = "切換留言按讚狀態（需登入）",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<PostLikeResponse> toggleCommentLike(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal JwtClaims claims
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        return ApiResponse.success(interactionService.toggleCommentLike(commentId, claims.getUserId()));
     }
 
     @PostMapping("/comments")
-    @Operation(summary = "新增留言（需登入）",
+    @Operation(summary = "新增留言 / 回覆（需登入）",
                security = @SecurityRequirement(name = "bearerAuth"))
     public ApiResponse<PostCommentResponse> addComment(
             @PathVariable Long postId,
             @AuthenticationPrincipal JwtClaims claims,
-            @RequestBody Map<String, String> body
+            @RequestBody Map<String, Object> body
     ) {
         if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        String content = body.get("content");
+        String content = (String) body.get("content");
         if (content == null || content.isBlank())
             throw new BusinessException(ResultCode.BAD_REQUEST, "留言內容不得為空");
         if (content.length() > 500)
             content = content.substring(0, 500);
+
+        Long parentId = null;
+        Object raw = body.get("parentId");
+        if (raw instanceof Number n) parentId = n.longValue();
+
         return ApiResponse.success(
-                interactionService.addComment(postId, claims.getUserId(), content));
+                interactionService.addComment(postId, claims.getUserId(), content, parentId));
     }
 }

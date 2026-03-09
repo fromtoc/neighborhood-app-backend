@@ -13,9 +13,11 @@ public class PostComment {
     private Long id;
 
     private Long postId;
+    private Long parentId;
     private Long userId;
     private String nickname;
     private String content;
+    private Integer likeCount;
 
     @TableLogic
     private Integer deleted;

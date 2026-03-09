@@ -3,54 +3,513 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
+import { dispatchAuthExpired } from '@/lib/auth-client';
+import ShareButton from './ShareButton';
 
 interface Comment {
   id: number;
   postId: number;
+  parentId: number | null;
   userId: number;
   nickname: string | null;
   content: string;
   createdAt: string;
+  replyCount: number;
+  topRepliers: string[];
 }
 
 interface Props {
   postId: number;
   onCommentAdded?: () => void;
+  initialCommentId?: number;
 }
 
-/** 只渲染展開的留言列表 + 輸入框，不含 trigger 按鈕（trigger 由父元件負責）*/
-export default function CommentSection({ postId, onCommentAdded }: Props) {
+const COLORS = ['#e53935','#8e24aa','#1e88e5','#43a047','#fb8c00','#00acc1','#6d4c41','#546e7a'];
+function hashColor(name: string) {
+  let h = 0;
+  for (const c of name) h = ((h << 5) - h) + c.charCodeAt(0);
+  return COLORS[Math.abs(h) % COLORS.length];
+}
+
+function timeAgo(iso: string) {
+  const normalized = /[Zz]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : iso + '+08:00';
+  const diff = Date.now() - new Date(normalized).getTime();
+  if (diff < 0) return '剛剛';
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return '剛剛';
+  if (m < 60) return `${m} 分鐘前`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} 小時前`;
+  const d = Math.floor(h / 24);
+  return `${d} 天前`;
+}
+
+/** 小頭像 */
+function MiniAvatar({ name }: { name: string }) {
+  return (
+    <div style={{
+      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+      background: hashColor(name),
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: 9, fontWeight: 700, color: '#fff',
+      marginLeft: -6, border: '2px solid #fff',
+    }}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+/** 大頭像 */
+function Avatar({ name, size = 36, self = false }: { name: string; size?: number; self?: boolean }) {
+  const bg = self ? '#1c5373' : hashColor(name);
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      background: bg, color: '#fff',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.38, fontWeight: 700,
+    }}>
+      {name.charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+/** 單則留言卡 */
+function CommentCard({
+  comment, isSelf, selfName, showLine, onClick, postId,
+}: {
+  comment: Comment; isSelf: boolean; selfName: string;
+  showLine: boolean; onClick: () => void; postId: number;
+}) {
+  const { token } = useAuth();
+  const name = isSelf ? selfName : (comment.nickname ?? `用戶 #${comment.userId}`);
+  const hasReplies = comment.replyCount > 0;
+
+  const [liked,     setLiked]     = useState(false);
+  const [likeCount, setLikeCount] = useState(comment.likeCount ?? 0);
+  const [likePending, setLikePending] = useState(false);
+
+  async function handleLike(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!token || likePending) return;
+    setLikePending(true);
+    setLiked(v => !v);
+    setLikeCount(c => liked ? c - 1 : c + 1);
+    try {
+      const res = await fetch(
+        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${comment.id}/like`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+      );
+      const json = await res.json();
+      if (json.code === 401) { dispatchAuthExpired(); setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1); }
+      else if (json.code === 200) { setLiked(json.data.liked); setLikeCount(json.data.likeCount); }
+      else { setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1); }
+    } catch {
+      setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1);
+    } finally {
+      setLikePending(false);
+    }
+  }
+
+  const btnStyle: React.CSSProperties = {
+    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+    display: 'flex', alignItems: 'center', gap: '0.3rem',
+    fontSize: '0.82rem', color: '#828282',
+  };
+
+  return (
+    <div id={`comment-${comment.id}`} style={{ display: 'flex', gap: '0.65rem' }}>
+      {/* 頭像欄 + thread 線 */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+        <Avatar name={name} size={36} self={isSelf} />
+        {(showLine || hasReplies) && (
+          <div style={{ width: 2, flex: 1, minHeight: 12, background: '#e6e6e6', marginTop: 4 }} />
+        )}
+      </div>
+
+      {/* 內容 */}
+      <div style={{ flex: 1, paddingBottom: '0.9rem', minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 2 }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e1e1e' }}>{name}</span>
+          <span style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(comment.createdAt)}</span>
+        </div>
+
+        {/* 點擊內容進入子討論 */}
+        <div onClick={onClick} style={{ cursor: 'pointer' }}>
+          <p style={{
+            fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.6,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 6,
+          }}>
+            {comment.content}
+          </p>
+        </div>
+
+        {/* 互動列 */}
+        <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'center' }}>
+          {/* 讚 */}
+          <button
+            onClick={handleLike}
+            style={{ ...btnStyle, color: liked ? '#e53e3e' : '#828282' }}
+          >
+            <span>{liked ? '❤️' : '🤍'}</span> {likeCount}
+          </button>
+
+          {/* 回覆 */}
+          <button
+            onClick={e => { e.stopPropagation(); onClick(); }}
+            style={btnStyle}
+          >
+            <span>💬</span> {comment.replyCount}
+          </button>
+
+          {/* 分享 */}
+          <ShareButton
+            title={comment.content.slice(0, 40)}
+            path={`/posts/${comment.postId}?commentId=${comment.id}`}
+          />
+        </div>
+
+        {/* 回覆摘要（mini avatars） */}
+        {hasReplies && (
+          <div
+            onClick={e => { e.stopPropagation(); onClick(); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, cursor: 'pointer' }}
+          >
+            <div style={{ display: 'flex', marginLeft: 6 }}>
+              {comment.topRepliers.map((r, i) => (
+                <MiniAvatar key={i} name={r} />
+              ))}
+            </div>
+            <span style={{ fontSize: '0.75rem', color: '#999' }}>
+              {comment.replyCount} 則回覆
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** 回覆輸入框 */
+function ReplyComposer({
+  postId, parentId, replyingTo, selfName, onSent,
+}: {
+  postId: number; parentId: number | null; replyingTo: string;
+  selfName: string; onSent: () => void;
+}) {
+  const { token } = useAuth();
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!input.trim() || !token) return;
+    setSending(true);
+    try {
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: input.trim(), parentId }),
+      });
+      const json = await res.json();
+      if (json.code === 401) { dispatchAuthExpired(); return; }
+      if (json.code === 200) { setInput(''); onSent(); }
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div style={{
+      display: 'flex', gap: '0.65rem', padding: '0.75rem 0',
+      borderTop: '1px solid #f0f0f0', borderBottom: '1px solid #f0f0f0',
+    }}>
+      <Avatar name={selfName} size={32} self />
+      <form onSubmit={handleSubmit} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <textarea
+          ref={textareaRef}
+          value={input}
+          onChange={e => {
+            setInput(e.target.value);
+            e.target.style.height = 'auto';
+            e.target.style.height = e.target.scrollHeight + 'px';
+          }}
+          placeholder={`回覆 ${replyingTo}...`}
+          maxLength={500}
+          rows={1}
+          disabled={sending}
+          style={{
+            border: 'none', outline: 'none', resize: 'none',
+            fontSize: '0.9rem', fontFamily: 'inherit',
+            color: '#1e1e1e', background: 'transparent',
+            minHeight: 36, lineHeight: 1.6,
+          }}
+        />
+        {input.trim() && (
+          <button
+            type="submit"
+            disabled={sending}
+            style={{
+              alignSelf: 'flex-end',
+              background: '#1c5373', color: '#fff',
+              border: 'none', borderRadius: 18,
+              padding: '5px 16px', fontSize: '0.82rem', fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {sending ? '…' : '發佈'}
+          </button>
+        )}
+      </form>
+    </div>
+  );
+}
+
+/** 滑入式討論面板（可無限堆疊） */
+function ThreadPanel({
+  postId, rootComment, selfName, isSelf, onClose, onReplied, initialChain,
+}: {
+  postId: number; rootComment: Comment; selfName: string;
+  isSelf: boolean; onClose: () => void; onReplied?: () => void;
+  initialChain?: number[]; // [nextId, grandchildId, ...] — 需要自動展開的子代 id 路徑
+}) {
+  const [replies, setReplies] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [subThread, setSubThread] = useState<Comment | null>(null);
+  const { user } = useAuth();
+  const autoSubDone = useRef(false);
+
+  const name = isSelf ? selfName : (rootComment.nickname ?? `用戶 #${rootComment.userId}`);
+
+  const fetchReplies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments?parentId=${rootComment.id}`
+      );
+      const json = await res.json();
+      if (json.code === 200) {
+        const list: Comment[] = json.data ?? [];
+        setReplies(list);
+        // 從 URL 分享進來時，按 chain 自動展開下一層（只做一次）
+        if (!autoSubDone.current && initialChain && initialChain.length > 0) {
+          const sub = list.find(r => r.id === initialChain[0]);
+          if (sub) { setSubThread(sub); autoSubDone.current = true; }
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [postId, rootComment.id, initialChain]);
+
+  useEffect(() => { fetchReplies(); }, [fetchReplies]);
+
+  // Back handler — 統一由 popstate 觸發，確保 history stack 同步
+  useEffect(() => {
+    function onBack() { if (!subThread) onClose(); }
+    history.pushState({ thread: rootComment.id }, '');
+    window.addEventListener('popstate', onBack);
+    return () => {
+      window.removeEventListener('popstate', onBack);
+    };
+  }, [rootComment.id, subThread, onClose]);
+
+  // 統一的關閉入口：透過 history.back() 觸發 popstate
+  function handleClose() { history.back(); }
+
+  return (
+    <>
+      {/* 遮罩 */}
+      <div
+        onClick={handleClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 300,
+          background: 'rgba(0,0,0,0.15)',
+        }}
+      />
+
+      {/* 面板 */}
+      <div style={{
+        position: 'fixed', inset: 0, zIndex: 301,
+        background: '#f8f9f9', overflowY: 'auto',
+        animation: 'slideInRight 0.25s cubic-bezier(.4,0,.2,1)',
+      }}>
+        {/* 頂部導覽 */}
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 10,
+          background: 'rgba(248,249,249,.92)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid #e8e8e8',
+          display: 'flex', alignItems: 'center',
+          padding: '0.7rem 1rem', gap: '0.75rem',
+        }}>
+          <button
+            onClick={handleClose}
+            style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: '#1e1e1e', lineHeight: 1 }}
+          >
+            ←
+          </button>
+          <span style={{ fontWeight: 700, fontSize: '1rem' }}>討論串</span>
+        </div>
+
+        <div style={{ maxWidth: 680, margin: '0 auto', padding: '1rem' }}>
+          {/* 根留言（作為 OP） */}
+          <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <Avatar name={name} size={40} self={isSelf} />
+              {(loading || replies.length > 0) && (
+                <div style={{ width: 2, flex: 1, minHeight: 16, background: '#e6e6e6', marginTop: 4 }} />
+              )}
+            </div>
+            <div style={{ flex: 1, paddingBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
+                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{name}</span>
+                <span style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(rootComment.createdAt)}</span>
+              </div>
+              <p style={{ fontSize: '0.95rem', lineHeight: 1.65, color: '#1e1e1e', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                {rootComment.content}
+              </p>
+            </div>
+          </div>
+
+          {/* 回覆輸入 */}
+          {user ? (
+            <ReplyComposer
+              postId={postId}
+              parentId={rootComment.id}
+              replyingTo={name}
+              selfName={selfName}
+              onSent={() => { fetchReplies(); onReplied?.(); }}
+            />
+          ) : null}
+
+          {/* 回覆列表 */}
+          {loading ? (
+            <p style={{ fontSize: '0.82rem', color: '#bbb', padding: '1rem 0' }}>載入中...</p>
+          ) : replies.length > 0 ? (
+            <div style={{ marginTop: '0.5rem' }}>
+              <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#999', padding: '0.5rem 0' }}>
+                回覆 · {replies.length} 則
+              </p>
+              {replies.map((r, i) => (
+                <CommentCard
+                  key={r.id}
+                  comment={r}
+                  isSelf={user?.userId === r.userId}
+                  selfName={selfName}
+                  showLine={i < replies.length - 1}
+                  onClick={() => setSubThread(r)}
+                  postId={postId}
+                />
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: '0.82rem', color: '#bbb', padding: '1rem 0' }}>
+              還沒有回覆，來說說你的想法！
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* 子討論串（無限堆疊） */}
+      {subThread && (
+        <ThreadPanel
+          postId={postId}
+          rootComment={subThread}
+          selfName={selfName}
+          isSelf={user?.userId === subThread.userId}
+          onClose={() => { setSubThread(null); fetchReplies(); }}
+          onReplied={() => { fetchReplies(); onReplied?.(); }}
+          initialChain={initialChain && initialChain.length > 1 ? initialChain.slice(1) : undefined}
+        />
+      )}
+
+      <style>{`
+        @keyframes slideInRight {
+          from { transform: translateX(100%); }
+          to   { transform: translateX(0); }
+        }
+      `}</style>
+    </>
+  );
+}
+
+/* ── 主元件 ─────────────────────────────────────────────── */
+
+export default function CommentSection({ postId, onCommentAdded, initialCommentId }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const selfName = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`
     : (nickname || `用戶 #${user?.userId}`);
+
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [activeThread, setActiveThread] = useState<Comment | null>(null);
+  const [initialChain, setInitialChain] = useState<number[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const autoOpenDone = useRef(false);
+
+  /** 從目標往上逐層 fetch，建立 [root, …, target] 的祖先鏈 */
+  const buildAncestorChain = useCallback(async (commentId: number): Promise<Comment[]> => {
+    const chain: Comment[] = [];
+    let currentId: number | null = commentId;
+    while (currentId !== null) {
+      try {
+        const r = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${currentId}`);
+        const j = await r.json();
+        if (j.code !== 200) break;
+        const c: Comment = j.data;
+        chain.unshift(c); // 前插，最終順序為 root → ... → target
+        currentId = c.parentId;
+      } catch { break; }
+    }
+    return chain;
+  }, [postId]);
 
   const fetchComments = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments`);
-      if (!res.ok) return;
       const json = await res.json();
-      if (json.code === 200) setComments(json.data ?? []);
-    } catch {
-      // 網路錯誤時保留現有留言，不清空
+      if (json.code === 200) {
+        const list: Comment[] = json.data ?? [];
+        setComments(list);
+
+        if (!autoOpenDone.current && initialCommentId) {
+          autoOpenDone.current = true;
+
+          // 在頂層直接找到
+          const topLevel = list.find(c => c.id === initialCommentId);
+          if (topLevel) { setActiveThread(topLevel); return; }
+
+          // 是巢狀回覆：建立完整祖先鏈
+          const chain = await buildAncestorChain(initialCommentId);
+          if (chain.length === 0) return;
+
+          // chain[0] 是最上層祖先，優先用頂層列表的版本（有完整 replyCount）
+          const root = list.find(c => c.id === chain[0].id) ?? chain[0];
+          setActiveThread(root);
+
+          // chain[1..] 是從 root 子代到 target 的 id 路徑
+          if (chain.length > 1) {
+            setInitialChain(chain.slice(1).map(c => c.id));
+          }
+        }
+      }
     } finally {
       setLoading(false);
     }
-  }, [postId]);
+  }, [postId, initialCommentId, buildAncestorChain]);
 
-  useEffect(() => {
-    fetchComments();
-  }, [fetchComments]);
-
-  useEffect(() => {
-    setTimeout(() => inputRef.current?.focus(), 100);
-  }, []);
+  useEffect(() => { fetchComments(); }, [fetchComments]);
+  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -63,10 +522,11 @@ export default function CommentSection({ postId, onCommentAdded }: Props) {
         body: JSON.stringify({ content: input.trim() }),
       });
       const json = await res.json();
+      if (json.code === 401) { dispatchAuthExpired(); return; }
       if (json.code === 200) {
         setInput('');
         onCommentAdded?.();
-        await fetchComments(); // refetch 確保拿到完整列表（包含剛送出的）
+        await fetchComments();
       }
     } finally {
       setSending(false);
@@ -75,18 +535,21 @@ export default function CommentSection({ postId, onCommentAdded }: Props) {
 
   return (
     <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid #f0f0f0' }}>
-      {/* 留言列表 — Threads 風格 */}
+
+      {/* 留言列表 */}
       {loading ? (
-        <p style={{ fontSize: '0.82rem', color: '#bbb', padding: '0.25rem 0' }}>載入中...</p>
+        <p style={{ fontSize: '0.82rem', color: '#bbb', padding: '0.25rem 0 0.75rem' }}>載入中...</p>
       ) : comments.length > 0 ? (
-        <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '0.75rem' }}>
+        <div style={{ marginBottom: '0.75rem' }}>
           {comments.map((c, i) => (
-            <ThreadComment
+            <CommentCard
               key={c.id}
               comment={c}
-              isLast={i === comments.length - 1}
-              currentUserId={user?.userId}
-              selfName={selfName}
+              isSelf={user?.userId === c.userId}
+              selfName={selfName ?? ''}
+              showLine={i < comments.length - 1}
+              onClick={() => setActiveThread(c)}
+              postId={postId}
             />
           ))}
         </div>
@@ -96,10 +559,10 @@ export default function CommentSection({ postId, onCommentAdded }: Props) {
         </p>
       )}
 
-      {/* 輸入框 */}
+      {/* 頂層留言輸入框 */}
       {user ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <Avatar name={selfName} size={28} self />
+          <Avatar name={selfName ?? 'U'} size={28} self />
           <input
             ref={inputRef}
             value={input}
@@ -140,52 +603,19 @@ export default function CommentSection({ postId, onCommentAdded }: Props) {
           登入後留言
         </button>
       )}
-    </div>
-  );
-}
 
-/* ── Threads 風格單則留言 ──────────────────────────── */
-
-function ThreadComment({
-  comment, isLast, currentUserId, selfName,
-}: {
-  comment: Comment; isLast: boolean; currentUserId?: number; selfName?: string;
-}) {
-  const isSelf = currentUserId === comment.userId;
-  const name = isSelf && selfName ? selfName : (comment.nickname ?? `用戶 #${comment.userId}`);
-  const time = new Date(comment.createdAt).toLocaleDateString('zh-TW', {
-    month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
-
-  return (
-    <div style={{ display: 'flex', gap: '0.6rem' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-        <Avatar name={name} size={32} self={isSelf} />
-        {!isLast && <div style={{ width: 2, flex: 1, background: '#e6e6e6', margin: '4px 0' }} />}
-      </div>
-      <div style={{ flex: 1, paddingBottom: isLast ? 0 : '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#1e1e1e' }}>{name}</span>
-          <span style={{ fontSize: '0.72rem', color: '#bbb' }}>{time}</span>
-        </div>
-        <p style={{ fontSize: '0.88rem', color: '#2c2c2c', lineHeight: 1.6, marginTop: '0.2rem', whiteSpace: 'pre-wrap' }}>
-          {comment.content}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function Avatar({ name, size, self }: { name: string; size: number; self: boolean }) {
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: self ? '#1c5373' : '#e6e6e6',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.38, fontWeight: 700,
-      color: self ? '#fff' : '#828282',
-    }}>
-      {name.charAt(0).toUpperCase()}
+      {/* 討論串面板 */}
+      {activeThread && (
+        <ThreadPanel
+          postId={postId}
+          rootComment={activeThread}
+          selfName={selfName ?? ''}
+          isSelf={user?.userId === activeThread.userId}
+          onClose={() => { setActiveThread(null); setInitialChain([]); fetchComments(); }}
+          onReplied={fetchComments}
+          initialChain={initialChain.length > 0 ? initialChain : undefined}
+        />
+      )}
     </div>
   );
 }

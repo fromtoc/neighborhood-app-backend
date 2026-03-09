@@ -7,6 +7,8 @@ import com.example.app.entity.Post;
 import com.example.app.entity.PostComment;
 import com.example.app.entity.PostLike;
 import com.example.app.entity.User;
+import com.example.app.entity.PostCommentLike;
+import com.example.app.mapper.PostCommentLikeMapper;
 import com.example.app.mapper.PostCommentMapper;
 import com.example.app.mapper.PostLikeMapper;
 import com.example.app.mapper.PostMapper;
@@ -16,18 +18,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.example.app.service.PostInteractionService;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PostInteractionServiceImpl implements PostInteractionService {
 
-    private final PostLikeMapper    postLikeMapper;
-    private final PostCommentMapper postCommentMapper;
-    private final PostMapper        postMapper;
-    private final UserMapper        userMapper;
+    private final PostLikeMapper        postLikeMapper;
+    private final PostCommentMapper     postCommentMapper;
+    private final PostCommentLikeMapper postCommentLikeMapper;
+    private final PostMapper            postMapper;
+    private final UserMapper            userMapper;
 
     @Override
     @Transactional
@@ -59,31 +61,67 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     }
 
     @Override
-    public List<PostCommentResponse> listComments(Long postId) {
-        List<PostComment> comments = postCommentMapper.selectList(
-                new LambdaQueryWrapper<PostComment>()
-                        .eq(PostComment::getPostId, postId)
-                        .orderByAsc(PostComment::getCreatedAt)
-        );
+    public List<PostCommentResponse> listComments(Long postId, Long parentId) {
+        // 1. 載入指定層留言
+        LambdaQueryWrapper<PostComment> wrapper = new LambdaQueryWrapper<PostComment>()
+                .eq(PostComment::getPostId, postId)
+                .orderByAsc(PostComment::getCreatedAt);
+        if (parentId == null) {
+            wrapper.isNull(PostComment::getParentId);
+        } else {
+            wrapper.eq(PostComment::getParentId, parentId);
+        }
+        List<PostComment> comments = postCommentMapper.selectList(wrapper);
         if (comments.isEmpty()) return List.of();
 
-        // Batch-load current nicknames from DB
+        // 2. 批次取暱稱
         List<Long> userIds = comments.stream().map(PostComment::getUserId).distinct().toList();
         Map<Long, String> nicknameMap = buildNicknameMap(userIds);
 
-        return comments.stream()
-                .map(c -> PostCommentResponse.from(c, nicknameMap.get(c.getUserId())))
-                .toList();
+        // 3. 批次取直接回覆（用來算數量 + 前 3 位回覆者）
+        List<Long> commentIds = comments.stream().map(PostComment::getId).toList();
+        List<PostComment> childReplies = commentIds.isEmpty() ? List.of() :
+                postCommentMapper.selectList(
+                        new LambdaQueryWrapper<PostComment>()
+                                .in(PostComment::getParentId, commentIds)
+                                .orderByAsc(PostComment::getCreatedAt)
+                );
+
+        // parentId -> count
+        Map<Long, Integer> replyCountMap = childReplies.stream()
+                .collect(Collectors.groupingBy(PostComment::getParentId,
+                        Collectors.collectingAndThen(Collectors.counting(), Long::intValue)));
+
+        // parentId -> first 3 replier user ids
+        Map<Long, List<Long>> topReplierUserIds = new LinkedHashMap<>();
+        for (PostComment r : childReplies) {
+            topReplierUserIds.computeIfAbsent(r.getParentId(), k -> new ArrayList<>());
+            List<Long> list = topReplierUserIds.get(r.getParentId());
+            if (list.size() < 3) list.add(r.getUserId());
+        }
+
+        // 批次取回覆者暱稱
+        Set<Long> replierIds = topReplierUserIds.values().stream()
+                .flatMap(Collection::stream).collect(Collectors.toSet());
+        Map<Long, String> replierNicknames = replierIds.isEmpty() ? Map.of() : buildNicknameMap(new ArrayList<>(replierIds));
+
+        // 4. 組裝
+        return comments.stream().map(c -> {
+            int count = replyCountMap.getOrDefault(c.getId(), 0);
+            List<String> topRepliers = topReplierUserIds.getOrDefault(c.getId(), List.of())
+                    .stream().map(uid -> replierNicknames.getOrDefault(uid, "用戶")).toList();
+            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, topRepliers);
+        }).toList();
     }
 
     @Override
     @Transactional
-    public PostCommentResponse addComment(Long postId, Long userId, String content) {
-        // Look up current nickname from DB
+    public PostCommentResponse addComment(Long postId, Long userId, String content, Long parentId) {
         String nickname = resolveNickname(userId);
 
         PostComment comment = new PostComment();
         comment.setPostId(postId);
+        comment.setParentId(parentId);
         comment.setUserId(userId);
         comment.setNickname(nickname);
         comment.setContent(content);
@@ -92,9 +130,63 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         comment.setUpdatedAt(java.time.LocalDateTime.now());
         postCommentMapper.insert(comment);
 
-        postMapper.incrementComment(postId);
+        // 只有頂層留言才增加貼文的 comment_count
+        if (parentId == null) {
+            postMapper.incrementComment(postId);
+        }
 
         return PostCommentResponse.from(comment);
+    }
+
+    @Override
+    public PostCommentResponse getComment(Long postId, Long commentId) {
+        PostComment c = postCommentMapper.selectById(commentId);
+        if (c == null || !c.getPostId().equals(postId)) return null;
+
+        String nickname = buildNicknameMap(List.of(c.getUserId())).get(c.getUserId());
+
+        // 直接子回覆數 + top repliers
+        List<PostComment> children = postCommentMapper.selectList(
+                new LambdaQueryWrapper<PostComment>()
+                        .eq(PostComment::getParentId, commentId)
+                        .orderByAsc(PostComment::getCreatedAt)
+        );
+        int replyCount = children.size();
+        List<String> topRepliers = children.stream()
+                .limit(3)
+                .map(r -> buildNicknameMap(List.of(r.getUserId())).getOrDefault(r.getUserId(), "用戶"))
+                .toList();
+
+        return PostCommentResponse.from(c, nickname, replyCount, topRepliers);
+    }
+
+    @Override
+    @Transactional
+    public PostLikeResponse toggleCommentLike(Long commentId, Long userId) {
+        PostCommentLike existing = postCommentLikeMapper.selectOne(
+                new LambdaQueryWrapper<PostCommentLike>()
+                        .eq(PostCommentLike::getCommentId, commentId)
+                        .eq(PostCommentLike::getUserId, userId)
+        );
+
+        boolean liked;
+        if (existing != null) {
+            postCommentLikeMapper.deleteById(existing.getId());
+            postCommentLikeMapper.decrementLike(commentId);
+            liked = false;
+        } else {
+            PostCommentLike like = new PostCommentLike();
+            like.setCommentId(commentId);
+            like.setUserId(userId);
+            like.setCreatedAt(java.time.LocalDateTime.now());
+            postCommentLikeMapper.insert(like);
+            postCommentLikeMapper.incrementLike(commentId);
+            liked = true;
+        }
+
+        PostComment comment = postCommentMapper.selectById(commentId);
+        int likeCount = (comment != null && comment.getLikeCount() != null) ? comment.getLikeCount() : 0;
+        return new PostLikeResponse(liked, likeCount);
     }
 
     private String resolveNickname(Long userId) {
@@ -107,6 +199,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     }
 
     private Map<Long, String> buildNicknameMap(List<Long> userIds) {
+        if (userIds.isEmpty()) return Map.of();
         return userMapper.selectBatchIds(userIds).stream().collect(Collectors.toMap(
                 User::getId,
                 u -> {

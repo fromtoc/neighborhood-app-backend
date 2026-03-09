@@ -71,11 +71,12 @@ class PostInteractionServiceTest {
     void listComments_returnsOrderedList() {
         PostComment c1 = comment(1L, 1L, 10L, "hello");
         PostComment c2 = comment(2L, 1L, 20L, "hi");
-        when(postCommentMapper.selectList(any())).thenReturn(List.of(c1, c2));
+        // 第一次 selectList → 頂層留言；第二次 → 子回覆（空）
+        when(postCommentMapper.selectList(any())).thenReturn(List.of(c1, c2), List.of());
         when(userMapper.selectBatchIds(any(List.class))).thenReturn(List.of(
                 userWith(10L, "Alice"), userWith(20L, "Bob")));
 
-        List<PostCommentResponse> list = service.listComments(1L);
+        List<PostCommentResponse> list = service.listComments(1L, null);
 
         assertThat(list).hasSize(2);
         assertThat(list.get(0).getNickname()).isEqualTo("Alice");
@@ -89,7 +90,7 @@ class PostInteractionServiceTest {
     void addComment_savesAndIncrementsCount() {
         when(userMapper.selectBatchIds(any(List.class))).thenReturn(List.of(userWith(10L, "小明")));
 
-        PostCommentResponse res = service.addComment(1L, 10L, "測試留言");
+        PostCommentResponse res = service.addComment(1L, 10L, "測試留言", null);
 
         verify(postCommentMapper).insert(any(PostComment.class));
         verify(postMapper).incrementComment(1L);
