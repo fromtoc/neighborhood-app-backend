@@ -6,6 +6,8 @@ import com.example.app.common.result.ResultCode;
 import com.example.app.dto.admin.ImportResult;
 import com.example.app.service.NeighborhoodGeoJsonImportService;
 import com.example.app.service.NeighborhoodImportService;
+import com.example.app.service.SeoUrlService;
+import com.example.app.service.WebRevalidateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @Tag(name = "Admin - Neighborhood", description = "Neighborhood admin operations")
 @RestController
@@ -26,6 +29,8 @@ public class AdminNeighborhoodController {
 
     private final NeighborhoodImportService        neighborhoodImportService;
     private final NeighborhoodGeoJsonImportService neighborhoodGeoJsonImportService;
+    private final SeoUrlService                    seoUrlService;
+    private final WebRevalidateService             webRevalidateService;
 
     @Operation(
             summary = "Bulk-import neighborhoods from CSV",
@@ -58,6 +63,21 @@ public class AdminNeighborhoodController {
         }
 
         ImportResult result = neighborhoodGeoJsonImportService.importGeoJson(file.getInputStream());
+        if (result.getSuccessCount() > 0) {
+            seoUrlService.rebuildNeighborhoods();                          // async
+            webRevalidateService.revalidatePaths(List.of("/sitemap.xml")); // async
+        }
         return ApiResponse.success(result);
+    }
+
+    @Operation(
+            summary = "重建 SEO URL 索引",
+            description = "全量掃描 neighborhood / place / post 並寫入 seo_url 表。非同步執行，立即回傳。",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PostMapping("/seo/rebuild")
+    public ApiResponse<String> rebuildSeoUrls() {
+        seoUrlService.rebuildNeighborhoods();
+        return ApiResponse.success("SEO URL rebuild started (async)");
     }
 }

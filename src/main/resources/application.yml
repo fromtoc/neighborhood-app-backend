@@ -98,6 +98,12 @@ line:
   # token-endpoint: https://api.line.me/oauth2/v2.1/token
   # verify-endpoint: https://api.line.me/oauth2/v2.1/verify
 
+web:
+  # Next.js container URL（Docker Compose 內部通訊，空字串則停用）
+  base-url: ${WEB_BASE_URL:}
+  # 與 Next.js /api/revalidate 共用的 secret
+  revalidate-secret: ${REVALIDATE_SECRET:}
+
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} -- %msg%n"

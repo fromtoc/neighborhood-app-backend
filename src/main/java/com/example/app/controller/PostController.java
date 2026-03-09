@@ -10,6 +10,8 @@ import com.example.app.dto.post.CreatePostRequest;
 import com.example.app.dto.post.PostResponse;
 import com.example.app.entity.Post;
 import com.example.app.service.PostQueryService;
+import com.example.app.service.SeoUrlService;
+import com.example.app.service.WebRevalidateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -24,6 +26,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -32,7 +36,9 @@ import org.springframework.web.bind.annotation.*;
 @Tag(name = "Post", description = "社群貼文 API")
 public class PostController {
 
-    private final PostQueryService postQueryService;
+    private final PostQueryService     postQueryService;
+    private final SeoUrlService        seoUrlService;
+    private final WebRevalidateService webRevalidateService;
 
     @GetMapping
     @Operation(
@@ -71,6 +77,8 @@ public class PostController {
             throw new BusinessException(ResultCode.FORBIDDEN, "只有管理員可以發布資訊/廣播");
         }
         Post post = postQueryService.create(claims.getUserId(), req);
+        seoUrlService.upsertPost(post);                                          // async
+        webRevalidateService.revalidatePaths(List.of("/posts/" + post.getId())); // async
         return ApiResponse.success(PostResponse.from(post));
     }
 

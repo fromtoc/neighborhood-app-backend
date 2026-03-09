@@ -146,6 +146,9 @@ services:
       # LINE Login (optional)
       LINE_CHANNEL_ID: ${LINE_CHANNEL_ID:-}
       LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
+      # On-demand revalidation（通知 Next.js 重新產生頁面）
+      WEB_BASE_URL: http://web:3000
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
     volumes:
       - app_logs:/app/logs
       # Mount Firebase service-account JSON if path is set
@@ -181,6 +184,8 @@ services:
       API_BASE_URL: http://app:8080
       PORT: 3000
       HOSTNAME: "0.0.0.0"
+      # On-demand revalidation secret（與後端共用）
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
     ports:
       - "127.0.0.1:3000:3000"
     depends_on:

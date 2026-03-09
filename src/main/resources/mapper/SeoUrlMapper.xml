@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.app.mapper.SeoUrlMapper">
+
+    <!--
+        INSERT ... ON DUPLICATE KEY UPDATE，以 url 為唯一索引（uk_url）
+        lastmod / updated_at 每次都更新
+    -->
+    <insert id="batchUpsert">
+        INSERT INTO `seo_url` (url, type, ref_id, lastmod, is_indexable, priority, changefreq, created_at, updated_at)
+        VALUES
+        <foreach collection="list" item="r" separator=",">
+            (#{r.url}, #{r.type}, #{r.refId}, NOW(), #{r.isIndexable}, #{r.priority}, #{r.changefreq}, NOW(), NOW())
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            type        = VALUES(type),
+            ref_id      = VALUES(ref_id),
+            lastmod     = NOW(),
+            is_indexable = VALUES(is_indexable),
+            priority    = VALUES(priority),
+            changefreq  = VALUES(changefreq),
+            updated_at  = NOW()
+    </insert>
+
+</mapper>
