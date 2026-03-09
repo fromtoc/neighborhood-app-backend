@@ -19,7 +19,9 @@ export default function LineCallbackPage() {
 
 function decodeJwtRole(token: string): string {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
+    // JWT uses base64url (- instead of +, _ instead of /); atob requires standard base64
+    const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64));
     return payload.role ?? 'USER';
   } catch {
     return 'USER';
