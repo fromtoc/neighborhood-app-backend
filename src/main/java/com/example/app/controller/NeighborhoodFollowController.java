@@ -1,6 +1,9 @@
 package com.example.app.controller;
 
+import com.example.app.common.enums.UserRole;
+import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ApiResponse;
+import com.example.app.common.result.ResultCode;
 import com.example.app.dto.JwtClaims;
 import com.example.app.entity.Neighborhood;
 import com.example.app.service.NeighborhoodFollowService;
@@ -37,6 +40,8 @@ public class NeighborhoodFollowController {
     public ApiResponse<Void> follow(
             @AuthenticationPrincipal JwtClaims claims,
             @PathVariable Long neighborhoodId) {
+        if (UserRole.GUEST == claims.getRole())
+            throw new BusinessException(ResultCode.FORBIDDEN, "訪客無法關注里");
         followService.follow(claims.getUserId(), neighborhoodId);
         return ApiResponse.success(null);
     }
