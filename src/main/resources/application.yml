@@ -109,12 +109,46 @@ cwa:
 
 aggregator:
   ncdr:
-    # 設為 true 啟用 NCDR 防災資訊定時爬蟲
     enabled: ${AGGREGATOR_NCDR_ENABLED:true}
-    # 每次執行間隔（ms），預設 30 分鐘
     interval-ms: ${AGGREGATOR_NCDR_INTERVAL_MS:300000}
-    # 啟動後多久首次執行（ms），預設 15 秒
     initial-delay-ms: ${AGGREGATOR_NCDR_INITIAL_DELAY_MS:5000}
+
+  # 環保署 AQI 空氣品質（每 1 小時，AQI >= 100 才通知）
+  aqi:
+    enabled: ${AGGREGATOR_AQI_ENABLED:true}
+    api-key: ${EPA_AQI_API_KEY:080b22e2-b6be-4810-8ffd-9c4efc327502}
+    interval-ms: ${AGGREGATOR_AQI_INTERVAL_MS:3600000}
+    initial-delay-ms: ${AGGREGATOR_AQI_INITIAL_DELAY_MS:60000}
+
+  # 中央氣象署 氣象特報（每 30 分鐘）
+  cwa-alert:
+    enabled: ${AGGREGATOR_CWA_ALERT_ENABLED:true}
+    interval-ms: ${AGGREGATOR_CWA_ALERT_INTERVAL_MS:1800000}
+    initial-delay-ms: ${AGGREGATOR_CWA_ALERT_INITIAL_DELAY_MS:45000}
+
+  # 水利署 水情公告（每 3 小時，opendata.wra.gov.tw 目前 503 暫停）
+  water-alert:
+    enabled: ${AGGREGATOR_WATER_ALERT_ENABLED:false}
+    interval-ms: ${AGGREGATOR_WATER_ALERT_INTERVAL_MS:10800000}
+    initial-delay-ms: ${AGGREGATOR_WATER_ALERT_INITIAL_DELAY_MS:90000}
+
+  # 疾管署 傳染病公告（每 6 小時）
+  cdc-alert:
+    enabled: ${AGGREGATOR_CDC_ALERT_ENABLED:true}
+    interval-ms: ${AGGREGATOR_CDC_ALERT_INTERVAL_MS:21600000}
+    initial-delay-ms: ${AGGREGATOR_CDC_ALERT_INITIAL_DELAY_MS:120000}
+
+  # 中央氣象署地震報告（每 3 分鐘，震度 >= 2 才通知）
+  earthquake:
+    enabled: ${AGGREGATOR_EARTHQUAKE_ENABLED:true}
+    interval-ms: ${AGGREGATOR_EARTHQUAKE_INTERVAL_MS:180000}
+    initial-delay-ms: ${AGGREGATOR_EARTHQUAKE_INITIAL_DELAY_MS:30000}
+
+  # 台北市開放資料 里辦公室活動（data.taipei.gov.tw DNS 無法解析，暫停）
+  taipei-event:
+    enabled: ${AGGREGATOR_TAIPEI_EVENT_ENABLED:false}
+    interval-ms: ${AGGREGATOR_TAIPEI_EVENT_INTERVAL_MS:21600000}
+    initial-delay-ms: ${AGGREGATOR_TAIPEI_EVENT_INITIAL_DELAY_MS:150000}
 
 logging:
   pattern:

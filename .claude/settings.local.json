@@ -63,7 +63,11 @@
       "Bash(docker version:*)",
       "Bash(docker buildx:*)",
       "Bash(docker build:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(xargs -I{} sh -c 'kill -0 {} 2>/dev/null && echo \"\"PID: {}\"\"')",
+      "Bash(nslookup:*)",
+      "Bash(dig:*)",
+      "Bash(timeout 150 ./mvnw spring-boot:run:*)"
     ]
   }
 }
