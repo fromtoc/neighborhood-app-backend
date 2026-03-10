@@ -10,6 +10,7 @@ import com.example.app.mapper.ChatMessageMapper;
 import com.example.app.mapper.ChatRoomMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.service.ChatQueryService;
+import com.example.app.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
     private final ChatRoomMapper chatRoomMapper;
     private final ChatMessageMapper chatMessageMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -142,11 +144,26 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         chatMessageMapper.insert(msg);
 
         // 更新 chat_room 的 last_message 快取
+        ChatRoom room = chatRoomMapper.selectById(roomId);
         ChatRoom patch = new ChatRoom();
         patch.setId(roomId);
         patch.setLastMessage(content.length() > 50 ? content.substring(0, 50) + "…" : content);
         patch.setLastMessageAt(LocalDateTime.now());
         chatRoomMapper.updateById(patch);
+
+        // 通知
+        if (room != null) {
+            String shortContent = content.length() > 80 ? content.substring(0, 80) + "…" : content;
+            if ("private".equals(room.getType())) {
+                // 私訊：通知對方
+                Long recipientId = userId.equals(room.getUser1Id()) ? room.getUser2Id() : room.getUser1Id();
+                notificationService.onPrivateMessage(recipientId, msg.getId(), nickname, shortContent);
+            } else if (room.getNeighborhoodId() != null) {
+                // 聊聊：通知里內其他使用者
+                notificationService.onChatMessage(room.getNeighborhoodId(), userId,
+                        msg.getId(), nickname, shortContent);
+            }
+        }
 
         return ChatMessageResponse.from(msg);
     }

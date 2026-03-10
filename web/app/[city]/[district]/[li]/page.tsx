@@ -12,6 +12,7 @@ import InfoSection from '@/components/InfoSection';
 import ChatSection from '@/components/ChatSection';
 import SaveNeighborhood from '@/components/SaveNeighborhood';
 import SwitchNeighborhoodLink from '@/components/SwitchNeighborhoodLink';
+import FollowButton from '@/components/FollowButton';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
 
@@ -105,7 +106,10 @@ export default async function LiPage({ params, searchParams }: Props) {
           <span className="sep">›</span>
           <span style={{ color: '#1c5373', fontWeight: 600 }}>{liName}</span>
         </div>
-        <SwitchNeighborhoodLink />
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <FollowButton neighborhoodId={liDetail.id} />
+          <SwitchNeighborhoodLink />
+        </div>
       </div>
 
       {/* 主頁 */}

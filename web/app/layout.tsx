@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
+import { NotificationProvider } from '@/components/NotificationProvider';
+import NotificationBell from '@/components/NotificationBell';
 import HeaderUserSection from '@/components/HeaderUserSection';
 import SearchBar from '@/components/SearchBar';
 import SiteNav from '@/components/SiteNav';
@@ -32,26 +34,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-Hant">
       <body>
         <AuthProvider>
-          <header className="site-header">
-            {/* 第一排：Logo + 搜尋 + 使用者 */}
-            <div className="inner">
-              <a href="/" className="logo">
-                <span className="brand-blue">巷口</span>{' '}
-                <span className="brand-orange">GoLocal</span>
-              </a>
-              <div style={{ flex: 1 }} />
-              <SearchBar />
-              <HeaderUserSection />
-            </div>
-            {/* 第二排：導覽列 */}
-            <div className="header-nav-row">
-              <SiteNav />
-            </div>
-          </header>
+          <NotificationProvider>
+            <header className="site-header">
+              {/* 第一排：Logo + 搜尋 + 使用者 */}
+              <div className="inner">
+                <a href="/" className="logo">
+                  <span className="brand-blue">巷口</span>{' '}
+                  <span className="brand-orange">GoLocal</span>
+                </a>
+                <div style={{ flex: 1 }} />
+                <SearchBar />
+                <NotificationBell />
+                <HeaderUserSection />
+              </div>
+              {/* 第二排：導覽列 */}
+              <div className="header-nav-row">
+                <SiteNav />
+              </div>
+            </header>
 
-          <main className="site-main">
-            <div className="container">{children}</div>
-          </main>
+            <main className="site-main">
+              <div className="container">{children}</div>
+            </main>
+          </NotificationProvider>
         </AuthProvider>
 
         <footer

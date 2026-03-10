@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CLIENT_BASE_URL } from '@/lib/api';
 
 interface Period {
   label:   string;
@@ -58,9 +59,10 @@ export default function WeatherWidget({ city, lat, lng }: { city?: string; lat?:
     if (lat != null) params.set('lat', String(lat));
     if (lng != null) params.set('lng', String(lng));
 
-    fetch(`/api/weather?${params}`)
+    fetch(`${CLIENT_BASE_URL}/api/v1/weather?${params}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => {
+      .then(json => {
+        const data = json?.data ?? json; // Spring Boot 包 ApiResponse，取 .data
         if (!data?.periods?.length) return;
         const mapped: Period[] = data.periods.map((p: {
           startTime: string; wx: string; wxCode: number;

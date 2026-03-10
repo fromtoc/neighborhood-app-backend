@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
+import { fetchFollowing, unfollowNeighborhood, type FollowedNeighborhood } from '@/lib/follow';
 
 export default function HeaderUserSection() {
   const { user, token, nickname, setNickname, showLoginModal, logout } = useAuth();
@@ -13,6 +14,7 @@ export default function HeaderUserSection() {
   const [nicknameInput, setNicknameInput] = useState('');
   const [nicknameSaving, setNicknameSaving] = useState(false);
   const [nicknameError, setNicknameError] = useState('');
+  const [following, setFollowing] = useState<FollowedNeighborhood[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   // 點外部關閉 dropdown
@@ -24,6 +26,25 @@ export default function HeaderUserSection() {
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [open]);
+
+  // 開啟時載入關注清單（非訪客）
+  useEffect(() => {
+    if (!open || !token || user?.role === 'GUEST' || following !== null) return;
+    fetchFollowing(token).then(setFollowing).catch(() => setFollowing([]));
+  }, [open, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // FollowButton 操作後清快取，下次開啟自動重新載入
+  useEffect(() => {
+    function handler() { setFollowing(null); }
+    window.addEventListener('follow-changed', handler);
+    return () => window.removeEventListener('follow-changed', handler);
+  }, []);
+
+  async function handleUnfollow(id: number) {
+    if (!token) return;
+    await unfollowNeighborhood(token, id);
+    setFollowing(prev => prev?.filter(n => n.id !== id) ?? []);
+  }
 
   if (!user) {
     return (
@@ -170,6 +191,43 @@ export default function HeaderUserSection() {
             </div>
           )}
 
+          {/* 我的關注（非訪客） */}
+          {!isGuest && (
+            <div style={{ borderBottom: '1px solid #f0f0f0' }}>
+              <div style={{ padding: '0.5rem 1rem 0.25rem', fontSize: '0.75rem', color: '#bbb', fontWeight: 600 }}>
+                我的關注 {following ? `(${following.length}/3)` : ''}
+              </div>
+              {!following ? (
+                <div style={{ padding: '0.25rem 1rem 0.5rem', fontSize: '0.78rem', color: '#bbb' }}>載入中...</div>
+              ) : following.length === 0 ? (
+                <div style={{ padding: '0.25rem 1rem 0.5rem', fontSize: '0.78rem', color: '#bbb' }}>
+                  尚未關注任何里，前往里頁面點「+ 關注」
+                </div>
+              ) : (
+                <div style={{ padding: '0 0 0.25rem' }}>
+                  {following.map(n => (
+                    <div key={n.id} style={{ display: 'flex', alignItems: 'center', padding: '0.3rem 1rem', gap: '0.4rem' }}>
+                      <Link
+                        href={`/${encodeURIComponent(n.city)}/${encodeURIComponent(n.district)}/${encodeURIComponent(n.name)}`}
+                        onClick={() => setOpen(false)}
+                        style={{ flex: 1, fontSize: '0.82rem', color: '#1c5373', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      >
+                        {n.district}{n.name}
+                      </Link>
+                      <button
+                        onClick={() => handleUnfollow(n.id)}
+                        title="取消關注"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: '0.75rem', padding: '2px 4px', flexShrink: 0 }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 後台管理（管理員以上） */}
           {isAdmin && (
             <Link
@@ -183,7 +241,7 @@ export default function HeaderUserSection() {
 
           {/* 登出 */}
           <button
-            onClick={() => { setOpen(false); logout(); }}
+            onClick={() => { setOpen(false); setFollowing(null); logout(); }}
             style={menuItemStyle('#e53e3e')}
           >
             登出

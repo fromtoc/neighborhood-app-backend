@@ -71,6 +71,7 @@ public class SecurityConfig {
                                 "/api/v1/geo/**",
                                 "/api/v1/categories/**",
                                 "/api/v1/places/**",
+                                "/api/v1/weather/**",
                                 "/api/v1/admin/**",
                                 "/actuator/**",
                                 "/v3/api-docs/**",

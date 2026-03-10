@@ -9,6 +9,7 @@ import com.example.app.mapper.CrawlLogMapper;
 import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
+import com.example.app.service.NotificationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -50,6 +51,9 @@ public class NcdrAggregatorService {
     private final PostMapper         postMapper;
     private final UserMapper         userMapper;
     private final NeighborhoodMapper neighborhoodMapper;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private NotificationService notificationService;
 
     private Long systemUserId;
 
@@ -228,6 +232,10 @@ public class NcdrAggregatorService {
                     post.setStatus(1);
                     postMapper.insert(post);
                     created++;
+                    if (notificationService != null) {
+                        String body = description.length() > 80 ? description.substring(0, 80) + "…" : description;
+                        notificationService.onNewInfo(m.nhId, m.type, post.getId(), title, body);
+                    }
                 }
             }
 

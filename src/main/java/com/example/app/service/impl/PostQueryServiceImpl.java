@@ -16,6 +16,7 @@ import com.example.app.entity.User;
 import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
+import com.example.app.service.NotificationService;
 import com.example.app.service.PostQueryService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final UserMapper          userMapper;
     private final NeighborhoodMapper  neighborhoodMapper;
     private final ObjectMapper        objectMapper;
+    private final NotificationService notificationService;
 
     /** 所有管理員類型（用於社群 tab 排除） */
     private static final List<String> ADMIN_TYPES       = List.of("info", "broadcast", "district_info", "li_info");
@@ -216,6 +218,22 @@ public class PostQueryServiceImpl implements PostQueryService {
         }
 
         postMapper.insert(post);
+
+        // 通知
+        String notifBody = post.getContent() != null
+                ? post.getContent().substring(0, Math.min(post.getContent().length(), 80))
+                : "";
+        String notifTitle = post.getTitle() != null && !post.getTitle().isBlank()
+                ? post.getTitle()
+                : (notifBody.isBlank() ? "新貼文" : notifBody);
+        if (List.of("district_info", "li_info").contains(post.getType())) {
+            notificationService.onNewInfo(post.getNeighborhoodId(), post.getType(),
+                    post.getId(), notifTitle, notifBody);
+        } else {
+            notificationService.onNewPost(post.getNeighborhoodId(), userId,
+                    post.getId(), notifTitle, notifBody);
+        }
+
         return post;
     }
 }
