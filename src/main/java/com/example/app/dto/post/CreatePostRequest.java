@@ -23,6 +23,9 @@ public class CreatePostRequest {
     /** info | broadcast | fresh | store_visit | selling | renting | group_buy | group_event | free_give | help | want_rent | find | recruit | report */
     private String type = "fresh";
 
+    /** li | district — 貼文範圍（預設 li） */
+    private String scope = "li";
+
     /** normal | medium | urgent  (僅 info/broadcast 適用) */
     private String urgency = "normal";
 

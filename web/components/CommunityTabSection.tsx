@@ -12,7 +12,7 @@ interface Props {
 
 type SubTab = 'district' | 'li';
 
-export default function InfoSection({ neighborhoodId, district, liName }: Props) {
+export default function CommunityTabSection({ neighborhoodId, district, liName }: Props) {
   const searchParams = useSearchParams();
   const initialSub = searchParams.get('sub') === 'li' ? 'li' : 'district';
   const [subTab, setSubTab] = useState<SubTab>(initialSub);
@@ -31,35 +31,32 @@ export default function InfoSection({ neighborhoodId, district, liName }: Props)
 
   return (
     <>
-      {/* 子 Tab */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         <button style={tabStyle(subTab === 'district')} onClick={() => setSubTab('district')}>
-          區資訊
+          區社群
         </button>
         <button style={tabStyle(subTab === 'li')} onClick={() => setSubTab('li')}>
-          里資訊
+          里社群
         </button>
       </div>
 
       {subTab === 'district' && (
         <CommunitySection
           neighborhoodId={neighborhoodId}
-          type="district_info"
-          title={`${district} 區資訊`}
-          mode="info"
-          defaultPostType="district_info"
-          allowedPostTypes={['district_info']}
+          type="district_community"
+          title={`${district} 區社群`}
+          mode="community"
+          scope="district"
         />
       )}
 
       {subTab === 'li' && (
         <CommunitySection
           neighborhoodId={neighborhoodId}
-          type="li_info"
-          title={`${liName} 里資訊`}
-          mode="info"
-          defaultPostType="li_info"
-          allowedPostTypes={['li_info', 'broadcast']}
+          type="li_community"
+          title={`${liName} 里社群`}
+          mode="community"
+          scope="li"
         />
       )}
     </>

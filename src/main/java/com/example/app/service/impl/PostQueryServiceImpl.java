@@ -69,11 +69,33 @@ public class PostQueryServiceImpl implements PostQueryService {
             // 里資訊：當前里的 li_info + info（向下相容）+ broadcast
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .in(Post::getType, LOCAL_ADMIN_TYPES);
+        } else if ("community".equals(type)) {
+            // 社群整合：區社群（scope=district, 同行政區）+ 里社群（scope=li, 當前里）
+            List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
+            wrapper.notIn(Post::getType, ADMIN_TYPES)
+                   .and(w -> w
+                           .and(inner -> inner
+                                   .eq(Post::getScope, "li")
+                                   .eq(Post::getNeighborhoodId, neighborhoodId))
+                           .or(inner -> inner
+                                   .eq(Post::getScope, "district")
+                                   .in(Post::getNeighborhoodId, districtNhIds)));
+        } else if ("district_community".equals(type)) {
+            // 區社群：同一行政區、scope=district 的社群貼文
+            List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
+            wrapper.eq(Post::getScope, "district")
+                   .notIn(Post::getType, ADMIN_TYPES)
+                   .in(Post::getNeighborhoodId, districtNhIds);
+        } else if ("li_community".equals(type)) {
+            // 里社群：當前里、scope=li 的社群貼文
+            wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
+                   .eq(Post::getScope, "li")
+                   .notIn(Post::getType, ADMIN_TYPES);
         } else if (StringUtils.hasText(type)) {
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .eq(Post::getType, type);
         } else {
-            // 社群 tab：排除所有管理員類型貼文
+            // 社群 tab（向下相容）：排除所有管理員類型貼文
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .notIn(Post::getType, ADMIN_TYPES);
         }
@@ -212,6 +234,8 @@ public class PostQueryServiceImpl implements PostQueryService {
         post.setTitle(req.getTitle());
         post.setContent(req.getContent());
         post.setType(req.getType() != null ? req.getType() : "fresh");
+        String scope = req.getScope();
+        post.setScope("district".equals(scope) ? "district" : "li");
         post.setUrgency(req.getUrgency() != null ? req.getUrgency() : "normal");
         post.setPlaceId(req.getPlaceId());
         post.setLikeCount(0);

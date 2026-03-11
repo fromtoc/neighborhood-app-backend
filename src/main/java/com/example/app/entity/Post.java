@@ -23,6 +23,9 @@ public class Post {
     /** info | broadcast | fresh | store_visit | selling | renting | group_buy | group_event | free_give | help | want_rent | find | recruit | report */
     private String type;
 
+    /** li | district — 貼文範圍 */
+    private String scope;
+
     /** normal | medium | urgent  (僅 info/broadcast 使用) */
     private String urgency;
 

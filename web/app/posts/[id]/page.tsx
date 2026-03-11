@@ -18,6 +18,7 @@ interface Post {
   content: string;
   images: string[];
   type: string;
+  scope: string | null;
   likeCount: number;
   commentCount: number;
   createdAt: string;
@@ -244,13 +245,21 @@ export default async function PostDetailPage({ params }: Props) {
         {/* Back */}
         {liUrl && (() => {
           const isInfo = ['info', 'broadcast', 'district_info', 'li_info'].includes(post.type);
+          const isDistrict = isInfo
+            ? post.type === 'district_info'
+            : post.scope === 'district';
+          const tab = isInfo ? 'info' : 'community';
+          const sub = isDistrict ? 'district' : 'li';
+          const label = isInfo
+            ? (isDistrict ? `${nb?.district} 區資訊` : `${nb?.name} 里資訊`)
+            : (isDistrict ? `${nb?.district} 區社群` : `${nb?.name} 里社群`);
           return (
             <div style={{ marginTop: '1.25rem' }}>
               <Link
-                href={`${liUrl}?tab=${isInfo ? 'info' : 'community'}`}
+                href={`${liUrl}?tab=${tab}&sub=${sub}`}
                 style={{ fontSize: '0.85rem', color: '#1c5373', textDecoration: 'none' }}
               >
-                ← 回到 {nb?.name} {isInfo ? '相關資訊' : '社群'}
+                ← 回到{label}
               </Link>
             </div>
           );

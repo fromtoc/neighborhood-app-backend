@@ -87,7 +87,13 @@
       "Bash(colima stop:*)",
       "Bash(find ~ -maxdepth 2 -name \".env\" -o -name \".env.local\" -o -name \"*firebase*.json\" 2>/dev/null | grep -v node_modules | head -20)",
       "Bash(jq '.features[0].properties' /Users/gaojingmin/project/neighborhood-app-backend/VILLAGE_NLSC_11401031.json 2>/dev/null | head -20)",
-      "Bash(cat /Users/gaojingmin/project/neighborhood-app-backend/VILLAGE_NLSC_11401031.json | jq '.features[0]' 2>/dev/null | head -40)"
+      "Bash(cat /Users/gaojingmin/project/neighborhood-app-backend/VILLAGE_NLSC_11401031.json | jq '.features[0]' 2>/dev/null | head -40)",
+      "Bash(sleep 30 && ssh root@172.233.93.221 'docker logs app-backend --tail 5 2>&1 && echo \"---\" && curl -s -w \"\\\\nHTTP: %{http_code}\\\\n\" http://127.0.0.1:8080/api/v1/neighborhoods?page=1\\\\&size=1')",
+      "Bash(sleep 40 && ssh root@172.233.93.221 'docker logs app-backend --tail 3 2>&1 && echo \"---\" && curl -s http://127.0.0.1:8080/api/v1/neighborhoods?page=1\\\\&size=1 | head -c 200')",
+      "Bash(sleep 30 && ssh root@172.233.93.221 'docker logs app-backend --tail 3 2>&1 && echo \"---\" && curl -s \"http://127.0.0.1:8080/api/v1/chat/rooms/district?city=%E5%9F%BA%E9%9A%86%E5%B8%82&district=%E4%B8%83%E5%A0%B5%E5%8D%80\" | python3 -m json.tool 2>/dev/null')",
+      "Bash(cd /Users/gaojingmin/project/neighborhood-app-backend/web && npx next build --no-lint 2>&1 | tail -20)",
+      "Bash(cd /Users/gaojingmin/project/neighborhood-app-backend/web && npx next build --no-lint 2>&1 | tail -10)",
+      "Bash(npx next:*)"
     ]
   }
 }

@@ -8,8 +8,9 @@ import HomeBanner from '@/components/HomeBanner';
 import HomeInfoList from '@/components/HomeInfoList';
 import HomeCommunityList from '@/components/HomeCommunityList';
 import CommunitySection from '@/components/CommunitySection';
+import CommunityTabSection from '@/components/CommunityTabSection';
 import InfoSection from '@/components/InfoSection';
-import ChatSection from '@/components/ChatSection';
+import ChatTabSection from '@/components/ChatTabSection';
 import SaveNeighborhood from '@/components/SaveNeighborhood';
 import SwitchNeighborhoodLink from '@/components/SwitchNeighborhoodLink';
 import FollowButton from '@/components/FollowButton';
@@ -138,10 +139,10 @@ export default async function LiPage({ params, searchParams }: Props) {
 
       {/* 社群 */}
       {tab === 'community' && (
-        <CommunitySection
+        <CommunityTabSection
           neighborhoodId={liDetail.id}
-          title={`${district}${liName} 社群動態`}
-          mode="community"
+          district={district}
+          liName={liName}
         />
       )}
 
@@ -149,7 +150,14 @@ export default async function LiPage({ params, searchParams }: Props) {
       {tab === 'shops' && <ShopsSection neighborhoodId={liDetail.id} district={district} liName={liName} />}
 
       {/* 聊聊 */}
-      {tab === 'chat' && <ChatSection neighborhoodId={liDetail.id} neighborhoodName={liName} />}
+      {tab === 'chat' && (
+        <ChatTabSection
+          neighborhoodId={liDetail.id}
+          neighborhoodName={liName}
+          city={city}
+          district={district}
+        />
+      )}
     </>
   );
 }

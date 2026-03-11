@@ -21,7 +21,7 @@ export default function FollowButton({ neighborhoodId }: { neighborhoodId: numbe
   }, [token, neighborhoodId]);
 
   // 訪客不顯示
-  if (!user || user.isGuest || !initialized) return null;
+  if (!user || user.role === 'GUEST' || !initialized) return null;
 
   async function handleClick() {
     if (!token || loading) return;

@@ -91,6 +91,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             refId: notif.refId || null,
             isRead: 0,
             createdAt: new Date().toISOString(),
+            neighborhoodId: null,
+            neighborhoodName: null,
+            city: null,
+            district: null,
           }, ...prev.slice(0, 49)]);
           setUnread(n => n + 1);
         } catch { /* ignore */ }

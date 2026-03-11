@@ -10,6 +10,7 @@ type Mode = 'info' | 'community';
 interface Props {
   neighborhoodId: number;
   mode?: Mode;
+  scope?: string;
   defaultPostType?: string;
   allowedPostTypes?: string[];
   onCreated?: () => void;
@@ -42,7 +43,7 @@ const URGENCY_OPTIONS = [
   { value: 'urgent', label: '緊急' },
 ];
 
-export default function CreatePostForm({ neighborhoodId, mode = 'community', defaultPostType, allowedPostTypes, onCreated }: Props) {
+export default function CreatePostForm({ neighborhoodId, mode = 'community', scope, defaultPostType, allowedPostTypes, onCreated }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
@@ -121,6 +122,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
           title: title || undefined,
           content,
           type,
+          scope: scope || undefined,
           urgency: mode === 'info' ? urgency : undefined,
           images: images.length > 0 ? images : undefined,
         }),

@@ -14,6 +14,9 @@ public interface ChatQueryService {
     /** 取得（或自動建立）指定里的公開聊天室 */
     ChatRoomResponse getOrCreateRoom(Long neighborhoodId, String neighborhoodName);
 
+    /** 取得（或自動建立）指定行政區的公開聊天室 */
+    ChatRoomResponse getOrCreateDistrictRoom(String city, String district);
+
     /**
      * 取得歷史訊息（cursor-based 分頁）。
      *

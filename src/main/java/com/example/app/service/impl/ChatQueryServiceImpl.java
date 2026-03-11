@@ -54,6 +54,27 @@ public class ChatQueryServiceImpl implements ChatQueryService {
     }
 
     @Override
+    @Transactional
+    public ChatRoomResponse getOrCreateDistrictRoom(String city, String district) {
+        ChatRoom room = chatRoomMapper.selectOne(
+                new LambdaQueryWrapper<ChatRoom>()
+                        .eq(ChatRoom::getType, "district")
+                        .eq(ChatRoom::getName, city + district + " 聊聊")
+        );
+
+        if (room == null) {
+            room = new ChatRoom();
+            room.setName(city + district + " 聊聊");
+            room.setType("district");
+            room.setMemberCount(0);
+            room.setStatus(1);
+            chatRoomMapper.insert(room);
+        }
+
+        return ChatRoomResponse.from(room);
+    }
+
+    @Override
     public List<ChatMessageResponse> getMessages(Long roomId, Long before, int limit) {
         int safeLimit = Math.min(limit, 50);
 

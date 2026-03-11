@@ -49,6 +49,15 @@ public class ChatController {
         return ApiResponse.success(chatQueryService.getOrCreateRoom(neighborhoodId, roomName));
     }
 
+    @GetMapping("/rooms/district")
+    @Operation(summary = "取得（或建立）指定行政區的聊天室")
+    public ApiResponse<ChatRoomResponse> getDistrictRoom(
+            @Parameter(description = "城市", required = true) @RequestParam @NotBlank String city,
+            @Parameter(description = "行政區", required = true) @RequestParam @NotBlank String district
+    ) {
+        return ApiResponse.success(chatQueryService.getOrCreateDistrictRoom(city, district));
+    }
+
     @GetMapping("/rooms/{roomId}/messages")
     @Operation(summary = "取得聊天室歷史訊息（cursor-based 分頁）")
     public ApiResponse<List<ChatMessageResponse>> getMessages(

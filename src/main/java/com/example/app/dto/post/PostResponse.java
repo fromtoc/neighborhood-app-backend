@@ -20,6 +20,7 @@ public class PostResponse {
     private String content;
     private List<String> images;
     private String type;
+    private String scope;
     private String urgency;
     private Long placeId;
     private Integer likeCount;
@@ -45,6 +46,7 @@ public class PostResponse {
                 .content(p.getContent())
                 .images(parseImages(p.getImagesJson()))
                 .type(p.getType())
+                .scope(p.getScope())
                 .urgency(p.getUrgency())
                 .placeId(p.getPlaceId())
                 .likeCount(p.getLikeCount())

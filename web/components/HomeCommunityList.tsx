@@ -44,7 +44,7 @@ export default function HomeCommunityList({ neighborhoodId, liHref }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`${CLIENT_BASE_URL}/api/v1/posts?neighborhoodId=${neighborhoodId}&size=3`)
+    fetch(`${CLIENT_BASE_URL}/api/v1/posts?neighborhoodId=${neighborhoodId}&type=community&size=3`)
       .then(r => r.json())
       .then(d => { if (d.code === 200) setPosts(d.data.records ?? []); })
       .catch(() => {})
