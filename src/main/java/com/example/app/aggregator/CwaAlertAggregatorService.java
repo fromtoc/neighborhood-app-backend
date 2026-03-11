@@ -89,20 +89,22 @@ public class CwaAlertAggregatorService {
                     String key = AggregatorSupport.sha256(SOURCE + "::" + locationName + "::" + phenomena + "::" + startTime);
                     if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
-                    // 比對縣市 → 取代表里 nhId，發 district_info
-                    Long nhId = resolveByCity(locationName);
-                    if (nhId == null) { support.markCrawled(SOURCE, key); continue; }
+                    // 縣市層級 → 發給該縣市所有行政區（里 > 區 > 縣市規則，特報為縣市層級）
+                    Set<Long> nhIds = support.resolveAllByCity(locationName, maps);
+                    if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                     String title   = String.format("【氣象%s】%s %s%s", significance, locationName, phenomena, significance);
                     String content = buildContent(phenomena, significance, locationName, startTime, endTime);
                     String urgency = resolveUrgency(phenomena);
 
-                    Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
-                    postMapper.insert(post);
-                    created++;
-                    if (notificationService != null) {
-                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title,
-                                content.length() > 80 ? content.substring(0, 80) + "…" : content);
+                    for (Long nhId : nhIds) {
+                        Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
+                        postMapper.insert(post);
+                        created++;
+                        if (notificationService != null) {
+                            notificationService.onNewInfo(nhId, "district_info", post.getId(), title,
+                                    content.length() > 80 ? content.substring(0, 80) + "…" : content);
+                        }
                     }
                     support.markCrawled(SOURCE, key);
                 }
@@ -111,17 +113,6 @@ public class CwaAlertAggregatorService {
         } catch (Exception e) {
             log.error("CWA-Alert crawl failed", e);
         }
-    }
-
-    /** 依縣市名稱找代表里 nhId（districtMap 第一筆） */
-    private Long resolveByCity(String city) {
-        // CWA 有時用「臺」有時用「台」，做統一化
-        String normalized = city.replace("台", "臺");
-        for (Map.Entry<String, Long> e : maps.districtMap().entrySet()) {
-            if (e.getKey().startsWith(normalized + "@@") || e.getKey().startsWith(city + "@@"))
-                return e.getValue();
-        }
-        return null;
     }
 
     private static String resolveUrgency(String phenomena) {

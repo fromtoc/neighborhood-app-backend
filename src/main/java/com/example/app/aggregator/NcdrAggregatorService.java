@@ -1,20 +1,15 @@
 package com.example.app.aggregator;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.app.entity.CrawlLog;
-import com.example.app.entity.Neighborhood;
 import com.example.app.entity.Post;
-import com.example.app.entity.User;
-import com.example.app.mapper.CrawlLogMapper;
-import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.PostMapper;
-import com.example.app.mapper.UserMapper;
 import com.example.app.service.NotificationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -26,8 +21,6 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -47,59 +40,27 @@ public class NcdrAggregatorService {
 
     private final RestTemplate       restTemplate;
     private final ObjectMapper       objectMapper;
-    private final CrawlLogMapper     crawlLogMapper;
+    private final AggregatorSupport  support;
     private final PostMapper         postMapper;
-    private final UserMapper         userMapper;
-    private final NeighborhoodMapper neighborhoodMapper;
 
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @Autowired(required = false)
     private NotificationService notificationService;
 
     private Long systemUserId;
-
-    /** fullName (city+district+liName) → neighborhoodId */
-    private Map<String, Long> fullNameMap = new HashMap<>();
-    /** city+district → representative neighborhoodId（fallback 用） */
-    private Map<String, Long> districtMap = new HashMap<>();
+    private AggregatorSupport.NeighborhoodMaps maps;
 
     @PostConstruct
     public void init() {
-        User sys = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getIsSystem, 1).last("LIMIT 1"));
-        if (sys != null) systemUserId = sys.getId();
-        reloadMaps();
+        systemUserId = support.loadSystemUserId();
+        maps = support.loadMaps();
     }
 
-    private void reloadMaps() {
-        List<Neighborhood> all = neighborhoodMapper.selectList(
-                new LambdaQueryWrapper<Neighborhood>().eq(Neighborhood::getStatus, 1));
-        Map<String, Long> fn = new LinkedHashMap<>();
-        Map<String, Long> dm = new LinkedHashMap<>();
-        for (Neighborhood nh : all) {
-            if (nh.getCity() == null || nh.getDistrict() == null || nh.getName() == null) continue;
-            fn.put(nh.getCity() + nh.getDistrict() + nh.getName(), nh.getId());
-            // also index by fullName if present
-            if (nh.getFullName() != null && !nh.getFullName().isBlank()) {
-                fn.putIfAbsent(nh.getFullName(), nh.getId());
-            }
-            dm.putIfAbsent(nh.getCity() + "@@" + nh.getDistrict(), nh.getId());
-        }
-        fullNameMap = fn;
-        districtMap = dm;
-        log.info("NCDR: loaded {} neighborhoods, {} districts", fn.size(), dm.size());
-        // log a sample so we can verify format
-        fn.entrySet().stream().limit(3)
-                .forEach(e -> log.debug("NCDR sample key: [{}] → {}", e.getKey(), e.getValue()));
-    }
-
-    @Scheduled(fixedDelayString = "${aggregator.ncdr.interval-ms:1800000}",
-               initialDelayString = "${aggregator.ncdr.initial-delay-ms:15000}")
+    @Scheduled(fixedDelayString = "${aggregator.ncdr.interval-ms:300000}",
+               initialDelayString = "${aggregator.ncdr.initial-delay-ms:5000}")
     public void crawl() {
         if (systemUserId == null) {
-            User sys = userMapper.selectOne(
-                    new LambdaQueryWrapper<User>().eq(User::getIsSystem, 1).last("LIMIT 1"));
-            if (sys == null) { log.warn("NCDR: system user not found, skip"); return; }
-            systemUserId = sys.getId();
+            systemUserId = support.loadSystemUserId();
+            if (systemUserId == null) { log.warn("NCDR: system user not found, skip"); return; }
         }
 
         try {
@@ -165,8 +126,8 @@ public class NcdrAggregatorService {
             if (description.isBlank()) continue;
 
             // 去重 key：cap identifier + 第 i 個 info block 的 description
-            String key = sha256(capId + "@@" + i + "@@" + description);
-            if (isAlreadyCrawled(key)) continue;
+            String key = AggregatorSupport.sha256(capId + "@@" + i + "@@" + description);
+            if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
             // 解析所有 <area> 元素，比對里名稱
             NodeList areaList = info.getElementsByTagName("area");
@@ -176,13 +137,13 @@ public class NcdrAggregatorService {
                 Element area    = (Element) areaList.item(j);
                 String areaDesc = text(area, "areaDesc");
 
-                Long nhId = fullNameMap.get(areaDesc);
+                Long nhId = maps.fullNameMap().get(areaDesc);
                 if (nhId != null) {
                     matched.add(new MatchedArea(nhId, "li_info"));
                     continue;
                 }
                 // 嘗試比對 city+district（截取前兩段）
-                for (Map.Entry<String, Long> de : districtMap.entrySet()) {
+                for (Map.Entry<String, Long> de : maps.districtMap().entrySet()) {
                     String[] parts      = de.getKey().split("@@");
                     String cityDistrict = parts[0] + parts[1];
                     if (areaDesc.startsWith(cityDistrict)) {
@@ -193,7 +154,7 @@ public class NcdrAggregatorService {
             }
 
             if (matched.isEmpty()) {
-                markCrawled(key);
+                support.markCrawled(SOURCE, key);
                 continue;
             }
 
@@ -220,16 +181,7 @@ public class NcdrAggregatorService {
                     existing.setUrgency(urgencyVal);
                     postMapper.updateById(existing);
                 } else {
-                    Post post = new Post();
-                    post.setNeighborhoodId(m.nhId);
-                    post.setUserId(systemUserId);
-                    post.setTitle(title);
-                    post.setContent(content);
-                    post.setType(m.type);
-                    post.setUrgency(urgencyVal);
-                    post.setLikeCount(0);
-                    post.setCommentCount(0);
-                    post.setStatus(1);
+                    Post post = support.buildPost(m.nhId, systemUserId, m.type, title, content, urgencyVal);
                     postMapper.insert(post);
                     created++;
                     if (notificationService != null) {
@@ -239,28 +191,13 @@ public class NcdrAggregatorService {
                 }
             }
 
-            markCrawled(key);
+            support.markCrawled(SOURCE, key);
         }
 
         return created;
     }
 
     private record MatchedArea(Long nhId, String type) {}
-
-    private boolean isAlreadyCrawled(String key) {
-        return crawlLogMapper.selectCount(
-                new LambdaQueryWrapper<CrawlLog>()
-                        .eq(CrawlLog::getSource, SOURCE)
-                        .eq(CrawlLog::getEntryKey, key)) > 0;
-    }
-
-    private void markCrawled(String key) {
-        CrawlLog log = new CrawlLog();
-        log.setSource(SOURCE);
-        log.setEntryKey(key);
-        log.setCreatedAt(LocalDateTime.now());
-        try { crawlLogMapper.insert(log); } catch (Exception ignored) {}
-    }
 
     private static String resolveUrgency(String capUrgency, String event) {
         // CAP urgency: Immediate / Expected / Future / Past / Unknown
@@ -305,15 +242,4 @@ public class NcdrAggregatorService {
         return nl.item(0).getTextContent().trim();
     }
 
-    private static String sha256(String input) {
-        try {
-            byte[] hash = MessageDigest.getInstance("SHA-256")
-                    .digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : hash) sb.append(String.format("%02x", b));
-            return sb.toString();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 }

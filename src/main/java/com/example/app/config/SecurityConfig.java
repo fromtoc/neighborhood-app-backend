@@ -77,7 +77,8 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
-                                "/ws/**"          // WebSocket handshake + SockJS
+                                "/ws/**",         // WebSocket handshake + SockJS
+                                "/uploads/**"     // Uploaded images (static files)
                         ).permitAll()
                         // 後台管理需登入（ADMIN / SUPER_ADMIN 在 controller 層驗）
                         .requestMatchers("/api/v1/mgmt/**").authenticated()

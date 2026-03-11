@@ -73,6 +73,15 @@ app:
   # NEVER commit the JSON file to the repo.
   firebase:
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+  upload:
+    dir: ${UPLOAD_DIR:${user.home}/uploads}
+    base-url: ${UPLOAD_BASE_URL:/uploads}
+  r2:
+    account-id: ${R2_ACCOUNT_ID:}
+    access-key-id: ${R2_ACCESS_KEY_ID:}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY:}
+    bucket: ${R2_BUCKET:}
+    public-base-url: ${R2_PUBLIC_BASE_URL:}
 
 # 地址轉座標服務（擇一設定，TGOS 優先）
 #
@@ -137,6 +146,14 @@ aggregator:
     enabled: ${AGGREGATOR_CDC_ALERT_ENABLED:true}
     interval-ms: ${AGGREGATOR_CDC_ALERT_INTERVAL_MS:21600000}
     initial-delay-ms: ${AGGREGATOR_CDC_ALERT_INITIAL_DELAY_MS:120000}
+
+  # RSS 新聞爬蟲（每 30 分鐘，比對縣市名稱發 district_info）
+  rss-news:
+    enabled: ${AGGREGATOR_RSS_NEWS_ENABLED:true}
+    interval-ms: ${AGGREGATOR_RSS_NEWS_INTERVAL_MS:1800000}
+    initial-delay-ms: ${AGGREGATOR_RSS_NEWS_INITIAL_DELAY_MS:180000}
+    # 可自訂 feeds（逗號分隔）
+    feeds: ${AGGREGATOR_RSS_NEWS_FEEDS:https://news.ltn.com.tw/rss/society.xml,https://feeds.feedburner.com/rsscna/social,https://feeds.feedburner.com/ettoday/realtime,https://news.pts.org.tw/xml/newsfeed.xml}
 
   # 中央氣象署地震報告（每 3 分鐘，震度 >= 2 才通知）
   earthquake:

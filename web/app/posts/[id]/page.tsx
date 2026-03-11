@@ -4,7 +4,8 @@ import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
 import ShareButton from '@/components/ShareButton';
-import PostDetailComments from '@/components/PostDetailComments';
+import PostDetailComments from '@/components/PostDetailComments'
+import ContentWithLinks from '@/components/ContentWithLinks';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
 
@@ -201,20 +202,30 @@ export default async function PostDetailPage({ params }: Props) {
         </div>
 
         {/* Content */}
-        <p style={{ fontSize: '0.95rem', lineHeight: 1.8, color: '#2c2c2c', whiteSpace: 'pre-wrap' }}>
-          {post.content}
-        </p>
+        <ContentWithLinks text={post.content} />
 
         {/* Images */}
         {post.images.length > 0 && (
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+          <div style={{
+            display: 'grid',
+            gap: '0.35rem',
+            marginTop: '1rem',
+            gridTemplateColumns: post.images.length === 1 ? '1fr' : 'repeat(2, 1fr)',
+          }}>
             {post.images.map((src, i) => (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={i}
                 src={src}
                 alt={`圖片 ${i + 1}`}
-                style={{ maxWidth: '100%', maxHeight: 320, objectFit: 'cover', borderRadius: 8 }}
+                style={{
+                  width: '100%',
+                  aspectRatio: post.images.length === 1 ? '16/9' : '1',
+                  objectFit: 'contain',
+                  borderRadius: 8,
+                  background: '#f3f3f3',
+                  display: 'block',
+                }}
               />
             ))}
           </div>

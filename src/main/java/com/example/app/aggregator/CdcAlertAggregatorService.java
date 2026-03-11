@@ -14,7 +14,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
+import java.util.*;
+
 
 /**
  * 疾管署登革熱病例聚集區域爬蟲。
@@ -79,32 +80,36 @@ public class CdcAlertAggregatorService {
                 String key = AggregatorSupport.sha256(SOURCE + "::" + county + "::" + weekKey + "::" + features.size());
                 if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
-                // 彙整區域說明
+                // 彙整區域說明，並收集所有 TOWN_NAME 供地理比對
                 StringBuilder areas = new StringBuilder();
+                StringBuilder geoText = new StringBuilder(county).append(" ");
                 for (JsonNode feat : features) {
                     JsonNode props   = feat.path("properties");
                     String district  = getField(props, "TOWN_NAME", "行政區", "district");
                     String village   = getField(props, "VILL_NAME", "村里", "village");
                     String casesStr  = getField(props, "CASE_COUNT", "病例數", "cases");
-                    if (!district.isBlank()) areas.append("・").append(district);
-                    if (!village.isBlank())  areas.append(village);
+                    if (!district.isBlank()) { areas.append("・").append(district); geoText.append(district).append(" "); }
+                    if (!village.isBlank())  { areas.append(village); geoText.append(village).append(" "); }
                     if (!casesStr.isBlank()) areas.append("（").append(casesStr).append("例）");
                     areas.append("\n");
                 }
 
-                Long nhId = resolveByCity(county);
-                if (nhId == null) { support.markCrawled(SOURCE, key); continue; }
+                // 里 > 區 > 縣市優先比對（TOWN_NAME 通常能精確到行政區）
+                Set<Long> nhIds = support.resolveTargets(geoText.toString(), maps);
+                if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                 String title   = String.format("【疾管署】%s 近兩週登革熱病例聚集（%d處）", county, features.size());
                 String content = "以下區域近兩週有登革熱病例聚集，請清除積水、注意防蚊：\n\n"
                         + areas + "\n來源：衛生福利部疾病管制署";
+                String notifyBody = county + " 近兩週有 " + features.size() + " 處登革熱病例聚集，請注意防蚊。";
 
-                Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, "medium");
-                postMapper.insert(post);
-                created++;
-                if (notificationService != null) {
-                    notificationService.onNewInfo(nhId, "district_info", post.getId(), title,
-                            county + " 近兩週有 " + features.size() + " 處登革熱病例聚集，請注意防蚊。");
+                for (Long nhId : nhIds) {
+                    Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, "medium");
+                    postMapper.insert(post);
+                    created++;
+                    if (notificationService != null) {
+                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title, notifyBody);
+                    }
                 }
                 support.markCrawled(SOURCE, key);
 
@@ -121,15 +126,6 @@ public class CdcAlertAggregatorService {
             if (!v.isBlank()) return v;
         }
         return "";
-    }
-
-    private Long resolveByCity(String city) {
-        String n = city.replace("台", "臺");
-        for (Map.Entry<String, Long> e : maps.districtMap().entrySet()) {
-            String k = e.getKey();
-            if (k.startsWith(n + "@@") || k.startsWith(city + "@@")) return e.getValue();
-        }
-        return null;
     }
 
     private static String getWeekKey() {

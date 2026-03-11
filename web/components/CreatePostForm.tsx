@@ -46,6 +46,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
   const { user, token, nickname, showLoginModal } = useAuth();
   const [expanded, setExpanded] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!expanded) return;
@@ -57,12 +58,51 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [expanded]);
+
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [type, setType] = useState(defaultPostType ?? (mode === 'info' ? 'district_info' : 'fresh'));
   const [urgency, setUrgency] = useState('normal');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (images.length + files.length > 9) {
+      setError('最多上傳 9 張圖片');
+      return;
+    }
+    setUploading(true);
+    setError('');
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${CLIENT_BASE_URL}/api/v1/images/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const json = await res.json();
+        if (json.code !== 200) throw new Error(json.message ?? '上傳失敗');
+        urls.push(json.data as string);
+      }
+      setImages(prev => [...prev, ...urls]);
+    } catch (e) {
+      setError('圖片上傳失敗：' + (e as Error).message);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
+
+  function removeImage(idx: number) {
+    setImages(prev => prev.filter((_, i) => i !== idx));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -82,6 +122,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
           content,
           type,
           urgency: mode === 'info' ? urgency : undefined,
+          images: images.length > 0 ? images : undefined,
         }),
       });
       const json = await res.json();
@@ -89,6 +130,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
       if (json.code !== 200) throw new Error(json.message);
       setContent('');
       setTitle('');
+      setImages([]);
       setType(defaultPostType ?? (mode === 'info' ? 'district_info' : 'fresh'));
       setUrgency('normal');
       setExpanded(false);
@@ -181,6 +223,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
       padding: '1rem',
       marginBottom: '1rem',
     }}>
+      {/* Header row: avatar + type selector + close */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{
           width: 32, height: 32, borderRadius: '50%',
@@ -255,25 +298,99 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', def
         }}
       />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
-        {error
-          ? <span style={{ fontSize: '0.8rem', color: '#e53e3e' }}>{error}</span>
-          : <span style={{ fontSize: '0.75rem', color: '#bbb' }}>{content.length} / 5000</span>
-        }
-        <button
-          type="submit"
-          disabled={loading || !content.trim()}
-          style={{
-            background: content.trim() ? '#1c5373' : '#e6e6e6',
-            color: content.trim() ? '#fff' : '#bbb',
-            border: 'none', borderRadius: 8,
-            padding: '0.4rem 1.2rem', fontSize: '0.85rem',
-            cursor: content.trim() ? 'pointer' : 'default',
-            transition: 'background 0.15s',
-          }}
-        >
-          {loading ? '發送中...' : '發布'}
-        </button>
+      {/* Image previews */}
+      {images.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: images.length === 1 ? '1fr' : 'repeat(3, 1fr)',
+          gap: '0.4rem',
+          marginTop: '0.5rem',
+        }}>
+          {images.map((url, i) => (
+            <div key={i} style={{ position: 'relative' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={url}
+                alt={`預覽 ${i + 1}`}
+                style={{
+                  width: '100%',
+                  aspectRatio: images.length === 1 ? '16/9' : '1',
+                  objectFit: 'cover',
+                  borderRadius: 6,
+                  display: 'block',
+                  background: '#f3f3f3',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => removeImage(i)}
+                style={{
+                  position: 'absolute', top: 4, right: 4,
+                  width: 20, height: 20,
+                  background: 'rgba(0,0,0,0.55)', color: '#fff',
+                  border: 'none', borderRadius: '50%',
+                  fontSize: '0.7rem', cursor: 'pointer', lineHeight: '20px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Bottom toolbar + submit */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', borderTop: '1px solid #f0f0f0', paddingTop: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+          {/* 圖片上傳按鈕 */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleImageSelect}
+          />
+          <button
+            type="button"
+            disabled={uploading || images.length >= 9}
+            onClick={() => fileInputRef.current?.click()}
+            title="新增圖片"
+            style={{
+              background: 'none', border: 'none',
+              color: images.length >= 9 ? '#ccc' : '#1c5373',
+              cursor: images.length >= 9 ? 'default' : 'pointer',
+              fontSize: '1.2rem', padding: '0.2rem 0.4rem', lineHeight: 1,
+            }}
+          >
+            {uploading ? '⏳' : '📷'}
+          </button>
+          {images.length > 0 && (
+            <span style={{ fontSize: '0.75rem', color: '#999' }}>{images.length}/9</span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {error
+            ? <span style={{ fontSize: '0.8rem', color: '#e53e3e' }}>{error}</span>
+            : <span style={{ fontSize: '0.75rem', color: '#bbb' }}>{content.length} / 5000</span>
+          }
+          <button
+            type="submit"
+            disabled={loading || !content.trim()}
+            style={{
+              background: content.trim() ? '#1c5373' : '#e6e6e6',
+              color: content.trim() ? '#fff' : '#bbb',
+              border: 'none', borderRadius: 8,
+              padding: '0.4rem 1.2rem', fontSize: '0.85rem',
+              cursor: content.trim() ? 'pointer' : 'default',
+              transition: 'background 0.15s',
+            }}
+          >
+            {loading ? '發送中...' : '發布'}
+          </button>
+        </div>
       </div>
     </form>
     </div>

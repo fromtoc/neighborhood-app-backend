@@ -101,15 +101,19 @@ public class PostController {
     public ApiResponse<PostResponse> update(
             @PathVariable Long id,
             @AuthenticationPrincipal JwtClaims claims,
-            @RequestBody java.util.Map<String, String> body
+            @RequestBody java.util.Map<String, Object> body
     ) {
         if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        String content = body.get("content");
+        String content = (String) body.get("content");
         if (content == null || content.isBlank())
             throw new BusinessException(ResultCode.BAD_REQUEST, "內容不得為空");
-        String title = body.get("title");
+        String title = (String) body.get("title");
+
+        @SuppressWarnings("unchecked")
+        java.util.List<String> images = (java.util.List<String>) body.get("images");
+
         return ApiResponse.success(
-                postQueryService.updatePost(id, claims.getUserId(), claims.getRole(), title, content));
+                postQueryService.updatePost(id, claims.getUserId(), claims.getRole(), title, content, images));
     }
 
     @DeleteMapping("/{id}")

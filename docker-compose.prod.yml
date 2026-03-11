@@ -148,7 +148,14 @@ services:
       LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:-}
       # On-demand revalidation（通知 Next.js 重新產生頁面）
       WEB_BASE_URL: http://web:3000
-      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}\n      AGGREGATOR_NCDR_ENABLED: ${AGGREGATOR_NCDR_ENABLED:-true}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
+      AGGREGATOR_NCDR_ENABLED: ${AGGREGATOR_NCDR_ENABLED:-true}
+      # Image uploads — Cloudflare R2 (preferred) or local fallback
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-}
+      R2_PUBLIC_BASE_URL: ${R2_PUBLIC_BASE_URL:-}
     volumes:
       - app_logs:/app/logs
       # Mount Firebase service-account JSON if path is set

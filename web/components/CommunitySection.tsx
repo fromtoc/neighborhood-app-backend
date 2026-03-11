@@ -154,7 +154,10 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(post.title ?? '');
   const [editContent, setEditContent] = useState(post.content);
+  const [editImages, setEditImages] = useState<string[]>(post.images);
   const [editLoading, setEditLoading] = useState(false);
+  const [editUploading, setEditUploading] = useState(false);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -174,7 +177,7 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
       const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${post.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ title: editTitle.trim() || null, content: editContent.trim() }),
+        body: JSON.stringify({ title: editTitle.trim() || null, content: editContent.trim(), images: editImages }),
       });
       const json = await res.json();
       if (json.code === 401) { dispatchAuthExpired(); return; }
@@ -198,6 +201,34 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
     } finally {
       setDeleteLoading(false);
       setConfirmDelete(false);
+    }
+  }
+
+  async function handleEditImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    if (editImages.length + files.length > 9) return;
+    setEditUploading(true);
+    try {
+      const urls: string[] = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${CLIENT_BASE_URL}/api/v1/images/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        });
+        const json = await res.json();
+        if (json.code !== 200) throw new Error(json.message ?? '上傳失敗');
+        urls.push(json.data as string);
+      }
+      setEditImages(prev => [...prev, ...urls]);
+    } catch (err) {
+      console.error('edit image upload failed', err);
+    } finally {
+      setEditUploading(false);
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
     }
   }
 
@@ -287,7 +318,7 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
             <button onClick={() => onPrivateChat(post.userId, post.authorName ?? undefined)} style={chatBtnStyle('#1c5373')}>私聊</button>
           )}
           {canEdit && !editing && (
-            <button onClick={() => { setEditTitle(post.title ?? ''); setEditContent(post.content); setEditing(true); }} style={chatBtnStyle('#555')}>編輯</button>
+            <button onClick={() => { setEditTitle(post.title ?? ''); setEditContent(post.content); setEditImages(post.images); setEditing(true); }} style={chatBtnStyle('#555')}>編輯</button>
           )}
           {canDelete && !confirmDelete && (
             <button onClick={() => setConfirmDelete(true)} style={chatBtnStyle('#e53e3e')}>刪除</button>
@@ -322,7 +353,53 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
             rows={4}
             style={{ width: '100%', border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.5rem', fontSize: '0.9rem', outline: 'none', resize: 'vertical', lineHeight: 1.6, boxSizing: 'border-box' }}
           />
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', justifyContent: 'flex-end' }}>
+          {/* 圖片上傳 + 縮圖 */}
+          <input
+            ref={editFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleEditImageSelect}
+          />
+          {editImages.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
+              {editImages.map((src, i) => (
+                <div key={i} style={{ position: 'relative' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, display: 'block', background: '#f3f3f3' }} />
+                  <button
+                    type="button"
+                    onClick={() => setEditImages(prev => prev.filter((_, j) => j !== i))}
+                    style={{
+                      position: 'absolute', top: 2, right: 2,
+                      width: 18, height: 18,
+                      background: 'rgba(0,0,0,0.55)', color: '#fff',
+                      border: 'none', borderRadius: '50%',
+                      fontSize: '0.65rem', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem', alignItems: 'center' }}>
+            <button
+              type="button"
+              disabled={editUploading || editImages.length >= 9}
+              onClick={() => editFileInputRef.current?.click()}
+              title="新增圖片"
+              style={{
+                background: 'none', border: 'none',
+                color: editImages.length >= 9 ? '#ccc' : '#1c5373',
+                cursor: editImages.length >= 9 ? 'default' : 'pointer',
+                fontSize: '1.1rem', padding: '0 0.25rem', lineHeight: 1,
+              }}
+            >
+              {editUploading ? '⏳' : '📷'}
+            </button>
+            <div style={{ flex: 1 }} />
             <button type="button" onClick={() => setEditing(false)} style={{ ...chatBtnStyle('#828282'), padding: '4px 12px' }}>取消</button>
             <button type="submit" disabled={editLoading || !editContent.trim()} style={{ ...chatBtnStyle('#1c5373'), background: '#1c5373', color: '#fff', padding: '4px 12px' }}>
               {editLoading ? '儲存中...' : '儲存'}
@@ -337,35 +414,16 @@ function PostCard({ post, currentUser, onPrivateChat, onShowLogin, onDeleted, on
               {post.title}
             </p>
           )}
-          {/* 內文 */}
+          {/* 內文（列表只顯示摘要，去除 URL 那行） */}
           <p style={{ fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-            {post.content}
+            {post.content.replace(/https?:\/\/\S+/g, '').replace(/📰[^\n]*/g, '').trim()}
           </p>
         </Link>
       )}
 
-      {/* 圖片（2 欄格） */}
-      {post.images.length > 0 && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: post.images.length === 1 ? '1fr' : '1fr 1fr',
-          gap: '0.35rem', marginTop: '0.75rem',
-        }}>
-          {post.images.slice(0, 4).map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={i}
-              src={src}
-              alt=""
-              style={{
-                width: '100%',
-                height: post.images.length === 1 ? 200 : 140,
-                objectFit: 'cover',
-                borderRadius: 8,
-              }}
-            />
-          ))}
-        </div>
+      {/* 圖片 */}
+      {!editing && post.images.length > 0 && (
+        <PostImageGrid images={post.images} />
       )}
 
       {/* 互動列 */}
@@ -400,4 +458,52 @@ function chatBtnStyle(color: string): React.CSSProperties {
     borderRadius: 6, padding: '2px 8px', fontSize: '0.72rem',
     color, cursor: 'pointer', flexShrink: 0,
   };
+}
+
+function PostImageGrid({ images }: { images: string[] }) {
+  const count = images.length;
+  const show = images.slice(0, 4);
+  const extra = count > 4 ? count - 4 : 0;
+
+  const gridStyle: React.CSSProperties = {
+    display: 'grid',
+    gap: '0.25rem',
+    marginTop: '0.6rem',
+    gridTemplateColumns: count === 1 ? '1fr' : 'repeat(2, 1fr)',
+  };
+
+  const imgStyle = (isFirst: boolean): React.CSSProperties => ({
+    width: '100%',
+    aspectRatio: count === 1 ? '16/9' : '1',
+    objectFit: 'contain',
+    borderRadius: 6,
+    display: 'block',
+    background: '#f3f3f3',
+    ...(count === 1 && isFirst ? { gridColumn: '1 / -1' } : {}),
+  });
+
+  return (
+    <div style={gridStyle}>
+      {show.map((src, i) => {
+        const isLast = i === show.length - 1 && extra > 0;
+        return (
+          <div key={i} style={{ position: 'relative' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="" style={imgStyle(i === 0)} />
+            {isLast && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                background: 'rgba(0,0,0,0.45)',
+                borderRadius: 6,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#fff', fontSize: '1.3rem', fontWeight: 700,
+              }}>
+                +{extra}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }

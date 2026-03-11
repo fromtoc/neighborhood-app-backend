@@ -124,7 +124,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     }
 
     @Override
-    public PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content) {
+    public PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content, java.util.List<String> images) {
         Post post = postMapper.selectById(postId);
         if (post == null) throw new BusinessException(ResultCode.NOT_FOUND, "貼文不存在");
 
@@ -137,11 +137,20 @@ public class PostQueryServiceImpl implements PostQueryService {
                 throw new BusinessException(ResultCode.FORBIDDEN, "一般用戶無法編輯資訊/廣播貼文");
         }
 
-        postMapper.update(new LambdaUpdateWrapper<Post>()
+        LambdaUpdateWrapper<Post> wrapper = new LambdaUpdateWrapper<Post>()
                 .eq(Post::getId, postId)
                 .set(Post::getTitle, title)
-                .set(Post::getContent, content));
+                .set(Post::getContent, content);
 
+        if (images != null) {
+            try {
+                wrapper.set(Post::getImagesJson, objectMapper.writeValueAsString(images));
+            } catch (Exception e) {
+                log.warn("Failed to serialize images JSON", e);
+            }
+        }
+
+        postMapper.update(wrapper);
         return getById(postId);
     }
 

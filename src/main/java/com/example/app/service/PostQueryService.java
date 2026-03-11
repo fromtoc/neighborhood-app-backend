@@ -6,6 +6,8 @@ import com.example.app.dto.post.CreatePostRequest;
 import com.example.app.dto.post.PostResponse;
 import com.example.app.entity.Post;
 
+import java.util.List;
+
 /**
  * 社群貼文查詢 Service（App / Web 共用）。
  */
@@ -28,7 +30,12 @@ public interface PostQueryService {
     Post create(Long userId, CreatePostRequest req);
 
     /** 編輯貼文（只能編輯自己的貼文） */
-    PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content);
+    PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content, List<String> images);
+
+    // keep backward compat
+    default PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content) {
+        return updatePost(postId, requesterId, requesterRole, title, content, null);
+    }
 
     /** 刪除貼文 */
     void deletePost(Long postId, Long requesterId, UserRole requesterRole);

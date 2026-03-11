@@ -15,9 +15,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
 
 /**
  * 中央氣象署地震報告爬蟲。
@@ -107,18 +106,20 @@ public class EarthquakeAggregatorService {
                 String content = buildContent(eqTime, magnitude, epicenter, depth, areas);
                 String urgency = magnitude >= 6.0 ? "urgent" : magnitude >= 5.0 ? "medium" : "normal";
 
-                // 對震度 ≥ 2 的縣市發通知
+                // 對震度 ≥ 2 的縣市發通知（縣市層級 → 所有行政區），nhId 層級去重
+                Set<Long> seenNhIds = new LinkedHashSet<>();
                 for (AreaShaking area : areas) {
                     if (area.intensity < 2) continue;
-                    Long nhId = resolveByCity(area.county);
-                    if (nhId == null) continue;
-
-                    Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
-                    postMapper.insert(post);
-                    created++;
-                    if (notificationService != null) {
-                        String body = String.format("規模 %.1f，%s震度 %d 級", magnitude, area.county, area.intensity);
-                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body);
+                    Set<Long> nhIds = support.resolveAllByCity(area.county, maps);
+                    String body = String.format("規模 %.1f，%s震度 %d 級", magnitude, area.county, area.intensity);
+                    for (Long nhId : nhIds) {
+                        if (!seenNhIds.add(nhId)) continue; // 同一次地震每個 nhId 只發一次
+                        Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
+                        postMapper.insert(post);
+                        created++;
+                        if (notificationService != null) {
+                            notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body);
+                        }
                     }
                 }
                 support.markCrawled(SOURCE, key);
@@ -130,16 +131,23 @@ public class EarthquakeAggregatorService {
     }
 
     private List<AreaShaking> parseShaking(JsonNode shaking) {
-        List<AreaShaking> list = new ArrayList<>();
-        if (!shaking.isArray()) return list;
+        if (!shaking.isArray()) return List.of();
+        // 以 Map 去重：同縣市保留最高震度
+        Map<String, Integer> countyMax = new LinkedHashMap<>();
         for (JsonNode area : shaking) {
-            // 可能是 CountyName 或 AreaDesc
             String county    = area.path("CountyName").asText("").trim();
             if (county.isBlank()) county = area.path("AreaDesc").asText("").trim();
             String intensStr = area.path("AreaIntensity").asText("0").trim();
             int intens = parseIntensity(intensStr);
-            if (!county.isBlank()) list.add(new AreaShaking(county, intens));
+            if (county.isBlank()) continue;
+            // 合併項目如「苗栗縣、南投縣、臺南市 2 級」需拆開逐一比對
+            for (String c : county.split("[、,，]")) {
+                c = c.trim();
+                if (!c.isBlank()) countyMax.merge(c, intens, Math::max);
+            }
         }
+        List<AreaShaking> list = new ArrayList<>();
+        countyMax.forEach((c, i) -> list.add(new AreaShaking(c, i)));
         return list;
     }
 
@@ -148,15 +156,6 @@ public class EarthquakeAggregatorService {
         if (s.isBlank()) return 0;
         try { return Integer.parseInt(s.replaceAll("[^0-9]", "").substring(0, 1)); }
         catch (Exception e) { return 0; }
-    }
-
-    private Long resolveByCity(String city) {
-        String n = city.replace("台", "臺");
-        for (Map.Entry<String, Long> e : maps.districtMap().entrySet()) {
-            String k = e.getKey();
-            if (k.startsWith(n + "@@") || k.startsWith(city + "@@")) return e.getValue();
-        }
-        return null;
     }
 
     private static String buildTitle(double mag, String epicenter) {
