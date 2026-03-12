@@ -93,7 +93,20 @@
       "Bash(sleep 30 && ssh root@172.233.93.221 'docker logs app-backend --tail 3 2>&1 && echo \"---\" && curl -s \"http://127.0.0.1:8080/api/v1/chat/rooms/district?city=%E5%9F%BA%E9%9A%86%E5%B8%82&district=%E4%B8%83%E5%A0%B5%E5%8D%80\" | python3 -m json.tool 2>/dev/null')",
       "Bash(cd /Users/gaojingmin/project/neighborhood-app-backend/web && npx next build --no-lint 2>&1 | tail -20)",
       "Bash(cd /Users/gaojingmin/project/neighborhood-app-backend/web && npx next build --no-lint 2>&1 | tail -10)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(ls -la /Users/gaojingmin/project/demo/demo-main/app/\\\\\\(tabs\\\\\\)/ | head -20)",
+      "Bash(head -50 \"/Users/gaojingmin/project/demo/demo-main/app/\\(tabs\\)/index.tsx\")",
+      "Bash(ls -la /Users/gaojingmin/project/demo/demo-main/app/\\\\\\(tabs\\\\\\)/ 2>/dev/null || ls -la \"/Users/gaojingmin/project/demo/demo-main/app/\\(tabs\\)/\" 2>/dev/null)",
+      "Bash(head -100 \"/Users/gaojingmin/project/demo/demo-main/app/\\(tabs\\)/community.tsx\")",
+      "Bash(head -100 \"/Users/gaojingmin/project/demo/demo-main/app/\\(tabs\\)/chat.tsx\")",
+      "Bash(head -100 \"/Users/gaojingmin/project/demo/demo-main/app/\\(tabs\\)/shops.tsx\")",
+      "Bash(head -100 \"/Users/gaojingmin/project/demo/demo-main/app/\\(tabs\\)/info.tsx\")",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/web/app/shops -type f -name \"*.tsx\" 2>/dev/null | head -10)",
+      "Bash(ls -la /Users/gaojingmin/project/demo/demo-main/app/\\\\\\(tabs\\\\\\)/)",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -type f -name \"*ollow*\" 2>/dev/null | head -20)",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/src/main/java/com/example/app/entity -type f -name \"*.java\" 2>/dev/null | head -20)",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -type f \\\\\\( -name \"*.json\" -o -name \"*.yaml\" -o -name \"*.yml\" -o -name \"*.xml\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/target/*\" ! -path \"*/.git/*\" -print0 2>/dev/null | head -50)",
+      "Bash(find /Users/gaojingmin/project/demo -maxdepth 3 -type f -name \"*.json\" -o -name \"*.md\" -o -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -40)"
     ]
   }
 }

@@ -106,14 +106,15 @@ public class EarthquakeAggregatorService {
                 String content = buildContent(eqTime, magnitude, epicenter, depth, areas);
                 String urgency = magnitude >= 6.0 ? "urgent" : magnitude >= 5.0 ? "medium" : "normal";
 
-                // 對震度 ≥ 2 的縣市發通知（縣市層級 → 所有行政區），nhId 層級去重
+                // 對震度 ≥ 2 的縣市，用 resolveAllByCity 發布到該縣市所有行政區
                 Set<Long> seenNhIds = new LinkedHashSet<>();
                 for (AreaShaking area : areas) {
                     if (area.intensity < 2) continue;
                     Set<Long> nhIds = support.resolveAllByCity(area.county, maps);
+                    if (nhIds.isEmpty()) continue;
                     String body = String.format("規模 %.1f，%s震度 %d 級", magnitude, area.county, area.intensity);
                     for (Long nhId : nhIds) {
-                        if (!seenNhIds.add(nhId)) continue; // 同一次地震每個 nhId 只發一次
+                        if (!seenNhIds.add(nhId)) continue;
                         Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
                         postMapper.insert(post);
                         created++;

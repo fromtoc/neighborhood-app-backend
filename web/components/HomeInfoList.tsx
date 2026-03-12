@@ -12,12 +12,12 @@ interface Post {
   images: string[];
   userId: number;
   authorName: string | null;
+  urgency?: string;
   createdAt: string;
 }
 
 interface Props {
   neighborhoodId: number;
-  sectionTitle: string;
   liHref: string;
 }
 
@@ -35,7 +35,20 @@ function timeAgo(iso: string): string {
   return `${d} 天前`;
 }
 
-export default function HomeInfoList({ neighborhoodId, sectionTitle, liHref }: Props) {
+/** 從標題猜測 alert category */
+function guessAlertCategory(title: string | null): string | null {
+  if (!title) return null;
+  if (title.includes('地震')) return '地震';
+  if (title.includes('颱風')) return '颱風';
+  if (title.includes('豪雨') || title.includes('大雨') || title.includes('暴雨')) return '豪雨';
+  if (title.includes('水情') || title.includes('淹水') || title.includes('水位')) return '水情';
+  if (title.includes('停電')) return '停電';
+  if (title.includes('停水')) return '停水';
+  if (title.includes('土石流')) return '土石流';
+  return null;
+}
+
+export default function HomeInfoList({ neighborhoodId, liHref }: Props) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -54,61 +67,112 @@ export default function HomeInfoList({ neighborhoodId, sectionTitle, liHref }: P
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
         <h2 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#1e1e1e' }}>
-          {sectionTitle} 相關資訊
+          相關資訊
         </h2>
         <Link href={`${liHref}?tab=info`} style={{ fontSize: '0.75rem', color: '#1c5373' }}>更多 ›</Link>
       </div>
 
       {/* Post list */}
-      <div style={{ background: '#fff', borderRadius: 10, border: '1px solid #e6e6e6', overflow: 'hidden' }}>
-        {posts.map((post, i) => (
-          <Link
-            key={post.id}
-            href={`/posts/${post.id}`}
-            style={{
-              display: 'flex', gap: '0.75rem',
-              padding: '0.75rem 0.9rem',
-              borderBottom: i < posts.length - 1 ? '1px solid #f4f4f4' : 'none',
-              textDecoration: 'none', alignItems: 'flex-start',
-            }}
-          >
-            {/* Thumbnail — 只有有圖才顯示 */}
-            {post.images?.[0] && (
-              <div style={{ width: 72, height: 72, borderRadius: 8, flexShrink: 0, overflow: 'hidden' }}>
-                <Image
-                  src={post.images[0]}
-                  alt=""
-                  width={72}
-                  height={72}
-                  style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-                />
-              </div>
-            )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {posts.map(post => {
+          const isUrgent = post.urgency === 'urgent';
+          const isMedium = post.urgency === 'medium';
+          const isAlert = isUrgent || isMedium;
+          const category = guessAlertCategory(post.title);
 
-            {/* Text */}
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-              <p style={{
-                fontSize: '0.875rem', fontWeight: 600, color: '#1e1e1e', lineHeight: 1.5,
-                overflow: 'hidden', display: '-webkit-box',
-                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-              }}>
-                {post.title || post.content}
-              </p>
-              {post.title && (
-                <p style={{
-                  fontSize: '0.78rem', color: '#828282', lineHeight: 1.4,
-                  overflow: 'hidden', display: '-webkit-box',
-                  WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+          if (isAlert) {
+            // AlertCard style — matching app
+            return (
+              <Link key={post.id} href={`/posts/${post.id}`} style={{ textDecoration: 'none' }}>
+                <div style={{
+                  background: isUrgent ? '#fef2f2' : '#fffbeb',
+                  borderRadius: 10, padding: '0.75rem',
+                  display: 'flex', gap: '0.65rem',
+                  borderLeft: `3px solid ${isUrgent ? '#ef4444' : '#f59e0b'}`,
                 }}>
-                  {post.content}
-                </p>
-              )}
-              <p style={{ fontSize: '0.68rem', color: '#bbb' }}>
-                {post.authorName ?? `里民 #${post.userId}`} · {timeAgo(post.createdAt)}
-              </p>
-            </div>
-          </Link>
-        ))}
+                  {/* Alert icon */}
+                  <div style={{
+                    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                    background: isUrgent ? '#fee2e2' : '#fef3c7',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '1.05rem',
+                  }}>
+                    {isUrgent ? '⚠️' : '⚡'}
+                  </div>
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+                      {category && (
+                        <span style={{
+                          fontSize: '0.68rem', fontWeight: 600,
+                          padding: '1px 6px', borderRadius: 4,
+                          background: isUrgent ? '#fee2e2' : '#fef3c7',
+                          color: isUrgent ? '#dc2626' : '#d97706',
+                        }}>
+                          {category}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.68rem', color: '#999' }}>{timeAgo(post.createdAt)}</span>
+                    </div>
+                    <p style={{
+                      fontSize: '0.9rem', fontWeight: 600, color: '#1e1e1e', lineHeight: 1.45,
+                      overflow: 'hidden', display: '-webkit-box',
+                      WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0,
+                    }}>
+                      {post.title || post.content}
+                    </p>
+                    {post.title && (
+                      <p style={{
+                        fontSize: '0.8rem', color: '#666', lineHeight: 1.4, marginTop: '0.15rem',
+                        overflow: 'hidden', display: '-webkit-box',
+                        WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0,
+                      }}>
+                        {post.content}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Link>
+            );
+          }
+
+          // NewsCard style — normal info
+          return (
+            <Link key={post.id} href={`/posts/${post.id}`} style={{ textDecoration: 'none' }}>
+              <div style={{
+                background: '#fff', borderRadius: 10, padding: '0.75rem',
+                display: 'flex', gap: '0.65rem',
+                border: '1px solid #f0f0f0',
+              }}>
+                {/* Text */}
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+                  <p style={{
+                    fontSize: '0.9rem', fontWeight: 600, color: '#1e1e1e', lineHeight: 1.45,
+                    overflow: 'hidden', display: '-webkit-box',
+                    WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0,
+                  }}>
+                    {post.title || post.content}
+                  </p>
+                  <p style={{ fontSize: '0.68rem', color: '#bbb', margin: 0 }}>
+                    {post.authorName ?? `里民 #${post.userId}`} · {timeAgo(post.createdAt)}
+                  </p>
+                </div>
+                {/* Thumbnail */}
+                {post.images?.[0] && (
+                  <div style={{ width: 68, height: 68, borderRadius: 8, flexShrink: 0, overflow: 'hidden' }}>
+                    <Image
+                      src={post.images[0]}
+                      alt=""
+                      width={68}
+                      height={68}
+                      style={{ objectFit: 'cover', width: '100%', height: '100%' }}
+                    />
+                  </div>
+                )}
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

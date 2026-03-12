@@ -4,6 +4,7 @@ import { AuthProvider } from '@/components/AuthProvider';
 import { NotificationProvider } from '@/components/NotificationProvider';
 import NotificationBell from '@/components/NotificationBell';
 import HeaderUserSection from '@/components/HeaderUserSection';
+import NeighborhoodSwitcher from '@/components/NeighborhoodSwitcher';
 import SearchBar from '@/components/SearchBar';
 import SiteNav from '@/components/SiteNav';
 
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <span className="brand-blue">巷口</span>{' '}
                   <span className="brand-orange">GoLocal</span>
                 </a>
+                <NeighborhoodSwitcher />
                 <div style={{ flex: 1 }} />
                 <SearchBar />
                 <NotificationBell />

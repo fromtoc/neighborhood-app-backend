@@ -6,7 +6,9 @@ import com.example.app.dto.chat.ChatRoomResponse;
 import com.example.app.entity.ChatMessage;
 import com.example.app.entity.ChatRoom;
 import com.example.app.entity.User;
+import com.example.app.entity.ChatReadCursor;
 import com.example.app.mapper.ChatMessageMapper;
+import com.example.app.mapper.ChatReadCursorMapper;
 import com.example.app.mapper.ChatRoomMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.service.ChatQueryService;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -28,6 +31,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
 
     private final ChatRoomMapper chatRoomMapper;
     private final ChatMessageMapper chatMessageMapper;
+    private final ChatReadCursorMapper chatReadCursorMapper;
     private final UserMapper userMapper;
     private final NotificationService notificationService;
 
@@ -169,6 +173,8 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         ChatRoom patch = new ChatRoom();
         patch.setId(roomId);
         patch.setLastMessage(content.length() > 50 ? content.substring(0, 50) + "…" : content);
+        patch.setLastMessageNickname(nickname);
+        patch.setLastMessageUserId(userId);
         patch.setLastMessageAt(LocalDateTime.now());
         chatRoomMapper.updateById(patch);
 
@@ -187,6 +193,47 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         }
 
         return ChatMessageResponse.from(msg);
+    }
+
+    @Override
+    public Map<Long, Integer> getUnreadCounts(Long userId, List<Long> roomIds) {
+        if (roomIds == null || roomIds.isEmpty()) return Map.of();
+        List<Map<String, Object>> rows = chatReadCursorMapper.countUnreadByRooms(userId, roomIds);
+        Map<Long, Integer> result = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Long roomId = ((Number) row.get("room_id")).longValue();
+            int count = ((Number) row.get("unread_count")).intValue();
+            result.put(roomId, count);
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public void markRead(Long userId, Long roomId) {
+        // 取得該聊天室最新訊息 ID
+        LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<ChatMessage>()
+                .eq(ChatMessage::getRoomId, roomId)
+                .orderByDesc(ChatMessage::getId)
+                .last("LIMIT 1");
+        ChatMessage latest = chatMessageMapper.selectOne(wrapper);
+        long latestId = latest != null ? latest.getId() : 0;
+
+        ChatReadCursor cursor = chatReadCursorMapper.selectOne(
+                new LambdaQueryWrapper<ChatReadCursor>()
+                        .eq(ChatReadCursor::getUserId, userId)
+                        .eq(ChatReadCursor::getRoomId, roomId)
+        );
+        if (cursor == null) {
+            cursor = new ChatReadCursor();
+            cursor.setUserId(userId);
+            cursor.setRoomId(roomId);
+            cursor.setLastReadMsgId(latestId);
+            chatReadCursorMapper.insert(cursor);
+        } else {
+            cursor.setLastReadMsgId(latestId);
+            chatReadCursorMapper.updateById(cursor);
+        }
     }
 
     private String resolveNickname(Long userId) {

@@ -23,6 +23,9 @@ public interface PostQueryService {
      */
     PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size);
 
+    /** 查詢指定用戶的貼文 */
+    PageResult<PostResponse> listByUser(Long userId, int page, int size);
+
     /** 依 ID 取得單筆貼文（含作者暱稱） */
     PostResponse getById(Long id);
 
@@ -30,12 +33,7 @@ public interface PostQueryService {
     Post create(Long userId, CreatePostRequest req);
 
     /** 編輯貼文（只能編輯自己的貼文） */
-    PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content, List<String> images);
-
-    // keep backward compat
-    default PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content) {
-        return updatePost(postId, requesterId, requesterRole, title, content, null);
-    }
+    PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content, List<String> images, java.util.Map<String, Object> extra, String urgency);
 
     /** 刪除貼文 */
     void deletePost(Long postId, Long requesterId, UserRole requesterRole);

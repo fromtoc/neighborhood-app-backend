@@ -18,6 +18,8 @@ public class ChatRoomResponse {
     private Long user2Id;
     private String otherNickname;
     private String lastMessage;
+    private String lastMessageNickname;
+    private Long lastMessageUserId;
     private LocalDateTime lastMessageAt;
     private Integer memberCount;
 
@@ -35,6 +37,8 @@ public class ChatRoomResponse {
                 .user2Id(r.getUser2Id())
                 .otherNickname(otherNickname)
                 .lastMessage(r.getLastMessage())
+                .lastMessageNickname(r.getLastMessageNickname())
+                .lastMessageUserId(r.getLastMessageUserId())
                 .lastMessageAt(r.getLastMessageAt())
                 .memberCount(r.getMemberCount())
                 .build();

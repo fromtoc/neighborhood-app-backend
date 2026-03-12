@@ -4,6 +4,7 @@ import com.example.app.dto.chat.ChatMessageResponse;
 import com.example.app.dto.chat.ChatRoomResponse;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 聊天室 Service（App / Web 共用）。
@@ -34,4 +35,10 @@ public interface ChatQueryService {
 
     /** 發送訊息（REST fallback，WebSocket 優先） */
     ChatMessageResponse sendMessage(Long roomId, Long userId, String content);
+
+    /** 查詢使用者在多個聊天室的未讀數量 */
+    Map<Long, Integer> getUnreadCounts(Long userId, List<Long> roomIds);
+
+    /** 標記聊天室已讀（更新 cursor 到最新訊息） */
+    void markRead(Long userId, Long roomId);
 }

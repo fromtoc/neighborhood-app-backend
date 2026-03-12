@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 @Data
 public class CreatePostRequest {
@@ -34,4 +35,7 @@ public class CreatePostRequest {
     /** 圖片 URL 清單（最多 9 張） */
     @Size(max = 9)
     private List<String> images;
+
+    /** 分類專屬欄位，如 {price: "100", quantity: "2", deadline: "2026-04-01"} */
+    private Map<String, Object> extra;
 }

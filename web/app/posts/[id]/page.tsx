@@ -19,6 +19,7 @@ interface Post {
   images: string[];
   type: string;
   scope: string | null;
+  extra: Record<string, string> | null;
   likeCount: number;
   commentCount: number;
   createdAt: string;
@@ -81,8 +82,8 @@ const TYPE_LABEL: Record<string, string> = {
   broadcast:     '廣播',
   district_info: '區資訊',
   li_info:       '里資訊',
-  fresh:       '新鮮事',
-  store_visit: '探店',
+  fresh:       '動態',
+  store_visit: '踩點',
   selling:     '我要賣',
   renting:     '要出租',
   group_buy:   '發團購',
@@ -205,6 +206,11 @@ export default async function PostDetailPage({ params }: Props) {
         {/* Content */}
         <ContentWithLinks text={post.content} />
 
+        {/* Extra fields */}
+        {post.extra && Object.keys(post.extra).length > 0 && (
+          <ExtraFieldsDisplay extra={post.extra} />
+        )}
+
         {/* Images */}
         {post.images.length > 0 && (
           <div style={{
@@ -266,5 +272,31 @@ export default async function PostDetailPage({ params }: Props) {
         })()}
       </article>
     </>
+  );
+}
+
+const EXTRA_LABELS: Record<string, string> = {
+  shopName: '店家', brandName: '品名', price: '價格', quantity: '數量',
+  condition: '狀態', rentalTarget: '項目', minQty: '最低成團',
+  maxQty: '最高數量', deadline: '截止日期', expiry: '有效期限',
+  searchTarget: '尋找對象', datetime: '時間',
+  jobTitle: '職稱', minSalary: '最低薪資', maxSalary: '最高薪資', jobType: '類型',
+};
+
+function ExtraFieldsDisplay({ extra }: { extra: Record<string, string> }) {
+  const entries = Object.entries(extra).filter(([, v]) => v);
+  if (entries.length === 0) return null;
+  return (
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', gap: '0.4rem 1rem',
+      marginTop: '0.75rem', padding: '0.6rem 0.75rem',
+      background: '#f8f9fa', borderRadius: 8, fontSize: '0.82rem',
+    }}>
+      {entries.map(([k, v]) => (
+        <span key={k} style={{ color: '#555' }}>
+          <span style={{ color: '#999' }}>{EXTRA_LABELS[k] ?? k}：</span>{v}
+        </span>
+      ))}
+    </div>
   );
 }

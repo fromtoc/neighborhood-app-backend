@@ -33,10 +33,10 @@ export default function CommunityTabSection({ neighborhoodId, district, liName }
     <>
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
         <button style={tabStyle(subTab === 'district')} onClick={() => setSubTab('district')}>
-          區社群
+          {district}
         </button>
         <button style={tabStyle(subTab === 'li')} onClick={() => setSubTab('li')}>
-          里社群
+          {liName}
         </button>
       </div>
 
@@ -44,7 +44,7 @@ export default function CommunityTabSection({ neighborhoodId, district, liName }
         <CommunitySection
           neighborhoodId={neighborhoodId}
           type="district_community"
-          title={`${district} 區社群`}
+          title=""
           mode="community"
           scope="district"
         />
@@ -54,7 +54,7 @@ export default function CommunityTabSection({ neighborhoodId, district, liName }
         <CommunitySection
           neighborhoodId={neighborhoodId}
           type="li_community"
-          title={`${liName} 里社群`}
+          title=""
           mode="community"
           scope="li"
         />

@@ -111,4 +111,27 @@ public class ChatController {
             throw new BusinessException(ResultCode.BAD_REQUEST, "訊息內容不得為空");
         return ApiResponse.success(chatQueryService.sendMessage(roomId, claims.getUserId(), content));
     }
+
+    @GetMapping("/unread-counts")
+    @Operation(summary = "查詢多個聊天室的未讀訊息數量",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<Map<Long, Integer>> getUnreadCounts(
+            @AuthenticationPrincipal JwtClaims claims,
+            @RequestParam List<Long> roomIds
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        return ApiResponse.success(chatQueryService.getUnreadCounts(claims.getUserId(), roomIds));
+    }
+
+    @PutMapping("/rooms/{roomId}/read")
+    @Operation(summary = "標記聊天室已讀",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<Void> markRead(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal JwtClaims claims
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        chatQueryService.markRead(claims.getUserId(), roomId);
+        return ApiResponse.success(null);
+    }
 }

@@ -4,16 +4,11 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
-import { CLIENT_BASE_URL } from '@/lib/api';
-import { fetchFollowing, unfollowNeighborhood, type FollowedNeighborhood } from '@/lib/follow';
+import { fetchFollowing, type FollowedNeighborhood } from '@/lib/follow';
 
 export default function HeaderUserSection() {
-  const { user, token, nickname, setNickname, showLoginModal, logout } = useAuth();
+  const { user, token, nickname, showLoginModal, logout } = useAuth();
   const [open, setOpen] = useState(false);
-  const [editingNickname, setEditingNickname] = useState(false);
-  const [nicknameInput, setNicknameInput] = useState('');
-  const [nicknameSaving, setNicknameSaving] = useState(false);
-  const [nicknameError, setNicknameError] = useState('');
   const [following, setFollowing] = useState<FollowedNeighborhood[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -30,7 +25,7 @@ export default function HeaderUserSection() {
   // 開啟時載入關注清單（非訪客）
   useEffect(() => {
     if (!open || !token || user?.role === 'GUEST' || following !== null) return;
-    fetchFollowing(token).then(setFollowing).catch(() => setFollowing([]));
+    fetchFollowing(token).then(data => setFollowing(data.follows)).catch(() => setFollowing([]));
   }, [open, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // FollowButton 操作後清快取，下次開啟自動重新載入
@@ -39,12 +34,6 @@ export default function HeaderUserSection() {
     window.addEventListener('follow-changed', handler);
     return () => window.removeEventListener('follow-changed', handler);
   }, []);
-
-  async function handleUnfollow(id: number) {
-    if (!token) return;
-    await unfollowNeighborhood(token, id);
-    setFollowing(prev => prev?.filter(n => n.id !== id) ?? []);
-  }
 
   if (!user) {
     return (
@@ -67,38 +56,6 @@ export default function HeaderUserSection() {
   const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
   const name = isGuest ? `訪客 #${user.userId}` : (nickname || `用戶 #${user.userId}`);
   const initial = isGuest ? '訪' : name.charAt(0).toUpperCase();
-
-  async function handleSaveNickname(e: React.FormEvent) {
-    e.preventDefault();
-    const n = nicknameInput.trim();
-    if (!n) return;
-    setNicknameSaving(true);
-    setNicknameError('');
-    try {
-      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/users/me/nickname`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ nickname: n }),
-      });
-      const json = await res.json();
-      if (json.code === 200) {
-        setNickname(n);
-        setEditingNickname(false);
-      } else {
-        setNicknameError(json.message ?? '儲存失敗');
-      }
-    } catch {
-      setNicknameError('網路錯誤，請重試');
-    } finally {
-      setNicknameSaving(false);
-    }
-  }
-
-  function startEditNickname() {
-    setNicknameInput(nickname ?? '');
-    setNicknameError('');
-    setEditingNickname(true);
-  }
 
   return (
     <div ref={ref} style={{ position: 'relative', flexShrink: 0 }}>
@@ -154,78 +111,26 @@ export default function HeaderUserSection() {
             </button>
           )}
 
-          {/* 編輯暱稱（非訪客） */}
+          {/* 個人資料（非訪客） */}
           {!isGuest && (
-            <div style={{ padding: '0.5rem 1rem', borderBottom: '1px solid #f0f0f0' }}>
-              {editingNickname ? (
-                <form onSubmit={handleSaveNickname} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  <input
-                    autoFocus
-                    value={nicknameInput}
-                    onChange={e => setNicknameInput(e.target.value)}
-                    placeholder="輸入暱稱..."
-                    maxLength={20}
-                    disabled={nicknameSaving}
-                    style={{
-                      padding: '0.3rem 0.6rem',
-                      border: '1px solid #1c5373', borderRadius: 6,
-                      fontSize: '0.82rem', outline: 'none', width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  />
-                  {nicknameError && <p style={{ fontSize: '0.72rem', color: '#e53e3e', margin: 0 }}>{nicknameError}</p>}
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button type="submit" disabled={nicknameSaving} style={{ flex: 1, background: '#1c5373', color: '#fff', border: 'none', borderRadius: 6, padding: '0.3rem 0', fontSize: '0.78rem', cursor: 'pointer', opacity: nicknameSaving ? 0.6 : 1 }}>
-                      {nicknameSaving ? '儲存中...' : '儲存'}
-                    </button>
-                    <button type="button" onClick={() => setEditingNickname(false)} disabled={nicknameSaving} style={{ flex: 1, background: 'none', border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.3rem 0', fontSize: '0.78rem', cursor: 'pointer', color: '#828282' }}>
-                      取消
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <button onClick={startEditNickname} style={{ ...menuItemStyle('#555'), padding: 0, fontSize: '0.82rem' }}>
-                  ✏️ 編輯暱稱
-                </button>
-              )}
-            </div>
+            <Link
+              href="/profile"
+              onClick={() => setOpen(false)}
+              style={{ ...menuItemStyle('#1c5373'), display: 'block', textDecoration: 'none' }}
+            >
+              👤 個人資料
+            </Link>
           )}
 
-          {/* 我的關注（非訪客） */}
+          {/* 關注里管理（非訪客） */}
           {!isGuest && (
-            <div style={{ borderBottom: '1px solid #f0f0f0' }}>
-              <div style={{ padding: '0.5rem 1rem 0.25rem', fontSize: '0.75rem', color: '#bbb', fontWeight: 600 }}>
-                我的關注 {following ? `(${following.length}/3)` : ''}
-              </div>
-              {!following ? (
-                <div style={{ padding: '0.25rem 1rem 0.5rem', fontSize: '0.78rem', color: '#bbb' }}>載入中...</div>
-              ) : following.length === 0 ? (
-                <div style={{ padding: '0.25rem 1rem 0.5rem', fontSize: '0.78rem', color: '#bbb' }}>
-                  尚未關注任何里，前往里頁面點「+ 關注」
-                </div>
-              ) : (
-                <div style={{ padding: '0 0 0.25rem' }}>
-                  {following.map(n => (
-                    <div key={n.id} style={{ display: 'flex', alignItems: 'center', padding: '0.3rem 1rem', gap: '0.4rem' }}>
-                      <Link
-                        href={`/${encodeURIComponent(n.city)}/${encodeURIComponent(n.district)}/${encodeURIComponent(n.name)}`}
-                        onClick={() => setOpen(false)}
-                        style={{ flex: 1, fontSize: '0.82rem', color: '#1c5373', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      >
-                        {n.district}{n.name}
-                      </Link>
-                      <button
-                        onClick={() => handleUnfollow(n.id)}
-                        title="取消關注"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: '0.75rem', padding: '2px 4px', flexShrink: 0 }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <Link
+              href="/profile/follows"
+              onClick={() => setOpen(false)}
+              style={{ ...menuItemStyle('#1c5373'), display: 'block', textDecoration: 'none' }}
+            >
+              📍 關注里管理 {following ? `(${following.length}/3)` : ''}
+            </Link>
           )}
 
           {/* 後台管理（管理員以上） */}

@@ -86,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/chat/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/places/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/places").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex

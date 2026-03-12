@@ -37,7 +37,7 @@ class PlaceQueryServiceTest {
 
         when(placeMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
 
-        PageResult<Place> result = service.listByNeighborhood(10L, null, null, 1, 20);
+        PageResult<Place> result = service.listByNeighborhood(10L, null, null, null, null, 1, 20);
 
         assertThat(result.getTotal()).isEqualTo(1);
         assertThat(result.getRecords()).hasSize(1);
@@ -53,7 +53,7 @@ class PlaceQueryServiceTest {
 
         when(placeMapper.selectPage(any(Page.class), any(LambdaQueryWrapper.class))).thenReturn(page);
 
-        PageResult<Place> result = service.listByNeighborhood(10L, null, null, 1, 20);
+        PageResult<Place> result = service.listByNeighborhood(10L, null, null, null, null, 1, 20);
 
         assertThat(result.getTotal()).isEqualTo(0);
         assertThat(result.getRecords()).isEmpty();

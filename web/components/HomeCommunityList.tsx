@@ -56,7 +56,7 @@ export default function HomeCommunityList({ neighborhoodId, liHref }: Props) {
   return (
     <div style={{ margin: '1.25rem 0' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-        <h2 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#1e1e1e' }}>社群 近期熱門</h2>
+        <h2 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#1e1e1e' }}>社群</h2>
         <Link href={`${liHref}?tab=community`} style={{ fontSize: '0.75rem', color: '#1c5373' }}>更多 ›</Link>
       </div>
 

@@ -137,6 +137,22 @@ public class PostQueryServiceImpl implements PostQueryService {
     }
 
     @Override
+    public PageResult<PostResponse> listByUser(Long userId, int page, int size) {
+        LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
+                .eq(Post::getUserId, userId)
+                .eq(Post::getStatus, 1)
+                .orderByDesc(Post::getCreatedAt);
+        IPage<Post> result = postMapper.selectPage(new Page<>(page, size), wrapper);
+        Map<Long, User> userMap = batchLoadUsers(result.getRecords());
+        List<PostResponse> responses = result.getRecords().stream()
+                .map(p -> {
+                    User u = userMap.get(p.getUserId());
+                    return PostResponse.from(p, buildName(u), buildRole(u));
+                }).toList();
+        return new PageResult<>(result.getTotal(), responses);
+    }
+
+    @Override
     public PostResponse getById(Long id) {
         Post post = postMapper.selectById(id);
         if (post == null) return null;
@@ -146,7 +162,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     }
 
     @Override
-    public PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content, java.util.List<String> images) {
+    public PostResponse updatePost(Long postId, Long requesterId, UserRole requesterRole, String title, String content, java.util.List<String> images, java.util.Map<String, Object> extra, String urgency) {
         Post post = postMapper.selectById(postId);
         if (post == null) throw new BusinessException(ResultCode.NOT_FOUND, "貼文不存在");
 
@@ -170,6 +186,18 @@ public class PostQueryServiceImpl implements PostQueryService {
             } catch (Exception e) {
                 log.warn("Failed to serialize images JSON", e);
             }
+        }
+
+        if (extra != null) {
+            try {
+                wrapper.set(Post::getExtraJson, extra.isEmpty() ? null : objectMapper.writeValueAsString(extra));
+            } catch (Exception e) {
+                log.warn("Failed to serialize extra JSON", e);
+            }
+        }
+
+        if (urgency != null) {
+            wrapper.set(Post::getUrgency, urgency.isBlank() ? null : urgency);
         }
 
         postMapper.update(wrapper);
@@ -247,6 +275,14 @@ public class PostQueryServiceImpl implements PostQueryService {
                 post.setImagesJson(objectMapper.writeValueAsString(req.getImages()));
             } catch (JsonProcessingException e) {
                 log.warn("Failed to serialize images JSON", e);
+            }
+        }
+
+        if (req.getExtra() != null && !req.getExtra().isEmpty()) {
+            try {
+                post.setExtraJson(objectMapper.writeValueAsString(req.getExtra()));
+            } catch (JsonProcessingException e) {
+                log.warn("Failed to serialize extra JSON", e);
             }
         }
 

@@ -111,7 +111,6 @@ function Dashboard({ detail, onSwitch }: { detail: LiDetail; onSwitch: () => voi
       {/* 在地資訊 */}
       <HomeInfoList
         neighborhoodId={detail.id}
-        sectionTitle={`${detail.district}${detail.name}`}
         liHref={liHref}
       />
 

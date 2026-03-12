@@ -10,7 +10,6 @@ const NAV_ITEMS = [
   { key: 'community', href: '/community',  tab: 'community', label: '社群',  icon: '👥' },
   { key: 'shops',     href: '/shops',      tab: 'shops',     label: '店家',  icon: '🏪' },
   { key: 'chat',      href: '/chat',       tab: 'chat',      label: '聊聊',  icon: '💬' },
-  { key: 'messages',  href: '/messages',   tab: '',          label: '私訊',  icon: '✉️' },
 ];
 
 // 判斷是否在里頁面（3段 dynamic path）
@@ -38,10 +37,7 @@ function NavInner() {
         let href: string;
         let isActive: boolean;
 
-        if (item.key === 'messages') {
-          href     = '/messages';
-          isActive = pathname === '/messages';
-        } else if (liInfo && item.tab) {
+        if (liInfo && item.tab) {
           const base = `/${encodeURIComponent(liInfo.city)}/${encodeURIComponent(liInfo.district)}/${encodeURIComponent(liInfo.li)}`;
           href     = item.tab === 'home' ? base : `${base}?tab=${item.tab}`;
           isActive = currentTab === item.tab;

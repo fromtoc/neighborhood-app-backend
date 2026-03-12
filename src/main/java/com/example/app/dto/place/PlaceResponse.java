@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Getter
 @Builder
@@ -13,6 +14,7 @@ public class PlaceResponse {
     private Long id;
     private Long neighborhoodId;
     private Long categoryId;
+    private String categoryName;
     private String name;
     private String description;
     private String address;
@@ -22,6 +24,13 @@ public class PlaceResponse {
     private BigDecimal lat;
     private BigDecimal lng;
     private String coverImageUrl;
+    private List<String> images;
+    private List<String> tags;
+    private BigDecimal rating;
+    private Integer reviewCount;
+    private Integer likeCount;
+    private Boolean hasHomeService;
+    private Boolean isPartner;
     private Integer status;
 
     public static PlaceResponse from(Place p) {
@@ -29,6 +38,7 @@ public class PlaceResponse {
                 .id(p.getId())
                 .neighborhoodId(p.getNeighborhoodId())
                 .categoryId(p.getCategoryId())
+                .categoryName(p.getCategoryName())
                 .name(p.getName())
                 .description(p.getDescription())
                 .address(p.getAddress())
@@ -38,7 +48,24 @@ public class PlaceResponse {
                 .lat(p.getLat())
                 .lng(p.getLng())
                 .coverImageUrl(p.getCoverImageUrl())
+                .images(parseJsonArray(p.getImagesJson()))
+                .tags(parseJsonArray(p.getTagsJson()))
+                .rating(p.getRating())
+                .reviewCount(p.getReviewCount())
+                .likeCount(p.getLikeCount())
+                .hasHomeService(Integer.valueOf(1).equals(p.getHasHomeService()))
+                .isPartner(Integer.valueOf(1).equals(p.getIsPartner()))
                 .status(p.getStatus())
                 .build();
+    }
+
+    private static List<String> parseJsonArray(String json) {
+        if (json == null || json.isBlank() || json.equals("[]")) return List.of();
+        String trimmed = json.replaceAll("^\\[|\\]$", "").trim();
+        if (trimmed.isEmpty()) return List.of();
+        return List.of(trimmed.split(",\\s*"))
+                .stream()
+                .map(s -> s.replaceAll("^\"|\"$", ""))
+                .toList();
     }
 }

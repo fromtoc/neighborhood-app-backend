@@ -14,7 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Map;
+import java.util.Set;
 
 /**
  * 經濟部水利署 水情燈號爬蟲。
@@ -79,19 +79,22 @@ public class WaterAlertAggregatorService {
                 String key = AggregatorSupport.sha256(SOURCE + "::" + county + "::" + statusCode + "::" + date);
                 if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
-                Long nhId = resolveByCity(county);
-                if (nhId == null) { support.markCrawled(SOURCE, key); continue; }
+                // 只收集里/區資訊，僅匹配縣市則過濾掉
+                Set<Long> nhIds = support.resolveTargets(county + " " + note, maps);
+                if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                 String title   = String.format("【水情公告】%s %s", county, statusName);
                 String content = buildContent(county, statusName, statusCode, date, note);
                 String urgency = statusCode >= 4 ? "urgent" : statusCode >= 2 ? "medium" : "normal";
 
-                Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
-                postMapper.insert(post);
-                created++;
-                if (notificationService != null) {
-                    notificationService.onNewInfo(nhId, "district_info", post.getId(), title,
-                            content.length() > 80 ? content.substring(0, 80) + "…" : content);
+                for (Long nhId : nhIds) {
+                    Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
+                    postMapper.insert(post);
+                    created++;
+                    if (notificationService != null) {
+                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title,
+                                content.length() > 80 ? content.substring(0, 80) + "…" : content);
+                    }
                 }
                 support.markCrawled(SOURCE, key);
             }
@@ -99,13 +102,6 @@ public class WaterAlertAggregatorService {
         } catch (Exception e) {
             log.error("WaterAlert crawl failed", e);
         }
-    }
-
-    private Long resolveByCity(String city) {
-        for (Map.Entry<String, Long> e : maps.districtMap().entrySet()) {
-            if (e.getKey().startsWith(city + "@@")) return e.getValue();
-        }
-        return null;
     }
 
     private static String buildContent(String county, String statusName, int code,

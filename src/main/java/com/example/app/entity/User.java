@@ -13,6 +13,8 @@ public class User {
     private Long id;
 
     private String nickname;
+    private String bio;
+    private Integer useAvatar;
     private String avatarUrl;
     private Integer isGuest;
     private Integer isAdmin;

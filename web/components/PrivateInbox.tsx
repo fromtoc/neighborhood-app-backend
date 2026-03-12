@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import PrivateChatModal from './PrivateChatModal';
 import { CLIENT_BASE_URL } from '@/lib/api';
@@ -14,13 +14,19 @@ interface PrivateRoom {
   lastMessageAt: string | null;
 }
 
+function formatUnread(n: number): string {
+  if (n > 999) return '999+';
+  return String(n);
+}
+
 export default function PrivateInbox() {
   const { user, token, showLoginModal } = useAuth();
   const [rooms, setRooms] = useState<PrivateRoom[]>([]);
   const [loading, setLoading] = useState(false);
   const [openRoomTargetId, setOpenRoomTargetId] = useState<number | null>(null);
+  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
 
-  useEffect(() => {
+  const fetchRooms = useCallback(() => {
     if (!user || !token || user.role === 'GUEST') return;
     setLoading(true);
     fetch(`${CLIENT_BASE_URL}/api/v1/chat/private/rooms`, {
@@ -30,6 +36,29 @@ export default function PrivateInbox() {
       .then(json => { if (json.code === 200) setRooms(json.data ?? []); })
       .finally(() => setLoading(false));
   }, [user, token]);
+
+  useEffect(() => { fetchRooms(); }, [fetchRooms]);
+
+  // Fetch unread counts
+  const fetchUnread = useCallback(() => {
+    if (!token || rooms.length === 0) return;
+    const roomIds = rooms.map(r => r.id);
+    fetch(`${CLIENT_BASE_URL}/api/v1/chat/unread-counts?roomIds=${roomIds.join(',')}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(json => { if (json.code === 200) setUnreadCounts(json.data ?? {}); })
+      .catch(() => {});
+  }, [token, rooms]);
+
+  useEffect(() => { fetchUnread(); }, [fetchUnread]);
+
+  // Refresh unread on interval
+  useEffect(() => {
+    if (!token || rooms.length === 0) return;
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnread, token, rooms]);
 
   // 不是 USER 身份
   if (!user || user.role === 'GUEST') {
@@ -80,20 +109,21 @@ export default function PrivateInbox() {
           background: '#f9f9f9', borderRadius: 12, padding: '1.5rem',
           textAlign: 'center', color: '#bbb', fontSize: '0.88rem',
         }}>
-          還沒有私訊。在社群貼文上點「✉️ 私聊」開始對話！
+          還沒有私訊。在社群貼文上點「私聊」開始對話！
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {rooms.map(room => {
             const otherId = getOtherUserId(room);
             const otherName = room.otherNickname || `用戶 #${otherId}`;
+            const unread = unreadCounts[room.id] ?? 0;
             return (
               <button
                 key={room.id}
                 onClick={() => setOpenRoomTargetId(otherId)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '0.75rem',
-                  padding: '0.75rem 1rem', background: '#fff',
+                  padding: '0.75rem 1rem', background: unread > 0 ? '#f8faff' : '#fff',
                   border: '1px solid #e6e6e6', borderRadius: 12,
                   cursor: 'pointer', textAlign: 'left', width: '100%',
                 }}
@@ -114,16 +144,30 @@ export default function PrivateInbox() {
                   <p style={{
                     fontSize: '0.8rem', color: '#828282',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    fontWeight: unread > 0 ? 600 : 400,
                   }}>
                     {room.lastMessage ?? '開始對話吧！'}
                   </p>
                 </div>
 
-                {room.lastMessageAt && (
-                  <span style={{ fontSize: '0.72rem', color: '#bbb', flexShrink: 0 }}>
-                    {timeLabel(room.lastMessageAt)}
-                  </span>
-                )}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px', flexShrink: 0 }}>
+                  {room.lastMessageAt && (
+                    <span style={{ fontSize: '0.72rem', color: '#bbb' }}>
+                      {timeLabel(room.lastMessageAt)}
+                    </span>
+                  )}
+                  {unread > 0 && (
+                    <span style={{
+                      background: '#EF4444', color: '#fff',
+                      minWidth: 20, height: 20, borderRadius: 10,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      paddingLeft: 6, paddingRight: 6,
+                      fontSize: '0.68rem', fontWeight: 700,
+                    }}>
+                      {formatUnread(unread)}
+                    </span>
+                  )}
+                </div>
               </button>
             );
           })}
@@ -134,7 +178,18 @@ export default function PrivateInbox() {
         <PrivateChatModal
           targetUserId={openRoomTargetId}
           targetNickname={rooms.find(r => getOtherUserId(r) === openRoomTargetId)?.otherNickname}
-          onClose={() => setOpenRoomTargetId(null)}
+          onClose={() => {
+            const room = rooms.find(r => getOtherUserId(r) === openRoomTargetId);
+            if (room && token) {
+              fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/read`, {
+                method: 'PUT',
+                headers: { Authorization: `Bearer ${token}` },
+              }).catch(() => {});
+            }
+            setOpenRoomTargetId(null);
+            fetchUnread();
+            fetchRooms();
+          }}
         />
       )}
     </div>

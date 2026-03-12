@@ -14,6 +14,7 @@ import ChatTabSection from '@/components/ChatTabSection';
 import SaveNeighborhood from '@/components/SaveNeighborhood';
 import SwitchNeighborhoodLink from '@/components/SwitchNeighborhoodLink';
 import FollowButton from '@/components/FollowButton';
+import ShopsSection from '@/components/ShopsSection';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
 
@@ -120,7 +121,6 @@ export default async function LiPage({ params, searchParams }: Props) {
           <WeatherWidget city={city} lat={liDetail.lat} lng={liDetail.lng} />
           <HomeInfoList
             neighborhoodId={liDetail.id}
-            sectionTitle={`${district}${liName}`}
             liHref={base}
           />
           <HomeBanner variant="middle" />
@@ -147,7 +147,7 @@ export default async function LiPage({ params, searchParams }: Props) {
       )}
 
       {/* 店家 */}
-      {tab === 'shops' && <ShopsSection neighborhoodId={liDetail.id} district={district} liName={liName} />}
+      {tab === 'shops' && <ShopsSectionWrapper neighborhoodId={liDetail.id} city={city} district={district} liName={liName} />}
 
       {/* 聊聊 */}
       {tab === 'chat' && (
@@ -162,53 +162,52 @@ export default async function LiPage({ params, searchParams }: Props) {
   );
 }
 
-/* ── 店家 ──────────────────────────────────────────────── */
+/* ── 店家 Server Wrapper ──────────────────────────────── */
 
 interface PlaceItem {
   id: number;
+  neighborhoodId: number;
+  categoryId: number | null;
+  categoryName: string | null;
   name: string;
   description: string | null;
   address: string | null;
   phone: string | null;
+  website: string | null;
+  hours: string | null;
+  coverImageUrl: string | null;
+  rating: number | null;
+  reviewCount: number | null;
+  likeCount: number | null;
+  hasHomeService: boolean;
+  isPartner: boolean;
+  tags: string[];
 }
 
-async function getPlaces(neighborhoodId: number): Promise<PlaceItem[]> {
+async function ShopsSectionWrapper({ neighborhoodId, city, district, liName }: { neighborhoodId: number; city: string; district: string; liName: string }) {
+  let initialPlaces: PlaceItem[] = [];
+  let initialDistrictPlaces: PlaceItem[] = [];
   try {
-    const res = await apiFetch<{ total: number; records: PlaceItem[] }>(
-      `/api/v1/places?neighborhoodId=${neighborhoodId}&size=50`,
-    );
-    return res.records;
-  } catch {
-    return [];
-  }
-}
+    const [liRes, distRes] = await Promise.all([
+      apiFetch<{ total: number; records: PlaceItem[] }>(
+        `/api/v1/places?neighborhoodId=${neighborhoodId}&size=200`,
+      ),
+      apiFetch<{ total: number; records: PlaceItem[] }>(
+        `/api/v1/places/by-district?city=${encodeURIComponent(city)}&district=${encodeURIComponent(district)}&excludeNeighborhoodId=${neighborhoodId}&size=200`,
+      ),
+    ]);
+    initialPlaces = liRes.records;
+    initialDistrictPlaces = distRes.records;
+  } catch { /* ignore */ }
 
-async function ShopsSection({ neighborhoodId, district, liName }: { neighborhoodId: number; district: string; liName: string }) {
-  const places = await getPlaces(neighborhoodId);
   return (
-    <div className="section">
-      <div className="section-header">
-        <h2 className="section-title">{district}{liName} 在地店家</h2>
-        <span style={{ fontSize: '0.8rem', color: '#bbb' }}>{places.length} 筆</span>
-      </div>
-      {places.length > 0 ? (
-        <div className="li-list">
-          {places.map(p => (
-            <Link key={p.id} href={`/places/${p.id}`} className="li-card"
-              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.25rem', textDecoration: 'none' }}>
-              <span className="li-name">{p.name}</span>
-              {p.address && <span style={{ fontSize: '0.8rem', color: '#828282' }}>📍 {p.address}</span>}
-              {p.phone && <span style={{ fontSize: '0.8rem', color: '#828282' }}>📞 {p.phone}</span>}
-              {p.description && <span style={{ fontSize: '0.82rem', color: '#aaa', lineHeight: 1.5 }}>{p.description}</span>}
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <div className="empty-state">
-          <div className="empty-icon">🏪</div>
-          <p>此里尚無店家資料</p>
-        </div>
-      )}
-    </div>
+    <ShopsSection
+      neighborhoodId={neighborhoodId}
+      city={city}
+      district={district}
+      liName={liName}
+      initialPlaces={initialPlaces}
+      initialDistrictPlaces={initialDistrictPlaces}
+    />
   );
 }

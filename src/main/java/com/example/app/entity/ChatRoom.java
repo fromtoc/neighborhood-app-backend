@@ -18,6 +18,8 @@ public class ChatRoom {
     private Long user1Id;
     private Long user2Id;
     private String lastMessage;
+    private String lastMessageNickname;
+    private Long lastMessageUserId;
     private LocalDateTime lastMessageAt;
     private Integer memberCount;
     private Integer status;

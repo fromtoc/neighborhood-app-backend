@@ -1,11 +1,14 @@
 package com.example.app.dto.post;
 
 import com.example.app.entity.Post;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Builder
@@ -19,6 +22,7 @@ public class PostResponse {
     private String title;
     private String content;
     private List<String> images;
+    private Map<String, Object> extra;
     private String type;
     private String scope;
     private String urgency;
@@ -45,6 +49,7 @@ public class PostResponse {
                 .title(p.getTitle())
                 .content(p.getContent())
                 .images(parseImages(p.getImagesJson()))
+                .extra(parseExtra(p.getExtraJson()))
                 .type(p.getType())
                 .scope(p.getScope())
                 .urgency(p.getUrgency())
@@ -53,6 +58,17 @@ public class PostResponse {
                 .commentCount(p.getCommentCount())
                 .createdAt(p.getCreatedAt())
                 .build();
+    }
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private static Map<String, Object> parseExtra(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return MAPPER.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static List<String> parseImages(String json) {

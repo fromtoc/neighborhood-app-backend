@@ -15,6 +15,7 @@ public class Place {
 
     private Long neighborhoodId;
     private Long categoryId;
+    private String categoryName;
     private String name;
     private String description;
     private String address;
@@ -24,6 +25,13 @@ public class Place {
     private BigDecimal lat;
     private BigDecimal lng;
     private String coverImageUrl;
+    private String imagesJson;
+    private String tagsJson;
+    private BigDecimal rating;
+    private Integer reviewCount;
+    private Integer likeCount;
+    private Integer hasHomeService;
+    private Integer isPartner;
     private Integer status;
 
     @TableLogic

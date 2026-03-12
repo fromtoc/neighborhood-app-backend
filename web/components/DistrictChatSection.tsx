@@ -189,7 +189,7 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
       </div>
       <div style={{ maxWidth: '70%' }}>
         <p style={{ fontSize: '0.72rem', color: '#828282', marginBottom: '0.2rem', textAlign: isSelf ? 'right' : 'left' }}>{senderName}</p>
-        <div style={{ background: isSelf ? '#1c5373' : '#f0f4f7', color: isSelf ? '#fff' : '#1e1e1e',
+        <div style={{ background: isSelf ? '#A6D785' : '#f0f4f7', color: '#1a1a1a',
           padding: '0.5rem 0.75rem', borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
           fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.content}</div>
         <p style={{ fontSize: '0.7rem', color: '#bbb', marginTop: '0.2rem', textAlign: isSelf ? 'right' : 'left' }}>{time}</p>

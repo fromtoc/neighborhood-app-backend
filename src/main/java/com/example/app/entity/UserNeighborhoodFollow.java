@@ -14,6 +14,8 @@ public class UserNeighborhoodFollow {
 
     private Long userId;
     private Long neighborhoodId;
+    private Integer isDefault;
+    private String alias;
 
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

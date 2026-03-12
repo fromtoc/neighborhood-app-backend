@@ -20,6 +20,9 @@ public class Post {
     /** JSON array string — e.g. ["https://...","https://..."] */
     private String imagesJson;
 
+    /** 分類專屬欄位 JSON，如 {"price":"100","quantity":"2"} */
+    private String extraJson;
+
     /** info | broadcast | fresh | store_visit | selling | renting | group_buy | group_event | free_give | help | want_rent | find | recruit | report */
     private String type;
 

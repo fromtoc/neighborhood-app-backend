@@ -82,7 +82,7 @@ function CommentCard({
   comment: Comment; isSelf: boolean; selfName: string;
   showLine: boolean; onClick: () => void; postId: number;
 }) {
-  const { token } = useAuth();
+  const { user, token, showLoginModal } = useAuth();
   const name = isSelf ? selfName : (comment.nickname ?? `用戶 #${comment.userId}`);
   const hasReplies = comment.replyCount > 0;
 
@@ -92,7 +92,8 @@ function CommentCard({
 
   async function handleLike(e: React.MouseEvent) {
     e.stopPropagation();
-    if (!token || likePending) return;
+    if (!token || !user || user.role === 'GUEST') { showLoginModal(); return; }
+    if (likePending) return;
     setLikePending(true);
     setLiked(v => !v);
     setLikeCount(c => liked ? c - 1 : c + 1);
@@ -393,7 +394,7 @@ function ThreadPanel({
           </div>
 
           {/* 回覆輸入 */}
-          {user ? (
+          {user && user.role !== 'GUEST' ? (
             <ReplyComposer
               postId={postId}
               parentId={rootComment.id}
@@ -565,7 +566,7 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
       )}
 
       {/* 頂層留言輸入框 */}
-      {user ? (
+      {user && user.role !== 'GUEST' ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Avatar name={selfName ?? 'U'} size={28} self />
           <input

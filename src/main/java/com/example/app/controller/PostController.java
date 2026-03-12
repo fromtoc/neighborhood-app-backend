@@ -28,6 +28,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.app.entity.PostLike;
+import com.example.app.mapper.PostLikeMapper;
+
 
 @RestController
 @RequestMapping("/api/v1/posts")
@@ -39,6 +43,7 @@ public class PostController {
     private final PostQueryService     postQueryService;
     private final SeoUrlService        seoUrlService;
     private final WebRevalidateService webRevalidateService;
+    private final PostLikeMapper       postLikeMapper;
 
     @GetMapping
     @Operation(
@@ -62,6 +67,17 @@ public class PostController {
         return ApiResponse.success(result);
     }
 
+    @GetMapping("/mine")
+    @Operation(summary = "查詢我的貼文", security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<PageResult<PostResponse>> listMine(
+            @AuthenticationPrincipal JwtClaims claims,
+            @RequestParam(defaultValue = "1") @Min(1) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        return ApiResponse.success(postQueryService.listByUser(claims.getUserId(), page, size));
+    }
+
     @PostMapping
     @Operation(summary = "建立貼文", security = @SecurityRequirement(name = "bearerAuth"))
     public ApiResponse<PostResponse> create(
@@ -81,6 +97,22 @@ public class PostController {
         seoUrlService.upsertPost(post);                                          // async
         webRevalidateService.revalidatePaths(List.of("/posts/" + post.getId())); // async
         return ApiResponse.success(PostResponse.from(post));
+    }
+
+    @GetMapping("/likes/check-batch")
+    @Operation(summary = "批次檢查已按讚的貼文ID", security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<List<Long>> checkLikesBatch(
+            @RequestParam List<Long> postIds,
+            @AuthenticationPrincipal JwtClaims claims
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        if (postIds == null || postIds.isEmpty()) return ApiResponse.success(List.of());
+        List<PostLike> likes = postLikeMapper.selectList(
+                new LambdaQueryWrapper<PostLike>()
+                        .eq(PostLike::getUserId, claims.getUserId())
+                        .in(PostLike::getPostId, postIds));
+        List<Long> likedIds = likes.stream().map(PostLike::getPostId).toList();
+        return ApiResponse.success(likedIds);
     }
 
     @GetMapping("/{id}")
@@ -112,8 +144,13 @@ public class PostController {
         @SuppressWarnings("unchecked")
         java.util.List<String> images = (java.util.List<String>) body.get("images");
 
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> extra = (java.util.Map<String, Object>) body.get("extra");
+
+        String urgency = (String) body.get("urgency");
+
         return ApiResponse.success(
-                postQueryService.updatePost(id, claims.getUserId(), claims.getRole(), title, content, images));
+                postQueryService.updatePost(id, claims.getUserId(), claims.getRole(), title, content, images, extra, urgency));
     }
 
     @DeleteMapping("/{id}")

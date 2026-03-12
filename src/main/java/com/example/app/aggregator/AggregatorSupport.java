@@ -170,8 +170,8 @@ public class AggregatorSupport {
         }
         if (!districtMatches.isEmpty()) return districtMatches;
 
-        // Step 3: 縣市層級 → 該縣市所有區各一筆
-        return resolveAllByCity(mentionedCities, maps);
+        // Step 3: 僅匹配縣市 → 過濾掉，不發文
+        return Set.of();
     }
 
     /**

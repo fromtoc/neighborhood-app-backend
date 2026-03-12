@@ -13,9 +13,9 @@ export default function FollowButton({ neighborhoodId }: { neighborhoodId: numbe
 
   useEffect(() => {
     if (!token) { setInit(true); return; }
-    fetchFollowing(token).then(list => {
-      setCount(list.length);
-      setFollowed(list.some(n => n.id === neighborhoodId));
+    fetchFollowing(token).then(data => {
+      setCount(data.follows.length);
+      setFollowed(data.follows.some(n => n.id === neighborhoodId));
       setInit(true);
     }).catch(() => setInit(true));
   }, [token, neighborhoodId]);

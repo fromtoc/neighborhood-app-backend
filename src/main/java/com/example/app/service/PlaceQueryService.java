@@ -1,30 +1,40 @@
 package com.example.app.service;
 
 import com.example.app.common.result.PageResult;
+import com.example.app.dto.place.PlaceCommentResponse;
 import com.example.app.entity.Place;
 
-import java.util.List;
+import com.example.app.dto.place.CreatePlaceRequest;
 
-/**
- * 地點查詢 Service（App / Web 共用）。
- */
+import java.util.List;
+import java.util.Map;
+
 public interface PlaceQueryService {
 
-    /**
-     * 分頁查詢指定里的地點清單。
-     *
-     * @param neighborhoodId 里 ID
-     * @param categoryId     分類 ID（null = 全部）
-     * @param keyword        關鍵字搜尋（null = 不過濾）
-     * @param page           頁碼（從 1 開始）
-     * @param size           每頁筆數
-     */
     PageResult<Place> listByNeighborhood(Long neighborhoodId, Long categoryId,
-                                         String keyword, int page, int size);
+                                         String categoryName, String keyword,
+                                         String sort, int page, int size);
 
-    /** 依 ID 取得單筆地點 */
     Place getById(Long id);
 
-    /** 取得指定里 + 分類的所有地點（不分頁，供地圖使用） */
+    /** 新增店家（管理員） */
+    Place createPlace(CreatePlaceRequest req);
+
+    /** 編輯店家（管理員） */
+    Place updatePlace(Long id, CreatePlaceRequest req);
+
     List<Place> listAllByNeighborhood(Long neighborhoodId, Long categoryId);
+
+    /** 查詢同區其他里的店家（排除指定里） */
+    PageResult<Place> listByDistrict(String city, String district, Long excludeNeighborhoodId,
+                                     String categoryName, String keyword, String sort, int page, int size);
+
+    /** Toggle like, return {liked, likeCount} */
+    Map<String, Object> toggleLike(Long placeId, Long userId);
+
+    /** 新增評論 */
+    PlaceCommentResponse addComment(Long placeId, Long userId, String content, Integer rating);
+
+    /** 查詢評論列表 */
+    PageResult<PlaceCommentResponse> listComments(Long placeId, int page, int size);
 }
