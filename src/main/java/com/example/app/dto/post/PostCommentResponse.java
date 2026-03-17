@@ -22,6 +22,9 @@ public class PostCommentResponse {
     /** 留言按讚數 */
     private int likeCount;
 
+    /** 當前用戶是否已按讚 */
+    private Boolean liked;
+
     /** 直接子回覆數量 */
     private int replyCount;
 
@@ -30,6 +33,11 @@ public class PostCommentResponse {
 
     public static PostCommentResponse from(PostComment c, String nickname,
                                            int replyCount, List<String> topRepliers) {
+        return from(c, nickname, replyCount, topRepliers, null);
+    }
+
+    public static PostCommentResponse from(PostComment c, String nickname,
+                                           int replyCount, List<String> topRepliers, Boolean liked) {
         return PostCommentResponse.builder()
                 .id(c.getId())
                 .postId(c.getPostId())
@@ -39,6 +47,7 @@ public class PostCommentResponse {
                 .content(c.getContent())
                 .createdAt(c.getCreatedAt())
                 .likeCount(c.getLikeCount() != null ? c.getLikeCount() : 0)
+                .liked(liked)
                 .replyCount(replyCount)
                 .topRepliers(topRepliers)
                 .build();

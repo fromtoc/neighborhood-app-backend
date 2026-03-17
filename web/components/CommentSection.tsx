@@ -14,6 +14,7 @@ interface Comment {
   nickname: string | null;
   content: string;
   likeCount: number;
+  liked?: boolean | null;
   createdAt: string;
   replyCount: number;
   topRepliers: string[];
@@ -86,7 +87,7 @@ function CommentCard({
   const name = isSelf ? selfName : (comment.nickname ?? `用戶 #${comment.userId}`);
   const hasReplies = comment.replyCount > 0;
 
-  const [liked,     setLiked]     = useState(false);
+  const [liked,     setLiked]     = useState(comment.liked === true);
   const [likeCount, setLikeCount] = useState(comment.likeCount ?? 0);
   const [likePending, setLikePending] = useState(false);
 
@@ -286,7 +287,7 @@ function ThreadPanel({
   const [replies, setReplies] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [subThread, setSubThread] = useState<Comment | null>(null);
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const autoSubDone = useRef(false);
 
   const name = isSelf ? selfName : (rootComment.nickname ?? `用戶 #${rootComment.userId}`);
@@ -306,8 +307,11 @@ function ThreadPanel({
 
     setLoading(true);
     try {
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(
-        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments?parentId=${rootComment.id}`
+        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments?parentId=${rootComment.id}`,
+        { headers },
       );
       const json = await res.json();
       if (json.code === 200) {
@@ -321,7 +325,7 @@ function ThreadPanel({
     } finally {
       setLoading(false);
     }
-  }, [postId, rootComment.id, initialChain, preloadedRepliesMap]);
+  }, [postId, rootComment.id, initialChain, preloadedRepliesMap, token]);
 
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
 
@@ -477,7 +481,9 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
   const fetchComments = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments`);
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments`, { headers });
       const json = await res.json();
       if (json.code === 200) {
         const list: Comment[] = json.data ?? [];
@@ -493,7 +499,8 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
           // 巢狀回覆：呼叫 /thread 一次取得完整祖先鏈 + 每層回覆
           try {
             const tr = await fetch(
-              `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${initialCommentId}/thread`
+              `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${initialCommentId}/thread`,
+              { headers },
             );
             const tj = await tr.json();
             if (tj.code === 200) {
@@ -512,7 +519,7 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
     } finally {
       setLoading(false);
     }
-  }, [postId, initialCommentId]);
+  }, [postId, initialCommentId, token]);
 
   useEffect(() => { fetchComments(); }, [fetchComments]);
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);

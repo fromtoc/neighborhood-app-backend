@@ -28,9 +28,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.example.app.entity.PostLike;
-import com.example.app.mapper.PostLikeMapper;
 
 
 @RestController
@@ -43,12 +40,11 @@ public class PostController {
     private final PostQueryService     postQueryService;
     private final SeoUrlService        seoUrlService;
     private final WebRevalidateService webRevalidateService;
-    private final PostLikeMapper       postLikeMapper;
 
     @GetMapping
     @Operation(
             summary = "查詢指定里的貼文清單",
-            description = "依建立時間倒序，支援類型過濾（general / info / shop_review / event）"
+            description = "依建立時間倒序，支援類型過濾（general / info / shop_review / event）。若帶 Authorization header，回傳 liked / bookmarked 狀態"
     )
     public ApiResponse<PageResult<PostResponse>> list(
             @Parameter(description = "里 ID", required = true, in = ParameterIn.QUERY)
@@ -61,9 +57,12 @@ public class PostController {
             @RequestParam(defaultValue = "1") @Min(1) int page,
 
             @Parameter(description = "每頁筆數（最大 50）", in = ParameterIn.QUERY)
-            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size,
+
+            @AuthenticationPrincipal JwtClaims claims
     ) {
-        PageResult<PostResponse> result = postQueryService.listByNeighborhood(neighborhoodId, type, page, size);
+        Long currentUserId = claims != null ? claims.getUserId() : null;
+        PageResult<PostResponse> result = postQueryService.listByNeighborhood(neighborhoodId, type, page, size, currentUserId);
         return ApiResponse.success(result);
     }
 
@@ -75,7 +74,7 @@ public class PostController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
     ) {
         if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        return ApiResponse.success(postQueryService.listByUser(claims.getUserId(), page, size));
+        return ApiResponse.success(postQueryService.listByUser(claims.getUserId(), page, size, claims.getUserId()));
     }
 
     @PostMapping
@@ -99,29 +98,15 @@ public class PostController {
         return ApiResponse.success(PostResponse.from(post));
     }
 
-    @GetMapping("/likes/check-batch")
-    @Operation(summary = "批次檢查已按讚的貼文ID", security = @SecurityRequirement(name = "bearerAuth"))
-    public ApiResponse<List<Long>> checkLikesBatch(
-            @RequestParam List<Long> postIds,
-            @AuthenticationPrincipal JwtClaims claims
-    ) {
-        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        if (postIds == null || postIds.isEmpty()) return ApiResponse.success(List.of());
-        List<PostLike> likes = postLikeMapper.selectList(
-                new LambdaQueryWrapper<PostLike>()
-                        .eq(PostLike::getUserId, claims.getUserId())
-                        .in(PostLike::getPostId, postIds));
-        List<Long> likedIds = likes.stream().map(PostLike::getPostId).toList();
-        return ApiResponse.success(likedIds);
-    }
-
-    @GetMapping("/{id}")
+@GetMapping("/{id}")
     @Operation(summary = "依 ID 查詢單筆貼文")
     public ApiResponse<PostResponse> getById(
             @Parameter(description = "貼文 ID", required = true)
-            @PathVariable Long id
+            @PathVariable Long id,
+            @AuthenticationPrincipal JwtClaims claims
     ) {
-        PostResponse post = postQueryService.getById(id);
+        Long currentUserId = claims != null ? claims.getUserId() : null;
+        PostResponse post = postQueryService.getById(id, currentUserId);
         if (post == null) {
             throw new BusinessException(ResultCode.NOT_FOUND, "貼文不存在");
         }

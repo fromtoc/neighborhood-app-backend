@@ -101,7 +101,7 @@ public class AqiAggregatorService {
                 created++;
                 if (notificationService != null) {
                     String body = content.length() > 80 ? content.substring(0, 80) + "…" : content;
-                    notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body);
+                    notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body, urgency);
                 }
                 support.markCrawled(SOURCE, key);
             }

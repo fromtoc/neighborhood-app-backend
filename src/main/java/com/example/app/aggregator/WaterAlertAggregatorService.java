@@ -93,7 +93,7 @@ public class WaterAlertAggregatorService {
                     created++;
                     if (notificationService != null) {
                         notificationService.onNewInfo(nhId, "district_info", post.getId(), title,
-                                content.length() > 80 ? content.substring(0, 80) + "…" : content);
+                                content.length() > 80 ? content.substring(0, 80) + "…" : content, urgency);
                     }
                 }
                 support.markCrawled(SOURCE, key);

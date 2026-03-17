@@ -136,11 +136,11 @@ export default function HeaderUserSection() {
           {/* 後台管理（管理員以上） */}
           {isAdmin && (
             <Link
-              href="/admin/users"
+              href="/admin"
               onClick={() => setOpen(false)}
               style={{ ...menuItemStyle('#7c3aed'), display: 'block', textDecoration: 'none' }}
             >
-              用戶管理
+              管理後台
             </Link>
           )}
 

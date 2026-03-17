@@ -134,38 +134,23 @@ export default function CommunitySection({ neighborhoodId, type, title, mode = '
     setLoading(true);
     try {
       const typeParam = type ? `&type=${type}` : '';
+      const headers: Record<string, string> = {};
+      if (token) headers.Authorization = `Bearer ${token}`;
       const res = await fetch(
         `${CLIENT_BASE_URL}/api/v1/posts?neighborhoodId=${neighborhoodId}&size=${pageSize}${typeParam}`,
+        { headers },
       );
       const json = await res.json();
-      if (json.code === 200) setPosts(json.data.records ?? []);
+      if (json.code === 200) {
+        const records = json.data.records ?? [];
+        setPosts(records);
+        setLikedIds(new Set(records.filter((p: any) => p.liked).map((p: any) => p.id)));
+        setBookmarkedIds(new Set(records.filter((p: any) => p.bookmarked).map((p: any) => p.id)));
+      }
     } finally {
       setLoading(false);
     }
-  }, [neighborhoodId, type]);
-
-  // Fetch bookmark & like states for loaded posts
-  useEffect(() => {
-    if (!token || posts.length === 0) return;
-    const ids = posts.map(p => p.id).join(',');
-    const headers = { Authorization: `Bearer ${token}` };
-    fetch(`${CLIENT_BASE_URL}/api/v1/bookmarks/check-batch?postIds=${ids}`, { headers })
-      .then(r => r.json())
-      .then(json => {
-        if (json.code === 200 && Array.isArray(json.data)) {
-          setBookmarkedIds(new Set(json.data as number[]));
-        }
-      })
-      .catch(() => {});
-    fetch(`${CLIENT_BASE_URL}/api/v1/posts/likes/check-batch?postIds=${ids}`, { headers })
-      .then(r => r.json())
-      .then(json => {
-        if (json.code === 200 && Array.isArray(json.data)) {
-          setLikedIds(new Set(json.data as number[]));
-        }
-      })
-      .catch(() => {});
-  }, [posts, token]);
+  }, [neighborhoodId, type, token]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 

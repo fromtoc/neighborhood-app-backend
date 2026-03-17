@@ -55,13 +55,35 @@ public class NotificationService {
     @Async
     public void onNewInfo(Long neighborhoodId, String postType, Long postId,
                           String title, String body) {
+        onNewInfo(neighborhoodId, postType, postId, title, body, "normal");
+    }
+
+    /**
+     * 新資訊（含緊急程度）— urgency: "urgent" / "medium" / "normal"
+     * urgent → 不過濾（緊急公告必達）
+     * medium → 檢查 info_medium 設定
+     * normal → 檢查 info_normal 設定
+     */
+    @Async
+    public void onNewInfo(Long neighborhoodId, String postType, Long postId,
+                          String title, String body, String urgency) {
+        String settingColumn = resolveInfoSettingColumn(urgency);
         if ("district_info".equals(postType)) {
-            fanOutDistrict(neighborhoodId, "new_info",
+            fanOutDistrict(neighborhoodId, "new_info", settingColumn,
                     title, body, "post", postId, null);
         } else {
-            fanOut(neighborhoodId, "new_info", "new_info",
+            fanOut(neighborhoodId, "new_info", settingColumn,
                     title, body, "post", postId, null);
         }
+    }
+
+    /** 貼文有新回覆 — 通知貼文作者 */
+    @Async
+    public void onPostReply(Long postAuthorId, Long commenterId, Long postId,
+                            String commenterName, String commentBody) {
+        if (postAuthorId.equals(commenterId)) return; // 不通知自己
+        String title = commenterName + " 回覆了你的貼文";
+        notifyUser(postAuthorId, "post_reply", title, commentBody, "post", postId);
     }
 
     /** 聊聊訊息（公開聊天室）— 通知關注該里的使用者（排除發訊者） */
@@ -102,7 +124,7 @@ public class NotificationService {
         pushFcm(pairs.stream().map(UserFollowPair::getUserId).toList(), title, body);
     }
 
-    private void fanOutDistrict(Long representativeNhId, String notifType,
+    private void fanOutDistrict(Long representativeNhId, String notifType, String settingColumn,
                                 String title, String body, String refType, Long refId,
                                 Long excludeUserId) {
         Neighborhood nh = neighborhoodMapper.selectById(representativeNhId);
@@ -117,7 +139,7 @@ public class NotificationService {
         ).stream().map(Neighborhood::getId).toList();
 
         List<UserFollowPair> pairs = settingsMapper.findEnabledUsersByNeighborhoods(
-                districtNhIds, "new_info");
+                districtNhIds, settingColumn);
         if (excludeUserId != null) pairs = pairs.stream()
                 .filter(p -> !p.getUserId().equals(excludeUserId)).toList();
 
@@ -212,12 +234,28 @@ public class NotificationService {
     private boolean isEnabled(Long userId, String type) {
         UserNotificationSettings s = settingsMapper.selectById(userId);
         if (s == null) return true; // 預設全開
+        if (s.getMaster() != null && s.getMaster() == 0) return false;
         return switch (type) {
             case "new_post"        -> s.getNewPost()        != 0;
-            case "new_info"        -> s.getNewInfo()        != 0;
             case "chat"            -> s.getChat()           != 0;
             case "private_message" -> s.getPrivateMessage() != 0;
+            case "post_reply"      -> s.getPostReply()      != 0;
             default                -> true;
+        };
+    }
+
+    /**
+     * 根據緊急程度決定用哪個設定欄位過濾。
+     * urgent → master（緊急公告必達，只要總開關開啟即送達）
+     * medium → info_medium
+     * normal → info_normal
+     */
+    private String resolveInfoSettingColumn(String urgency) {
+        if (urgency == null) return "info_normal";
+        return switch (urgency) {
+            case "urgent" -> "master";
+            case "medium" -> "info_medium";
+            default       -> "info_normal";
         };
     }
 }

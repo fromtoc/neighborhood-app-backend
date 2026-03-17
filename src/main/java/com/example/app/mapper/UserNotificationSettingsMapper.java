@@ -21,7 +21,7 @@ public interface UserNotificationSettingsMapper extends BaseMapper<UserNotificat
             LEFT JOIN user_notification_settings s ON s.user_id = u.id
             WHERE u.is_guest = 0
               AND u.deleted = 0
-              AND (s.user_id IS NULL OR s.${settingColumn} = 1)
+              AND (s.user_id IS NULL OR (s.master = 1 AND s.${settingColumn} = 1))
             """)
     List<UserFollowPair> findEnabledUsersByNeighborhood(
             @Param("neighborhoodId") Long neighborhoodId,
@@ -41,7 +41,7 @@ public interface UserNotificationSettingsMapper extends BaseMapper<UserNotificat
               <foreach item='id' collection='neighborhoodIds' open='(' separator=',' close=')'>#{id}</foreach>
               AND u.is_guest = 0
               AND u.deleted = 0
-              AND (s.user_id IS NULL OR s.${settingColumn} = 1)
+              AND (s.user_id IS NULL OR (s.master = 1 AND s.${settingColumn} = 1))
             </script>
             """)
     List<UserFollowPair> findEnabledUsersByNeighborhoods(

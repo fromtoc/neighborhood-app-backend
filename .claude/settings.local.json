@@ -106,7 +106,14 @@
       "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -type f -name \"*ollow*\" 2>/dev/null | head -20)",
       "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/src/main/java/com/example/app/entity -type f -name \"*.java\" 2>/dev/null | head -20)",
       "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -type f \\\\\\( -name \"*.json\" -o -name \"*.yaml\" -o -name \"*.yml\" -o -name \"*.xml\" \\\\\\) ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/target/*\" ! -path \"*/.git/*\" -print0 2>/dev/null | head -50)",
-      "Bash(find /Users/gaojingmin/project/demo -maxdepth 3 -type f -name \"*.json\" -o -name \"*.md\" -o -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -40)"
+      "Bash(find /Users/gaojingmin/project/demo -maxdepth 3 -type f -name \"*.json\" -o -name \"*.md\" -o -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -40)",
+      "Bash(xxd /Users/gaojingmin/project/neighborhood-app-backend/web/app/admin/layout.tsx | head -30)",
+      "Bash(kill 4617 2>/dev/null; sleep 1; ssh -fN -L 13306:127.0.0.1:3306 app@172.233.93.221 && echo \"tunnel started on port 13306\")",
+      "Bash(brew services:*)",
+      "Bash(docker run:*)",
+      "Bash(docker port:*)",
+      "Bash(docker stop:*)",
+      "Bash(docker rm:*)"
     ]
   }
 }

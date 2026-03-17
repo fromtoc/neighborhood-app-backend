@@ -23,11 +23,20 @@ public interface PostQueryService {
      */
     PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size);
 
+    /** 分頁查詢（附帶當前用戶的 liked / bookmarked 狀態） */
+    PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size, Long currentUserId);
+
     /** 查詢指定用戶的貼文 */
     PageResult<PostResponse> listByUser(Long userId, int page, int size);
 
+    /** 查詢指定用戶的貼文（附帶當前用戶的 liked / bookmarked 狀態） */
+    PageResult<PostResponse> listByUser(Long userId, int page, int size, Long currentUserId);
+
     /** 依 ID 取得單筆貼文（含作者暱稱） */
     PostResponse getById(Long id);
+
+    /** 依 ID 取得單筆貼文（附帶當前用戶的 liked / bookmarked 狀態） */
+    PostResponse getById(Long id, Long currentUserId);
 
     /** 建立貼文 */
     Post create(Long userId, CreatePostRequest req);

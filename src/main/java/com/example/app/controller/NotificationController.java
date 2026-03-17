@@ -155,8 +155,12 @@ public class NotificationController {
         if (s == null) {
             s = new UserNotificationSettings();
             s.setUserId(userId);
+            s.setMaster(1);
+            s.setInfoMedium(1);
+            s.setInfoNormal(1);
+            s.setGarbageTruck(1);
             s.setNewPost(1);
-            s.setNewInfo(1);
+            s.setPostReply(1);
             s.setChat(1);
             s.setPrivateMessage(1);
         }
@@ -172,25 +176,42 @@ public class NotificationController {
         if (existing == null) {
             UserNotificationSettings s = new UserNotificationSettings();
             s.setUserId(userId);
-            s.setNewPost(req.newPost() != null ? req.newPost() : 1);
-            s.setNewInfo(req.newInfo() != null ? req.newInfo() : 1);
-            s.setChat(req.chat() != null ? req.chat() : 1);
-            s.setPrivateMessage(req.privateMessage() != null ? req.privateMessage() : 1);
+            applyDefaults(s, req);
             settingsMapper.insert(s);
         } else {
-            if (req.newPost()        != null) existing.setNewPost(req.newPost());
-            if (req.newInfo()        != null) existing.setNewInfo(req.newInfo());
-            if (req.chat()           != null) existing.setChat(req.chat());
-            if (req.privateMessage() != null) existing.setPrivateMessage(req.privateMessage());
+            applyUpdates(existing, req);
             settingsMapper.updateById(existing);
         }
         return ApiResponse.success(null);
+    }
+
+    private void applyDefaults(UserNotificationSettings s, SettingsRequest req) {
+        s.setMaster(req.master() != null ? req.master() : 1);
+        s.setInfoMedium(req.infoMedium() != null ? req.infoMedium() : 1);
+        s.setInfoNormal(req.infoNormal() != null ? req.infoNormal() : 1);
+        s.setGarbageTruck(req.garbageTruck() != null ? req.garbageTruck() : 1);
+        s.setNewPost(req.newPost() != null ? req.newPost() : 1);
+        s.setPostReply(req.postReply() != null ? req.postReply() : 1);
+        s.setChat(req.chat() != null ? req.chat() : 1);
+        s.setPrivateMessage(req.privateMessage() != null ? req.privateMessage() : 1);
+    }
+
+    private void applyUpdates(UserNotificationSettings s, SettingsRequest req) {
+        if (req.master()         != null) s.setMaster(req.master());
+        if (req.infoMedium()     != null) s.setInfoMedium(req.infoMedium());
+        if (req.infoNormal()     != null) s.setInfoNormal(req.infoNormal());
+        if (req.garbageTruck()   != null) s.setGarbageTruck(req.garbageTruck());
+        if (req.newPost()        != null) s.setNewPost(req.newPost());
+        if (req.postReply()      != null) s.setPostReply(req.postReply());
+        if (req.chat()           != null) s.setChat(req.chat());
+        if (req.privateMessage() != null) s.setPrivateMessage(req.privateMessage());
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────
 
     record TokenRequest(String token, String platform) {}
 
-    record SettingsRequest(Integer newPost, Integer newInfo,
+    record SettingsRequest(Integer master, Integer infoMedium, Integer infoNormal,
+                           Integer garbageTruck, Integer newPost, Integer postReply,
                            Integer chat, Integer privateMessage) {}
 }

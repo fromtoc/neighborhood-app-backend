@@ -13,7 +13,7 @@ public class Notification {
     private Long id;
 
     private Long   userId;
-    /** new_post | new_info | chat | private_message */
+    /** new_post | new_info | post_reply | chat | private_message */
     private String type;
     private String title;
     private String body;

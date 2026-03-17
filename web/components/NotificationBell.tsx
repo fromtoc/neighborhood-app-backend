@@ -2,19 +2,17 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useNotifications } from './NotificationProvider';
 import { useAuth } from './AuthProvider';
-import { fetchSettings, updateSettings, typeLabel, type NotificationSettings } from '@/lib/notifications';
+import { typeLabel } from '@/lib/notifications';
 import type { NotificationItem } from '@/lib/notifications';
 import PrivateChatModal from './PrivateChatModal';
 
 export default function NotificationBell() {
-  const { user, token } = useAuth();
+  const { user } = useAuth();
   const { items, unread, loading, markOne, markAll, refresh } = useNotifications();
   const [open, setOpen]             = useState(false);
-  const [tab, setTab]               = useState<'list' | 'settings'>('list');
-  const [settings, setSettings]     = useState<NotificationSettings | null>(null);
-  const [savingSettings, setSaving] = useState(false);
   const [privateChat, setPrivateChat] = useState<{ userId: number; nickname: string } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -28,21 +26,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', handle);
   }, [open]);
 
-  // 開啟時載入設定
-  useEffect(() => {
-    if (!open || !token || settings) return;
-    fetchSettings(token).then(setSettings).catch(() => {});
-  }, [open, token, settings]);
-
   if (!user) return null;
-
-  async function handleToggleSetting(key: keyof NotificationSettings) {
-    if (!token || !settings) return;
-    const next = { ...settings, [key]: settings[key] ? 0 : 1 };
-    setSettings(next);
-    setSaving(true);
-    try { await updateSettings(token, next); } finally { setSaving(false); }
-  }
 
   function handleOpen() {
     setOpen(o => !o);
@@ -95,13 +79,14 @@ export default function NotificationBell() {
             gap: '0.5rem',
           }}>
             <span style={{ fontWeight: 700, fontSize: '0.9rem', flex: 1 }}>通知</span>
-            <button
-              onClick={() => setTab(t => t === 'list' ? 'settings' : 'list')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '0.8rem' }}
+            <Link
+              href="/profile/notifications"
+              onClick={() => setOpen(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: '0.8rem', textDecoration: 'none' }}
             >
-              {tab === 'list' ? '⚙️ 設定' : '← 返回'}
-            </button>
-            {tab === 'list' && unread > 0 && (
+              ⚙️ 設定
+            </Link>
+            {unread > 0 && (
               <button
                 onClick={markAll}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1c5373', fontSize: '0.78rem' }}
@@ -111,18 +96,14 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {tab === 'settings' ? (
-            <SettingsPanel settings={settings} saving={savingSettings} onToggle={handleToggleSetting} />
-          ) : (
-            <NotificationList
-              items={items} loading={loading} onMark={markOne}
-              onClose={() => setOpen(false)}
-              onOpenPrivateChat={(userId, nickname) => {
-                setOpen(false);
-                setPrivateChat({ userId, nickname });
-              }}
-            />
-          )}
+          <NotificationList
+            items={items} loading={loading} onMark={markOne}
+            onClose={() => setOpen(false)}
+            onOpenPrivateChat={(userId, nickname) => {
+              setOpen(false);
+              setPrivateChat({ userId, nickname });
+            }}
+          />
         </div>
       )}
 
@@ -234,78 +215,10 @@ function buildNavUrl(n: NotificationItem): string | null {
   return null;
 }
 
-function SettingsPanel({
-  settings, saving, onToggle,
-}: {
-  settings: NotificationSettings | null;
-  saving: boolean;
-  onToggle: (key: keyof NotificationSettings) => void;
-}) {
-  const items: { key: keyof NotificationSettings; label: string; desc: string }[] = [
-    { key: 'newPost',        label: '新貼文',  desc: '關注的里有新貼文時通知' },
-    { key: 'newInfo',        label: '新資訊',  desc: '關注的里有防災/停水等資訊' },
-    { key: 'chat',           label: '聊聊',    desc: '關注的里聊天室有新訊息' },
-    { key: 'privateMessage', label: '私訊',    desc: '收到私訊時通知' },
-  ];
-
-  if (!settings) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: '#bbb', fontSize: '0.85rem' }}>載入中...</div>;
-  }
-
-  return (
-    <div style={{ padding: '0.5rem 0' }}>
-      {items.map(({ key, label, desc }) => (
-        <div
-          key={key}
-          style={{
-            display: 'flex', alignItems: 'center',
-            padding: '0.65rem 1rem', gap: '0.75rem',
-            borderBottom: '1px solid #f5f5f5',
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e1e1e' }}>{label}</div>
-            <div style={{ fontSize: '0.73rem', color: '#aaa', marginTop: 1 }}>{desc}</div>
-          </div>
-          <Toggle
-            enabled={!!settings[key]}
-            disabled={saving}
-            onChange={() => onToggle(key)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Toggle({ enabled, disabled, onChange }: { enabled: boolean; disabled?: boolean; onChange: () => void }) {
-  return (
-    <button
-      onClick={onChange}
-      disabled={disabled}
-      aria-checked={enabled}
-      role="switch"
-      style={{
-        width: 40, height: 22, borderRadius: 11,
-        background: enabled ? '#1c5373' : '#d1d5db',
-        border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-        position: 'relative', transition: 'background 0.2s',
-        flexShrink: 0, opacity: disabled ? 0.6 : 1,
-      }}
-    >
-      <span style={{
-        position: 'absolute', top: 3,
-        left: enabled ? 21 : 3,
-        width: 16, height: 16, borderRadius: '50%',
-        background: '#fff', transition: 'left 0.2s',
-      }} />
-    </button>
-  );
-}
-
 function typeColor(type: NotificationItem['type']) {
   const map: Record<string, string> = {
-    new_post: '#1c5373', new_info: '#e07b00', chat: '#059669', private_message: '#7c3aed',
+    new_post: '#1c5373', new_info: '#e07b00', chat: '#059669',
+    private_message: '#7c3aed', post_reply: '#d97706',
   };
   return map[type] ?? '#888';
 }

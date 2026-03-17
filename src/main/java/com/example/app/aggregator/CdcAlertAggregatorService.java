@@ -108,7 +108,7 @@ public class CdcAlertAggregatorService {
                     postMapper.insert(post);
                     created++;
                     if (notificationService != null) {
-                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title, notifyBody);
+                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title, notifyBody, "medium");
                     }
                 }
                 support.markCrawled(SOURCE, key);

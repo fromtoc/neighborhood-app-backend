@@ -12,8 +12,12 @@ public class UserNotificationSettings {
     @TableId(type = IdType.INPUT)
     private Long userId;
 
+    private Integer master;
+    private Integer infoMedium;
+    private Integer infoNormal;
+    private Integer garbageTruck;
     private Integer newPost;
-    private Integer newInfo;
+    private Integer postReply;
     private Integer chat;
     private Integer privateMessage;
 

@@ -12,8 +12,12 @@ import com.example.app.dto.post.CreatePostRequest;
 import com.example.app.dto.post.PostResponse;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.Post;
+import com.example.app.entity.PostBookmark;
+import com.example.app.entity.PostLike;
 import com.example.app.entity.User;
 import com.example.app.mapper.NeighborhoodMapper;
+import com.example.app.mapper.PostBookmarkMapper;
+import com.example.app.mapper.PostLikeMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.service.NotificationService;
@@ -25,8 +29,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -35,6 +41,8 @@ import java.util.stream.Collectors;
 public class PostQueryServiceImpl implements PostQueryService {
 
     private final PostMapper          postMapper;
+    private final PostLikeMapper      postLikeMapper;
+    private final PostBookmarkMapper  postBookmarkMapper;
     private final UserMapper          userMapper;
     private final NeighborhoodMapper  neighborhoodMapper;
     private final ObjectMapper        objectMapper;
@@ -47,11 +55,15 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size) {
+        return listByNeighborhood(neighborhoodId, type, page, size, null);
+    }
+
+    @Override
+    public PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size, Long currentUserId) {
         LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
                 .eq(Post::getStatus, 1);
 
         if ("info".equals(type)) {
-            // 舊版/整合資訊 tab：里資訊 + 區資訊（向下相容）
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
             wrapper.and(w -> w
                     .and(inner -> inner
@@ -61,16 +73,13 @@ public class PostQueryServiceImpl implements PostQueryService {
                             .eq(Post::getType, "district_info")
                             .in(Post::getNeighborhoodId, districtNhIds)));
         } else if ("district_info".equals(type)) {
-            // 區資訊：同一行政區所有里的 district_info
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
             wrapper.eq(Post::getType, "district_info")
                    .in(Post::getNeighborhoodId, districtNhIds);
         } else if ("li_info".equals(type)) {
-            // 里資訊：當前里的 li_info + info（向下相容）+ broadcast
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .in(Post::getType, LOCAL_ADMIN_TYPES);
         } else if ("community".equals(type)) {
-            // 社群整合：區社群（scope=district, 同行政區）+ 里社群（scope=li, 當前里）
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
             wrapper.notIn(Post::getType, ADMIN_TYPES)
                    .and(w -> w
@@ -81,13 +90,11 @@ public class PostQueryServiceImpl implements PostQueryService {
                                    .eq(Post::getScope, "district")
                                    .in(Post::getNeighborhoodId, districtNhIds)));
         } else if ("district_community".equals(type)) {
-            // 區社群：同一行政區、scope=district 的社群貼文
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
             wrapper.eq(Post::getScope, "district")
                    .notIn(Post::getType, ADMIN_TYPES)
                    .in(Post::getNeighborhoodId, districtNhIds);
         } else if ("li_community".equals(type)) {
-            // 里社群：當前里、scope=li 的社群貼文
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .eq(Post::getScope, "li")
                    .notIn(Post::getType, ADMIN_TYPES);
@@ -95,7 +102,6 @@ public class PostQueryServiceImpl implements PostQueryService {
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .eq(Post::getType, type);
         } else {
-            // 社群 tab（向下相容）：排除所有管理員類型貼文
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .notIn(Post::getType, ADMIN_TYPES);
         }
@@ -105,13 +111,19 @@ public class PostQueryServiceImpl implements PostQueryService {
         IPage<Post> result = postMapper.selectPage(new Page<>(page, size), wrapper);
         List<Post> posts = result.getRecords();
 
-        // 批次查詢作者資訊
         Map<Long, User> userMap = batchLoadUsers(posts);
+
+        // 批次查詢當前用戶的 liked / bookmarked 狀態
+        List<Long> postIds = posts.stream().map(Post::getId).toList();
+        Set<Long> likedIds = batchCheckLiked(postIds, currentUserId);
+        Set<Long> bookmarkedIds = batchCheckBookmarked(postIds, currentUserId);
 
         List<PostResponse> responses = posts.stream()
                 .map(p -> {
                     User u = userMap.get(p.getUserId());
-                    return PostResponse.from(p, buildName(u), buildRole(u));
+                    PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u));
+                    fillInteractionStatus(resp, p.getId(), likedIds, bookmarkedIds, currentUserId);
+                    return resp;
                 })
                 .toList();
         return new PageResult<>(result.getTotal(), responses);
@@ -138,27 +150,48 @@ public class PostQueryServiceImpl implements PostQueryService {
 
     @Override
     public PageResult<PostResponse> listByUser(Long userId, int page, int size) {
+        return listByUser(userId, page, size, null);
+    }
+
+    @Override
+    public PageResult<PostResponse> listByUser(Long userId, int page, int size, Long currentUserId) {
         LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
                 .eq(Post::getUserId, userId)
                 .eq(Post::getStatus, 1)
                 .orderByDesc(Post::getCreatedAt);
         IPage<Post> result = postMapper.selectPage(new Page<>(page, size), wrapper);
         Map<Long, User> userMap = batchLoadUsers(result.getRecords());
+
+        List<Long> postIds = result.getRecords().stream().map(Post::getId).toList();
+        Set<Long> likedIds = batchCheckLiked(postIds, currentUserId);
+        Set<Long> bookmarkedIds = batchCheckBookmarked(postIds, currentUserId);
+
         List<PostResponse> responses = result.getRecords().stream()
                 .map(p -> {
                     User u = userMap.get(p.getUserId());
-                    return PostResponse.from(p, buildName(u), buildRole(u));
+                    PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u));
+                    fillInteractionStatus(resp, p.getId(), likedIds, bookmarkedIds, currentUserId);
+                    return resp;
                 }).toList();
         return new PageResult<>(result.getTotal(), responses);
     }
 
     @Override
     public PostResponse getById(Long id) {
+        return getById(id, null);
+    }
+
+    @Override
+    public PostResponse getById(Long id, Long currentUserId) {
         Post post = postMapper.selectById(id);
         if (post == null) return null;
         List<User> users = userMapper.selectBatchIds(List.of(post.getUserId()));
         User u = users.isEmpty() ? null : users.get(0);
-        return PostResponse.from(post, buildName(u), buildRole(u));
+        PostResponse resp = PostResponse.from(post, buildName(u), buildRole(u));
+        Set<Long> likedIds = batchCheckLiked(List.of(id), currentUserId);
+        Set<Long> bookmarkedIds = batchCheckBookmarked(List.of(id), currentUserId);
+        fillInteractionStatus(resp, id, likedIds, bookmarkedIds, currentUserId);
+        return resp;
     }
 
     @Override
@@ -230,6 +263,35 @@ public class PostQueryServiceImpl implements PostQueryService {
         }
 
         postMapper.deleteById(postId);
+    }
+
+    // ── liked / bookmarked 批次查詢 ──────────────────────────
+
+    private Set<Long> batchCheckLiked(List<Long> postIds, Long currentUserId) {
+        if (currentUserId == null || postIds.isEmpty()) return Collections.emptySet();
+        return postLikeMapper.selectList(
+                new LambdaQueryWrapper<PostLike>()
+                        .eq(PostLike::getUserId, currentUserId)
+                        .in(PostLike::getPostId, postIds)
+        ).stream().map(PostLike::getPostId).collect(Collectors.toSet());
+    }
+
+    private Set<Long> batchCheckBookmarked(List<Long> postIds, Long currentUserId) {
+        if (currentUserId == null || postIds.isEmpty()) return Collections.emptySet();
+        return postBookmarkMapper.selectList(
+                new LambdaQueryWrapper<PostBookmark>()
+                        .eq(PostBookmark::getUserId, currentUserId)
+                        .in(PostBookmark::getPostId, postIds)
+        ).stream().map(PostBookmark::getPostId).collect(Collectors.toSet());
+    }
+
+    private static void fillInteractionStatus(PostResponse resp, Long postId,
+                                               Set<Long> likedIds, Set<Long> bookmarkedIds,
+                                               Long currentUserId) {
+        if (currentUserId != null) {
+            resp.setLiked(likedIds.contains(postId));
+            resp.setBookmarked(bookmarkedIds.contains(postId));
+        }
     }
 
     /** 取得同一行政區（city + district）所有 status=1 里的 ID */

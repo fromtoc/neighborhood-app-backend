@@ -18,6 +18,9 @@ public interface PostInteractionService {
      */
     List<PostCommentResponse> listComments(Long postId, Long parentId);
 
+    /** 取得留言列表（附帶當前用戶的 liked 狀態） */
+    List<PostCommentResponse> listComments(Long postId, Long parentId, Long currentUserId);
+
     /**
      * 新增留言 / 回覆。
      * @param parentId null = 頂層留言；非 null = 回覆某則留言

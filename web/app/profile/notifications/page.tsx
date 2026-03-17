@@ -1,8 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthProvider';
+import { CLIENT_BASE_URL } from '@/lib/api';
+import { dispatchAuthExpired } from '@/lib/auth-client';
+
+interface Settings {
+  master: number;
+  infoMedium: number;
+  infoNormal: number;
+  garbageTruck: number;
+  newPost: number;
+  postReply: number;
+  chat: number;
+  privateMessage: number;
+}
+
+/** backend field name → UI toggle id */
+const FIELD_MAP: Record<string, keyof Settings> = {
+  'alert-medium': 'infoMedium',
+  'alert-normal': 'infoNormal',
+  'garbage-truck': 'garbageTruck',
+  'follow-post': 'newPost',
+  'post-reply': 'postReply',
+  'chat-mention': 'chat',
+  'chat-private': 'privateMessage',
+};
 
 interface ToggleItem {
   id: string;
@@ -14,64 +38,20 @@ interface ToggleItem {
 }
 
 const ANNOUNCEMENT_LEVELS: ToggleItem[] = [
-  {
-    id: 'alert-urgent',
-    icon: '⚠️',
-    label: '緊急公告',
-    subtitle: '颱風、停水停電、緊急避難等',
-    locked: true,
-    color: 'danger',
-  },
-  {
-    id: 'alert-medium',
-    icon: '📢',
-    label: '中等公告',
-    subtitle: '道路施工、社區活動、垃圾車改時等',
-    color: 'warning',
-  },
-  {
-    id: 'alert-normal',
-    icon: '📰',
-    label: '一般公告',
-    subtitle: '里辦活動宣傳、生活資訊分享',
-    color: 'success',
-  },
-  {
-    id: 'garbage-truck',
-    icon: '🚛',
-    label: '垃圾車接近提醒',
-    subtitle: '垃圾車靠近你的里時推播通知（需開啟 GPS）',
-  },
+  { id: 'alert-urgent', icon: '⚠️', label: '緊急公告', subtitle: '颱風、停水停電、緊急避難等', locked: true, color: 'danger' },
+  { id: 'alert-medium', icon: '📢', label: '中等公告', subtitle: '道路施工、社區活動、垃圾車改時等', color: 'warning' },
+  { id: 'alert-normal', icon: '📰', label: '一般公告', subtitle: '里辦活動宣傳、生活資訊分享', color: 'success' },
+  { id: 'garbage-truck', icon: '🚛', label: '垃圾車接近提醒', subtitle: '垃圾車靠近你的里時推播通知（需開啟 GPS）' },
 ];
 
 const SOCIAL_ITEMS: ToggleItem[] = [
-  {
-    id: 'follow-post',
-    icon: '❤️',
-    label: '收藏與追蹤對象發文',
-    subtitle: '追蹤的用戶或收藏的店家有新貼文時通知',
-  },
-  {
-    id: 'post-reply',
-    icon: '💬',
-    label: '我的貼文有新回覆',
-    subtitle: '有人回覆你的貼文或留言時通知',
-  },
+  { id: 'follow-post', icon: '❤️', label: '收藏與追蹤對象發文', subtitle: '追蹤的用戶或收藏的店家有新貼文時通知' },
+  { id: 'post-reply', icon: '💬', label: '我的貼文有新回覆', subtitle: '有人回覆你的貼文或留言時通知' },
 ];
 
 const CHAT_ITEMS: ToggleItem[] = [
-  {
-    id: 'chat-mention',
-    icon: '＠',
-    label: '群組中被 @ 提及',
-    subtitle: '里聊天室有人 @ 你時通知',
-  },
-  {
-    id: 'chat-private',
-    icon: '✉️',
-    label: '私訊通知',
-    subtitle: '收到新的私人訊息時通知',
-  },
+  { id: 'chat-mention', icon: '＠', label: '群組中被 @ 提及', subtitle: '里聊天室有人 @ 你時通知' },
+  { id: 'chat-private', icon: '✉️', label: '私訊通知', subtitle: '收到新的私人訊息時通知' },
 ];
 
 const TOGGLE_COLORS: Record<string, string> = {
@@ -80,19 +60,54 @@ const TOGGLE_COLORS: Record<string, string> = {
   success: '#22c55e',
 };
 
+const DEFAULTS: Settings = {
+  master: 1, infoMedium: 1, infoNormal: 1,
+  garbageTruck: 1, newPost: 1, postReply: 1, chat: 1, privateMessage: 1,
+};
+
 export default function NotificationSettingsPage() {
-  const { user, showLoginModal } = useAuth();
-  const [masterEnabled, setMasterEnabled] = useState(true);
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    'alert-urgent': true,
-    'alert-medium': false,
-    'alert-normal': false,
-    'garbage-truck': true,
-    'follow-post': true,
-    'post-reply': true,
-    'chat-mention': true,
-    'chat-private': true,
-  });
+  const { user, token, showLoginModal } = useAuth();
+  const [settings, setSettings] = useState<Settings>(DEFAULTS);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSettings = useCallback(async () => {
+    if (!token) { setLoading(false); return; }
+    try {
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/notifications/settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const json = await res.json();
+      if (json.code === 401) { dispatchAuthExpired(); return; }
+      if (json.code === 200 && json.data) {
+        setSettings({
+          master: json.data.master ?? 1,
+          infoMedium: json.data.infoMedium ?? 1,
+          infoNormal: json.data.infoNormal ?? 1,
+          garbageTruck: json.data.garbageTruck ?? 1,
+          newPost: json.data.newPost ?? 1,
+          postReply: json.data.postReply ?? 1,
+          chat: json.data.chat ?? 1,
+          privateMessage: json.data.privateMessage ?? 1,
+        });
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, [token]);
+
+  useEffect(() => { fetchSettings(); }, [fetchSettings]);
+
+  const saveSettings = async (patch: Partial<Settings>) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/notifications/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(patch),
+      });
+      const json = await res.json();
+      if (json.code === 401) dispatchAuthExpired();
+    } catch { /* ignore */ }
+  };
 
   if (!user) {
     return (
@@ -103,18 +118,38 @@ export default function NotificationSettingsPage() {
     );
   }
 
-  const handleToggle = (id: string, item: ToggleItem) => {
-    if (!masterEnabled) return;
-    if (item.locked && masterEnabled) {
+  const masterOn = settings.master === 1;
+
+  const handleMasterToggle = () => {
+    const newVal = masterOn ? 0 : 1;
+    setSettings(prev => ({ ...prev, master: newVal }));
+    saveSettings({ master: newVal });
+  };
+
+  const handleToggle = (item: ToggleItem) => {
+    if (!masterOn) return;
+    if (item.locked) {
       alert('開啟通知時，緊急公告為必要通知，無法關閉');
       return;
     }
-    setToggles(prev => ({ ...prev, [id]: !prev[id] }));
+    const field = FIELD_MAP[item.id];
+    if (!field) return;
+    const newVal = settings[field] === 1 ? 0 : 1;
+    setSettings(prev => ({ ...prev, [field]: newVal }));
+    saveSettings({ [field]: newVal });
+  };
+
+  const getToggleValue = (item: ToggleItem): boolean => {
+    if (!masterOn) return false;
+    if (item.locked) return true;
+    const field = FIELD_MAP[item.id];
+    if (!field) return false;
+    return settings[field] === 1;
   };
 
   const renderToggleRow = (item: ToggleItem, i: number) => {
-    const isOn = masterEnabled && (item.locked ? true : toggles[item.id]);
-    const disabled = !masterEnabled;
+    const isOn = getToggleValue(item);
+    const disabled = !masterOn;
     const trackColor = item.color ? TOGGLE_COLORS[item.color] : '#1c5373';
 
     return (
@@ -129,7 +164,7 @@ export default function NotificationSettingsPage() {
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.9rem', fontWeight: 500, color: '#333' }}>{item.label}</span>
-            {item.locked && masterEnabled && (
+            {item.locked && masterOn && (
               <span style={{
                 fontSize: '0.6rem', padding: '1px 4px', borderRadius: 3,
                 background: '#FEE2E2', color: '#991B1B', fontWeight: 600,
@@ -141,7 +176,7 @@ export default function NotificationSettingsPage() {
           <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.1rem' }}>{item.subtitle}</div>
         </div>
         <button
-          onClick={() => handleToggle(item.id, item)}
+          onClick={() => handleToggle(item)}
           disabled={disabled}
           style={{
             width: 44, height: 24, borderRadius: 12, border: 'none',
@@ -163,6 +198,14 @@ export default function NotificationSettingsPage() {
     );
   };
 
+  if (loading) {
+    return (
+      <div style={{ maxWidth: 600, margin: '0 auto', padding: '2rem', textAlign: 'center', color: '#bbb' }}>
+        載入中...
+      </div>
+    );
+  }
+
   return (
     <div style={{ maxWidth: 600, margin: '0 auto' }}>
       {/* Header */}
@@ -181,14 +224,14 @@ export default function NotificationSettingsPage() {
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#333' }}>提醒</div>
             <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.1rem' }}>
-              {masterEnabled ? '已開啟，您會收到以下類型的提醒' : '已關閉，不會收到任何提醒'}
+              {masterOn ? '已開啟，您會收到以下類型的提醒' : '已關閉，不會收到任何提醒'}
             </div>
           </div>
           <button
-            onClick={() => setMasterEnabled(v => !v)}
+            onClick={handleMasterToggle}
             style={{
               width: 50, height: 28, borderRadius: 14, border: 'none',
-              background: masterEnabled ? '#1c5373' : '#ddd',
+              background: masterOn ? '#1c5373' : '#ddd',
               cursor: 'pointer', position: 'relative', transition: 'background 0.2s',
               flexShrink: 0,
             }}
@@ -196,7 +239,7 @@ export default function NotificationSettingsPage() {
             <div style={{
               width: 24, height: 24, borderRadius: '50%', background: '#fff',
               position: 'absolute', top: 2,
-              left: masterEnabled ? 24 : 2,
+              left: masterOn ? 24 : 2,
               transition: 'left 0.2s',
               boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
             }} />

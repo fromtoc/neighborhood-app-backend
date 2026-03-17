@@ -8,8 +8,10 @@ import com.example.app.dto.JwtClaims;
 import com.example.app.dto.post.PostResponse;
 import com.example.app.entity.Post;
 import com.example.app.entity.PostBookmark;
+import com.example.app.entity.PostLike;
 import com.example.app.entity.User;
 import com.example.app.mapper.PostBookmarkMapper;
+import com.example.app.mapper.PostLikeMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
@@ -30,6 +33,7 @@ import java.util.stream.Collectors;
 public class BookmarkController {
 
     private final PostBookmarkMapper bookmarkMapper;
+    private final PostLikeMapper postLikeMapper;
     private final PostMapper postMapper;
     private final UserMapper userMapper;
 
@@ -85,6 +89,13 @@ public class BookmarkController {
                     .collect(Collectors.toMap(User::getId, u -> u));
         }
 
+        // 批次查 liked 狀態（收藏列表裡 bookmarked 一定是 true）
+        Set<Long> likedIds = postLikeMapper.selectList(
+                new LambdaQueryWrapper<PostLike>()
+                        .eq(PostLike::getUserId, claims.getUserId())
+                        .in(PostLike::getPostId, postIds)
+        ).stream().map(PostLike::getPostId).collect(Collectors.toSet());
+
         // Maintain bookmark order
         Map<Long, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
         Map<Long, User> finalUserMap = userMap;
@@ -95,42 +106,16 @@ public class BookmarkController {
                     User u = finalUserMap.get(p.getUserId());
                     String name = u != null ? (u.getNickname() != null ? u.getNickname() : "里民 #" + u.getId()) : null;
                     String role = u != null ? resolveRole(u) : null;
-                    return PostResponse.from(p, name, role);
+                    PostResponse resp = PostResponse.from(p, name, role);
+                    resp.setLiked(likedIds.contains(p.getId()));
+                    resp.setBookmarked(true);
+                    return resp;
                 })
                 .toList();
 
         return ApiResponse.success(responses);
     }
 
-    @GetMapping("/check")
-    @Operation(summary = "檢查是否已收藏指定貼文", security = @SecurityRequirement(name = "bearerAuth"))
-    public ApiResponse<Map<String, Boolean>> check(
-            @RequestParam Long postId,
-            @AuthenticationPrincipal JwtClaims claims
-    ) {
-        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        Long count = bookmarkMapper.selectCount(
-                new LambdaQueryWrapper<PostBookmark>()
-                        .eq(PostBookmark::getUserId, claims.getUserId())
-                        .eq(PostBookmark::getPostId, postId));
-        return ApiResponse.success(Map.of("bookmarked", count > 0));
-    }
-
-    @GetMapping("/check-batch")
-    @Operation(summary = "批次檢查已收藏的貼文ID", security = @SecurityRequirement(name = "bearerAuth"))
-    public ApiResponse<List<Long>> checkBatch(
-            @RequestParam List<Long> postIds,
-            @AuthenticationPrincipal JwtClaims claims
-    ) {
-        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        if (postIds == null || postIds.isEmpty()) return ApiResponse.success(List.of());
-        List<PostBookmark> bookmarks = bookmarkMapper.selectList(
-                new LambdaQueryWrapper<PostBookmark>()
-                        .eq(PostBookmark::getUserId, claims.getUserId())
-                        .in(PostBookmark::getPostId, postIds));
-        List<Long> bookmarkedIds = bookmarks.stream().map(PostBookmark::getPostId).toList();
-        return ApiResponse.success(bookmarkedIds);
-    }
 
     private static String resolveRole(User u) {
         if (Integer.valueOf(1).equals(u.getIsSuperAdmin())) return "SUPER_ADMIN";

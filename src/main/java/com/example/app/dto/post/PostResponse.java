@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,6 +30,8 @@ public class PostResponse {
     private Long placeId;
     private Integer likeCount;
     private Integer commentCount;
+    @Setter private Boolean liked;
+    @Setter private Boolean bookmarked;
     private LocalDateTime createdAt;
 
     public static PostResponse from(Post p) {

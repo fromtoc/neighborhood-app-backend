@@ -186,7 +186,7 @@ public class NcdrAggregatorService {
                     created++;
                     if (notificationService != null) {
                         String body = description.length() > 80 ? description.substring(0, 80) + "…" : description;
-                        notificationService.onNewInfo(m.nhId, m.type, post.getId(), title, body);
+                        notificationService.onNewInfo(m.nhId, m.type, post.getId(), title, body, urgencyVal);
                     }
                 }
             }

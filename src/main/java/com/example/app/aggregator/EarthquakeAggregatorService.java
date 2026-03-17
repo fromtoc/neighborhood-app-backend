@@ -119,7 +119,7 @@ public class EarthquakeAggregatorService {
                         postMapper.insert(post);
                         created++;
                         if (notificationService != null) {
-                            notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body);
+                            notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body, urgency);
                         }
                     }
                 }

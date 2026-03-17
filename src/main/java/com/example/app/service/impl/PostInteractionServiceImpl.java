@@ -14,6 +14,7 @@ import com.example.app.mapper.PostCommentMapper;
 import com.example.app.mapper.PostLikeMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
+import com.example.app.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     private final PostCommentLikeMapper postCommentLikeMapper;
     private final PostMapper            postMapper;
     private final UserMapper            userMapper;
+    private final NotificationService   notificationService;
 
     @Override
     @Transactional
@@ -63,6 +65,11 @@ public class PostInteractionServiceImpl implements PostInteractionService {
 
     @Override
     public List<PostCommentResponse> listComments(Long postId, Long parentId) {
+        return listComments(postId, parentId, null);
+    }
+
+    @Override
+    public List<PostCommentResponse> listComments(Long postId, Long parentId, Long currentUserId) {
         // 1. 載入指定層留言
         LambdaQueryWrapper<PostComment> wrapper = new LambdaQueryWrapper<PostComment>()
                 .eq(PostComment::getPostId, postId)
@@ -106,12 +113,16 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 .flatMap(Collection::stream).collect(Collectors.toSet());
         Map<Long, String> replierNicknames = replierIds.isEmpty() ? Map.of() : buildNicknameMap(new ArrayList<>(replierIds));
 
-        // 4. 組裝
+        // 4. 批次查當前用戶的留言按讚狀態
+        Set<Long> likedCommentIds = batchCheckCommentLiked(commentIds, currentUserId);
+
+        // 5. 組裝
         return comments.stream().map(c -> {
             int count = replyCountMap.getOrDefault(c.getId(), 0);
             List<String> topRepliers = topReplierUserIds.getOrDefault(c.getId(), List.of())
                     .stream().map(uid -> replierNicknames.getOrDefault(uid, "用戶")).toList();
-            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, topRepliers);
+            Boolean liked = currentUserId != null ? likedCommentIds.contains(c.getId()) : null;
+            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, topRepliers, liked);
         }).toList();
     }
 
@@ -134,6 +145,13 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         // 只有頂層留言才增加貼文的 comment_count
         if (parentId == null) {
             postMapper.incrementComment(postId);
+        }
+
+        // 通知貼文作者有新回覆
+        Post post = postMapper.selectById(postId);
+        if (post != null && post.getUserId() != null) {
+            String body = content.length() > 80 ? content.substring(0, 80) : content;
+            notificationService.onPostReply(post.getUserId(), userId, postId, nickname, body);
         }
 
         return PostCommentResponse.from(comment);
@@ -263,6 +281,15 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         }
 
         return new CommentThreadResponse(chainResp, repliesByParent);
+    }
+
+    private Set<Long> batchCheckCommentLiked(List<Long> commentIds, Long currentUserId) {
+        if (currentUserId == null || commentIds.isEmpty()) return Collections.emptySet();
+        return postCommentLikeMapper.selectList(
+                new LambdaQueryWrapper<PostCommentLike>()
+                        .eq(PostCommentLike::getUserId, currentUserId)
+                        .in(PostCommentLike::getCommentId, commentIds)
+        ).stream().map(PostCommentLike::getCommentId).collect(Collectors.toSet());
     }
 
     private String resolveNickname(Long userId) {

@@ -44,12 +44,14 @@ public class PostInteractionController {
     /* ── 留言 ─────────────────────────────────────────── */
 
     @GetMapping("/comments")
-    @Operation(summary = "取得留言列表（parentId=null 為頂層；傳 parentId 取回覆）")
+    @Operation(summary = "取得留言列表（parentId=null 為頂層；傳 parentId 取回覆）。若帶 Authorization header，回傳 liked 狀態")
     public ApiResponse<List<PostCommentResponse>> listComments(
             @PathVariable Long postId,
-            @RequestParam(required = false) Long parentId
+            @RequestParam(required = false) Long parentId,
+            @AuthenticationPrincipal JwtClaims claims
     ) {
-        return ApiResponse.success(interactionService.listComments(postId, parentId));
+        Long currentUserId = claims != null ? claims.getUserId() : null;
+        return ApiResponse.success(interactionService.listComments(postId, parentId, currentUserId));
     }
 
     @GetMapping("/comments/{commentId}/thread")
