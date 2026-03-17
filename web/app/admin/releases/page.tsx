@@ -140,7 +140,7 @@ export default function AdminReleasesPage() {
       );
       const json = await res.json();
       if (json.code === 200) {
-        setReleases(prev => prev.map(rel => rel.id === r.id ? { ...rel, isPublished: !r.isPublished } : rel));
+        setReleases(prev => prev.map(rel => rel.id === r.id ? { ...rel, isPublished: r.isPublished ? 0 : 1 } : rel));
       } else {
         setError(json.message ?? '操作失敗');
       }
