@@ -121,7 +121,8 @@ public class NotificationService {
                     refType, refId, pair.getNeighborhoodId());
             pushWs(pair.getUserId(), notifType, title, body, refType, refId);
         }
-        pushFcm(pairs.stream().map(UserFollowPair::getUserId).toList(), title, body);
+        pushFcm(pairs.stream().map(UserFollowPair::getUserId).toList(),
+                title, body, notifType, refType, refId);
     }
 
     private void fanOutDistrict(Long representativeNhId, String notifType, String settingColumn,
@@ -148,7 +149,8 @@ public class NotificationService {
                     refType, refId, pair.getNeighborhoodId());
             pushWs(pair.getUserId(), notifType, title, body, refType, refId);
         }
-        pushFcm(pairs.stream().map(UserFollowPair::getUserId).toList(), title, body);
+        pushFcm(pairs.stream().map(UserFollowPair::getUserId).toList(),
+                title, body, notifType, refType, refId);
     }
 
     private void notifyUser(Long userId, String notifType,
@@ -157,7 +159,7 @@ public class NotificationService {
         insertNotification(userId, notifType, title, body, refType, refId, null);
         pushWs(userId, notifType, title, body, refType, refId);
         List<String> tokens = deviceTokenMapper.findTokensByUserId(userId);
-        sendFcm(tokens, title, body);
+        sendFcm(tokens, title, body, notifType, refType, refId);
     }
 
     private void insertNotification(Long userId, String type,
@@ -188,26 +190,31 @@ public class NotificationService {
         }
     }
 
-    private void pushFcm(List<Long> userIds, String title, String body) {
+    private void pushFcm(List<Long> userIds, String title, String body,
+                         String notifType, String refType, Long refId) {
         if (fcm == null || userIds.isEmpty()) return;
         List<String> tokens = deviceTokenMapper.findTokensByUserIds(userIds);
-        sendFcm(tokens, title, body);
+        sendFcm(tokens, title, body, notifType, refType, refId);
     }
 
-    private void sendFcm(List<String> tokens, String title, String body) {
+    private void sendFcm(List<String> tokens, String title, String body,
+                         String notifType, String refType, Long refId) {
         if (fcm == null || tokens.isEmpty()) return;
         String shortBody = body != null && body.length() > 100 ? body.substring(0, 100) + "…" : body;
         try {
             for (int i = 0; i < tokens.size(); i += 500) {
                 List<String> batch = tokens.subList(i, Math.min(i + 500, tokens.size()));
-                MulticastMessage msg = MulticastMessage.builder()
+                var builder = MulticastMessage.builder()
                         .setNotification(com.google.firebase.messaging.Notification.builder()
                                 .setTitle(title)
                                 .setBody(shortBody)
                                 .build())
-                        .addAllTokens(batch)
-                        .build();
-                BatchResponse resp = fcm.sendEachForMulticast(msg);
+                        .addAllTokens(batch);
+                // 攜帶 data 供 App 點擊通知時導頁
+                if (notifType != null) builder.putData("notifType", notifType);
+                if (refType   != null) builder.putData("refType", refType);
+                if (refId     != null) builder.putData("refId", String.valueOf(refId));
+                BatchResponse resp = fcm.sendEachForMulticast(builder.build());
                 log.debug("FCM: {} ok, {} fail", resp.getSuccessCount(), resp.getFailureCount());
                 cleanInvalidTokens(batch, resp);
             }

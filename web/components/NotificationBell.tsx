@@ -206,6 +206,16 @@ function NotificationList({
 
 /** 根據通知類型建立導頁 URL */
 function buildNavUrl(n: NotificationItem): string | null {
+  // 有 refType + refId 時直接跳到具體頁面
+  if (n.refType === 'post' && n.refId) {
+    return `/posts/${n.refId}`;
+  }
+  if (n.refType === 'chat_message' && n.city && n.district && n.neighborhoodName) {
+    const base = `/${encodeURIComponent(n.city)}/${encodeURIComponent(n.district)}/${encodeURIComponent(n.neighborhoodName)}`;
+    return `${base}?tab=chat`;
+  }
+  // private_message 由 handleClick 處理（開對話框），不走 URL
+  // fallback：導到里頁面
   if (n.city && n.district && n.neighborhoodName) {
     const base = `/${encodeURIComponent(n.city)}/${encodeURIComponent(n.district)}/${encodeURIComponent(n.neighborhoodName)}`;
     if (n.type === 'chat')     return `${base}?tab=chat`;
