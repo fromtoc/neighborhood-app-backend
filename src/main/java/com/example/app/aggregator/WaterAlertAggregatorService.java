@@ -79,8 +79,8 @@ public class WaterAlertAggregatorService {
                 String key = AggregatorSupport.sha256(SOURCE + "::" + county + "::" + statusCode + "::" + date);
                 if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
-                // 只收集里/區資訊，僅匹配縣市則過濾掉
-                Set<Long> nhIds = support.resolveTargets(county + " " + note, maps);
+                // 水情公告為縣市層級，展開到該縣市所有行政區
+                Set<Long> nhIds = support.resolveTargets(county + " " + note, maps, true);
                 if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                 String title   = String.format("【水情公告】%s %s", county, statusName);

@@ -88,20 +88,28 @@ public class AqiAggregatorService {
                 String key  = AggregatorSupport.sha256(SOURCE + "::" + county + "::" + siteName + "::" + hour + "::" + aqiLevel(aqi));
                 if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
-                // 比對行政區（測站名稱通常等於鄉鎮區名）
-                Long nhId = resolveDistrictNhId(county, siteName);
-                if (nhId == null) { support.markCrawled(SOURCE, key); continue; }
+                // 比對行政區（測站名稱通常等於鄉鎮區名），匹配不到則展開到該縣市所有行政區
+                Set<Long> nhIds = new LinkedHashSet<>();
+                Long directMatch = resolveDistrictNhId(county, siteName);
+                if (directMatch != null) {
+                    nhIds.add(directMatch);
+                } else {
+                    nhIds.addAll(support.resolveAllByCity(county, maps));
+                }
+                if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                 String title   = String.format("【空氣品質】%s%s AQI %d（%s）", county, siteName, aqi, status);
                 String content = buildContent(aqi, status, pm25, pm10, pollutant);
                 String urgency = aqi >= 200 ? "urgent" : aqi >= 150 ? "medium" : "normal";
 
-                Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
-                postMapper.insert(post);
-                created++;
-                if (notificationService != null) {
-                    String body = content.length() > 80 ? content.substring(0, 80) + "…" : content;
-                    notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body, urgency);
+                for (Long nhId : nhIds) {
+                    Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
+                    postMapper.insert(post);
+                    created++;
+                    if (notificationService != null) {
+                        String body = content.length() > 80 ? content.substring(0, 80) + "…" : content;
+                        notificationService.onNewInfo(nhId, "district_info", post.getId(), title, body, urgency);
+                    }
                 }
                 support.markCrawled(SOURCE, key);
             }

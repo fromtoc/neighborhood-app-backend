@@ -129,6 +129,13 @@ public class AggregatorSupport {
      * 適用於含有自由文字的爬蟲資料（RSS 新聞、氣象特報描述等）。
      */
     public Set<Long> resolveTargets(String text, NeighborhoodMaps maps) {
+        return resolveTargets(text, maps, false);
+    }
+
+    /**
+     * @param expandCity true = 僅匹配縣市時展開到該縣市所有行政區；false = 過濾掉（不發文）
+     */
+    public Set<Long> resolveTargets(String text, NeighborhoodMaps maps, boolean expandCity) {
         // Step 0: 抽出文中縣市（正規化為「臺」開頭）
         Set<String> mentionedCities = new LinkedHashSet<>();
         for (String[] aliases : COUNTY_ALIASES) {
@@ -170,7 +177,10 @@ public class AggregatorSupport {
         }
         if (!districtMatches.isEmpty()) return districtMatches;
 
-        // Step 3: 僅匹配縣市 → 過濾掉，不發文
+        // Step 3: 僅匹配縣市
+        if (expandCity && !mentionedCities.isEmpty()) {
+            return resolveAllByCity(mentionedCities, maps);
+        }
         return Set.of();
     }
 

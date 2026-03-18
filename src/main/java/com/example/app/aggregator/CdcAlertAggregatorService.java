@@ -94,8 +94,8 @@ public class CdcAlertAggregatorService {
                     areas.append("\n");
                 }
 
-                // 里 > 區 > 縣市優先比對（TOWN_NAME 通常能精確到行政區）
-                Set<Long> nhIds = support.resolveTargets(geoText.toString(), maps);
+                // 里 > 區 > 縣市優先比對，縣市層級展開到所有行政區
+                Set<Long> nhIds = support.resolveTargets(geoText.toString(), maps, true);
                 if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                 String title   = String.format("【疾管署】%s 近兩週登革熱病例聚集（%d處）", county, features.size());

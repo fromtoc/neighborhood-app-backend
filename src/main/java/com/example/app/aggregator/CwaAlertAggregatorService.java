@@ -89,9 +89,9 @@ public class CwaAlertAggregatorService {
                     String key = AggregatorSupport.sha256(SOURCE + "::" + locationName + "::" + phenomena + "::" + startTime);
                     if (support.isAlreadyCrawled(SOURCE, key)) continue;
 
-                    // 氣象特報為縣市層級，但只收集里/區資訊 → 嘗試用 resolveTargets 比對
+                    // 氣象特報為縣市層級，展開到該縣市所有行政區
                     String geoText = locationName + " " + phenomena;
-                    Set<Long> nhIds = support.resolveTargets(geoText, maps);
+                    Set<Long> nhIds = support.resolveTargets(geoText, maps, true);
                     if (nhIds.isEmpty()) { support.markCrawled(SOURCE, key); continue; }
 
                     String title   = String.format("【氣象%s】%s %s%s", significance, locationName, phenomena, significance);
