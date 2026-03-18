@@ -841,7 +841,11 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
       </div>
 
       {commentOpen && (
-        <CommentSection postId={post.id} onCommentAdded={() => setCommentCount(c => c + 1)} />
+        <CommentSection
+          postId={post.id}
+          onCommentAdded={() => setCommentCount(c => c + 1)}
+          postSummary={{ title: post.title, content: post.content, authorName: post.authorName ?? null }}
+        />
       )}
     </div>
   );

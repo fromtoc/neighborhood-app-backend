@@ -20,10 +20,17 @@ interface Comment {
   topRepliers: string[];
 }
 
+export interface PostSummary {
+  title: string | null;
+  content: string;
+  authorName: string | null;
+}
+
 interface Props {
   postId: number;
   onCommentAdded?: () => void;
   initialCommentId?: number;
+  postSummary?: PostSummary;
 }
 
 const COLORS = ['#e53935','#8e24aa','#1e88e5','#43a047','#fb8c00','#00acc1','#6d4c41','#546e7a'];
@@ -273,22 +280,77 @@ function ReplyComposer({
   );
 }
 
+/** 當前留言的互動按鈕（讚 / 回覆數 / 分享） */
+function ThreadRootActions({ comment, postId }: { comment: Comment; postId: number }) {
+  const { user, token, showLoginModal } = useAuth();
+  const [liked, setLiked] = useState(comment.liked === true);
+  const [likeCount, setLikeCount] = useState(comment.likeCount ?? 0);
+  const [pending, setPending] = useState(false);
+
+  async function handleLike() {
+    if (!token || !user || user.role === 'GUEST') { showLoginModal(); return; }
+    if (pending) return;
+    setPending(true);
+    setLiked(v => !v);
+    setLikeCount(c => liked ? c - 1 : c + 1);
+    try {
+      const res = await fetch(
+        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${comment.id}/like`,
+        { method: 'POST', headers: { Authorization: `Bearer ${token}` } }
+      );
+      const json = await res.json();
+      if (json.code === 200) { setLiked(json.data.liked); setLikeCount(json.data.likeCount); }
+      else { setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1); }
+    } catch {
+      setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const btnStyle: React.CSSProperties = {
+    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+    display: 'flex', alignItems: 'center', gap: '0.35rem',
+    fontSize: '0.85rem', color: '#828282',
+  };
+
+  return (
+    <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+      <button onClick={handleLike} style={{ ...btnStyle, color: liked ? '#e53e3e' : '#828282' }}>
+        <span>{liked ? '❤️' : '🤍'}</span> {likeCount} 喜歡
+      </button>
+      <span style={{ fontSize: '0.85rem', color: '#828282', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        💬 {comment.replyCount} 回覆
+      </span>
+      <ShareButton
+        title={comment.content.slice(0, 40)}
+        path={`/posts/${comment.postId}?commentId=${comment.id}`}
+      />
+    </div>
+  );
+}
+
 /** 滑入式討論面板（可無限堆疊） */
 function ThreadPanel({
   postId, rootComment, selfName, isSelf, onClose, onReplied,
-  initialChain, preloadedRepliesMap, ancestors = [],
+  initialChain, preloadedRepliesMap, ancestors = [], postSummary,
+  depth = 0, onJumpToDepth, onCloseAll,
 }: {
   postId: number; rootComment: Comment; selfName: string;
   isSelf: boolean; onClose: () => void; onReplied?: () => void;
   initialChain?: number[];
-  /** 分享連結預載的回覆 map（key = commentId），避免每層各自 fetch */
   preloadedRepliesMap?: Record<number, Comment[]>;
-  /** 祖先鏈（從最早的祖先到 rootComment 的父層），用於顯示完整上下文 */
   ancestors?: Comment[];
+  postSummary?: PostSummary;
+  depth?: number;
+  onJumpToDepth?: (targetDepth: number) => void;
+  /** 一次關閉所有討論串面板（從通知/分享進入時使用） */
+  onCloseAll?: () => void;
 }) {
   const [replies, setReplies] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [subThread, setSubThread] = useState<Comment | null>(null);
+  const [subAutoOpened, setSubAutoOpened] = useState(false);
   const { user, token } = useAuth();
   const autoSubDone = useRef(false);
 
@@ -302,7 +364,7 @@ function ThreadPanel({
       setLoading(false);
       if (initialChain && initialChain.length > 0) {
         const sub = preloaded.find(r => r.id === initialChain[0]);
-        if (sub) { setSubThread(sub); autoSubDone.current = true; }
+        if (sub) { setSubThread(sub); setSubAutoOpened(true); autoSubDone.current = true; }
       }
       return;
     }
@@ -321,7 +383,7 @@ function ThreadPanel({
         setReplies(list);
         if (!autoSubDone.current && initialChain && initialChain.length > 0) {
           const sub = list.find(r => r.id === initialChain[0]);
-          if (sub) { setSubThread(sub); autoSubDone.current = true; }
+          if (sub) { setSubThread(sub); setSubAutoOpened(true); autoSubDone.current = true; }
         }
       }
     } finally {
@@ -331,18 +393,7 @@ function ThreadPanel({
 
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
 
-  // Back handler — 統一由 popstate 觸發，確保 history stack 同步
-  useEffect(() => {
-    function onBack() { if (!subThread) onClose(); }
-    history.pushState({ thread: rootComment.id }, '');
-    window.addEventListener('popstate', onBack);
-    return () => {
-      window.removeEventListener('popstate', onBack);
-    };
-  }, [rootComment.id, subThread, onClose]);
-
-  // 統一的關閉入口：透過 history.back() 觸發 popstate
-  function handleClose() { history.back(); }
+  function handleClose() { onClose(); }
 
   return (
     <>
@@ -379,22 +430,58 @@ function ThreadPanel({
           <span style={{ fontWeight: 700, fontSize: '1rem' }}>討論串</span>
         </div>
 
-        <div style={{ maxWidth: 680, margin: '0 auto', padding: '1rem' }}>
-          {/* 祖先鏈（上下文，較淡顯示） */}
-          {ancestors.map((a) => {
+        <div style={{ maxWidth: 680, margin: '0 auto', padding: '1rem', paddingBottom: '5rem' }}>
+          {/* ── 原始貼文（可點擊返回） ── */}
+          {postSummary && (
+            <div
+              onClick={() => onJumpToDepth?.(-1)}
+              style={{ cursor: 'pointer', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid #f0f0f0' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
+                <Avatar name={postSummary.authorName ?? '系'} size={36} />
+                <div>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{postSummary.authorName ?? '系統'}</span>
+                </div>
+              </div>
+              <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+                {postSummary.title && (
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#333', marginBottom: '0.2rem' }}>
+                    {postSummary.title}
+                  </div>
+                )}
+                <p style={{
+                  fontSize: '0.85rem', lineHeight: 1.55, color: '#666',
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  overflow: 'hidden', display: '-webkit-box',
+                  WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+                }}>
+                  {postSummary.content}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── 祖先留言鏈（可點擊跳到該層） ── */}
+          {ancestors.map((a, idx) => {
             const aName = (user?.userId === a.userId ? selfName : (a.nickname ?? `用戶 #${a.userId}`));
             return (
-              <div key={a.id} style={{ display: 'flex', gap: '0.65rem', opacity: 0.55 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+              <div
+                key={a.id}
+                onClick={() => onJumpToDepth?.(idx)}
+                style={{ cursor: 'pointer', marginBottom: '0.75rem' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
                   <Avatar name={aName} size={32} self={user?.userId === a.userId} />
-                  <div style={{ width: 2, flex: 1, minHeight: 12, background: '#e6e6e6', marginTop: 4 }} />
-                </div>
-                <div style={{ flex: 1, paddingBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 2 }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{aName}</span>
-                    <span style={{ fontSize: '0.68rem', color: '#bbb' }}>{timeAgo(a.createdAt)}</span>
+                  <div>
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#555' }}>{aName}</span>
+                    <span style={{ fontSize: '0.72rem', color: '#bbb', marginLeft: '0.4rem' }}>{timeAgo(a.createdAt)}</span>
                   </div>
-                  <p style={{ fontSize: '0.85rem', lineHeight: 1.5, color: '#555', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                </div>
+                <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+                  <p style={{
+                    fontSize: '0.85rem', lineHeight: 1.5, color: '#666',
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
                     {a.content}
                   </p>
                 </div>
@@ -402,26 +489,27 @@ function ThreadPanel({
             );
           })}
 
-          {/* 當前留言（作為 OP） */}
-          <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '0.5rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+          {/* ── 當前留言（完整顯示，含互動按鈕） ── */}
+          <div style={{ marginBottom: '0.5rem', paddingBottom: '0.75rem', borderBottom: '1px solid #f0f0f0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
               <Avatar name={name} size={40} self={isSelf} />
-              {(loading || replies.length > 0) && (
-                <div style={{ width: 2, flex: 1, minHeight: 16, background: '#e6e6e6', marginTop: 4 }} />
-              )}
-            </div>
-            <div style={{ flex: 1, paddingBottom: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 4 }}>
-                <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{name}</span>
-                <span style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(rootComment.createdAt)}</span>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{name}</div>
+                <div style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(rootComment.createdAt)}</div>
               </div>
-              <p style={{ fontSize: '0.95rem', lineHeight: 1.65, color: '#1e1e1e', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {rootComment.content}
-              </p>
             </div>
+            <p style={{
+              fontSize: '0.95rem', lineHeight: 1.65, color: '#1e1e1e',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              margin: '0.4rem 0 0.6rem',
+            }}>
+              {rootComment.content}
+            </p>
+            {/* 互動列 */}
+            <ThreadRootActions comment={rootComment} postId={postId} />
           </div>
 
-          {/* 回覆輸入 */}
+          {/* ── 回覆輸入 ── */}
           {user && user.role !== 'GUEST' ? (
             <ReplyComposer
               postId={postId}
@@ -432,12 +520,12 @@ function ThreadPanel({
             />
           ) : null}
 
-          {/* 回覆列表 */}
+          {/* ── 回覆列表 ── */}
           {loading ? (
             <p style={{ fontSize: '0.82rem', color: '#bbb', padding: '1rem 0' }}>載入中...</p>
           ) : replies.length > 0 ? (
-            <div style={{ marginTop: '0.5rem' }}>
-              <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#999', padding: '0.5rem 0' }}>
+            <div style={{ marginTop: '0.75rem' }}>
+              <p style={{ fontSize: '0.82rem', fontWeight: 700, color: '#888', padding: '0.5rem 0', borderBottom: '1px solid #f0f0f0', marginBottom: '0.5rem' }}>
                 回覆 · {replies.length} 則
               </p>
               {replies.map((r, i) => (
@@ -447,7 +535,7 @@ function ThreadPanel({
                   isSelf={user?.userId === r.userId}
                   selfName={selfName}
                   showLine={i < replies.length - 1}
-                  onClick={() => setSubThread(r)}
+                  onClick={() => { setSubThread(r); setSubAutoOpened(false); }}
                   postId={postId}
                 />
               ))}
@@ -467,11 +555,23 @@ function ThreadPanel({
           rootComment={subThread}
           selfName={selfName}
           isSelf={user?.userId === subThread.userId}
-          onClose={() => { setSubThread(null); fetchReplies(); }}
+          onClose={() => {
+            if (subAutoOpened && onCloseAll) { onCloseAll(); }
+            else { setSubThread(null); fetchReplies(); }
+          }}
           onReplied={() => { fetchReplies(); onReplied?.(); }}
           initialChain={initialChain && initialChain.length > 1 ? initialChain.slice(1) : undefined}
           preloadedRepliesMap={preloadedRepliesMap}
           ancestors={[...ancestors, rootComment]}
+          postSummary={postSummary}
+          depth={depth + 1}
+          onJumpToDepth={(targetDepth) => {
+            setSubThread(null);
+            if (targetDepth < depth) {
+              onJumpToDepth?.(targetDepth);
+            }
+          }}
+          onCloseAll={onCloseAll}
         />
       )}
 
@@ -487,7 +587,7 @@ function ThreadPanel({
 
 /* ── 主元件 ─────────────────────────────────────────────── */
 
-export default function CommentSection({ postId, onCommentAdded, initialCommentId }: Props) {
+export default function CommentSection({ postId, onCommentAdded, initialCommentId, postSummary }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const selfName = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`
@@ -653,6 +753,14 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
           onReplied={fetchComments}
           initialChain={initialChain.length > 0 ? initialChain : undefined}
           preloadedRepliesMap={preloadedRepliesMap}
+          postSummary={postSummary}
+          depth={0}
+          onJumpToDepth={(targetDepth) => {
+            if (targetDepth < 0) {
+              setActiveThread(null); setInitialChain([]); setPreloadedRepliesMap(undefined); fetchComments();
+            }
+          }}
+          onCloseAll={() => { setActiveThread(null); setInitialChain([]); setPreloadedRepliesMap(undefined); fetchComments(); }}
         />
       )}
     </div>

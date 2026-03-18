@@ -254,7 +254,10 @@ export default async function PostDetailPage({ params }: Props) {
         </div>
 
         {/* 留言區 */}
-        <PostDetailComments postId={post.id} />
+        <PostDetailComments
+          postId={post.id}
+          postSummary={{ title: post.title, content: post.content, authorName: post.authorName }}
+        />
 
         {/* Back */}
         {nb && (() => {
