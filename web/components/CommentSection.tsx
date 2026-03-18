@@ -18,6 +18,8 @@ interface Comment {
   createdAt: string;
   replyCount: number;
   topRepliers: string[];
+  contentDeleted?: boolean;
+  edited?: boolean;
 }
 
 export interface PostSummary {
@@ -30,6 +32,7 @@ interface Props {
   postId: number;
   onCommentAdded?: () => void;
   initialCommentId?: number;
+  postDeleted?: boolean;
   postSummary?: PostSummary;
 }
 
@@ -85,14 +88,16 @@ function Avatar({ name, size = 36, self = false }: { name: string; size?: number
 
 /** 單則留言卡 */
 function CommentCard({
-  comment, isSelf, selfName, showLine, onClick, postId,
+  comment: initialComment, isSelf, selfName, showLine, onClick, postId,
 }: {
   comment: Comment; isSelf: boolean; selfName: string;
   showLine: boolean; onClick: () => void; postId: number;
 }) {
   const { user, token, showLoginModal } = useAuth();
+  const [comment, setComment] = useState(initialComment);
   const name = isSelf ? selfName : (comment.nickname ?? `用戶 #${comment.userId}`);
   const hasReplies = comment.replyCount > 0;
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   const [liked,     setLiked]     = useState(comment.liked === true);
   const [likeCount, setLikeCount] = useState(comment.likeCount ?? 0);
@@ -121,6 +126,42 @@ function CommentCard({
     }
   }
 
+  // 編輯 / 刪除
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(comment.content);
+  const [editLoading, setEditLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  async function handleEdit() {
+    if (!editText.trim() || !token) return;
+    setEditLoading(true);
+    try {
+      const res = await fetch(
+        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${comment.id}`,
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ content: editText.trim() }) });
+      const json = await res.json();
+      if (json.code === 200) {
+        setComment(prev => ({ ...prev, content: editText.trim(), edited: true }));
+        setEditing(false);
+      }
+    } catch {} finally { setEditLoading(false); }
+  }
+
+  async function handleDelete() {
+    if (!token) return;
+    try {
+      const res = await fetch(
+        `${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${comment.id}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (json.code === 200) {
+        setComment(prev => ({ ...prev, content: '此留言已被刪除', contentDeleted: true }));
+        setConfirmDelete(false);
+      }
+    } catch {} finally { setConfirmDelete(false); }
+  }
+
   const btnStyle: React.CSSProperties = {
     background: 'none', border: 'none', cursor: 'pointer', padding: 0,
     display: 'flex', alignItems: 'center', gap: '0.3rem',
@@ -142,42 +183,95 @@ function CommentCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 2 }}>
           <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#1e1e1e' }}>{name}</span>
           <span style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(comment.createdAt)}</span>
+          <span style={{ flex: 1 }} />
+          {/* 編輯/刪除按鈕 */}
+          {!comment.contentDeleted && isSelf && !editing && (
+            <button onClick={e => { e.stopPropagation(); setEditText(comment.content); setEditing(true); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#999' }}>編輯</button>
+          )}
+          {!comment.contentDeleted && (isSelf || isAdmin) && !confirmDelete && (
+            <button onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#e53e3e' }}>刪除</button>
+          )}
+          {confirmDelete && (
+            <>
+              <span style={{ fontSize: '0.7rem', color: '#e53e3e' }}>確認？</span>
+              <button onClick={e => { e.stopPropagation(); handleDelete(); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#e53e3e', fontWeight: 700 }}>是</button>
+              <button onClick={e => { e.stopPropagation(); setConfirmDelete(false); }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.7rem', color: '#999' }}>否</button>
+            </>
+          )}
         </div>
 
-        {/* 點擊內容進入子討論 */}
-        <div onClick={onClick} style={{ cursor: 'pointer' }}>
-          <p style={{
-            fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.6,
-            whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 6,
-          }}>
-            {comment.content}
-          </p>
-        </div>
+        {/* 編輯表單 */}
+        {editing ? (
+          <div style={{ marginBottom: 6 }} onClick={e => e.stopPropagation()}>
+            <textarea value={editText} onChange={e => setEditText(e.target.value)}
+              style={{ width: '100%', border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.4rem', fontSize: '0.88rem', resize: 'vertical', minHeight: 50, outline: 'none' }} />
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem' }}>
+              <button onClick={() => setEditing(false)}
+                style={{ background: '#f0f0f0', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: '0.78rem', cursor: 'pointer', color: '#666' }}>取消</button>
+              <button onClick={handleEdit} disabled={editLoading || !editText.trim()}
+                style={{ background: '#1c5373', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                {editLoading ? '...' : '儲存'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* 內容 */}
+            {comment.contentDeleted ? (
+              <div style={{
+                background: '#f9f9f9', borderRadius: 6, padding: '0.5rem 0.75rem', marginBottom: 6,
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+              }}>
+                <span style={{ fontSize: '0.95rem' }}>🗑️</span>
+                <span style={{ fontSize: '0.82rem', color: '#999', fontStyle: 'italic' }}>此留言已被刪除</span>
+              </div>
+            ) : (
+              <div onClick={onClick} style={{ cursor: 'pointer' }}>
+                <p style={{
+                  fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.6,
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 6,
+                }}>
+                  {comment.content}
+                </p>
+                {comment.edited && (
+                  <span style={{ fontSize: '0.7rem', color: '#bbb', fontStyle: 'italic' }}>（已編輯）</span>
+                )}
+              </div>
+            )}
+          </>
+        )}
 
         {/* 互動列 */}
-        <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'center' }}>
-          {/* 讚 */}
-          <button
-            onClick={handleLike}
-            style={{ ...btnStyle, color: liked ? '#e53e3e' : '#828282' }}
-          >
-            <span>{liked ? '❤️' : '🤍'}</span> {likeCount}
-          </button>
-
-          {/* 回覆 */}
-          <button
-            onClick={e => { e.stopPropagation(); onClick(); }}
-            style={btnStyle}
-          >
-            <span>💬</span> {comment.replyCount}
-          </button>
-
-          {/* 分享 */}
-          <ShareButton
-            title={comment.content.slice(0, 40)}
-            path={`/posts/${comment.postId}?commentId=${comment.id}`}
-          />
-        </div>
+        {comment.contentDeleted ? (
+          <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'center' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: '#bbb' }}>
+              🤍 {likeCount}
+            </span>
+            {comment.replyCount > 0 ? (
+              <button onClick={e => { e.stopPropagation(); onClick(); }} style={btnStyle}>
+                <span>💬</span> {comment.replyCount}
+              </button>
+            ) : (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: '#bbb' }}>
+                💬 0
+              </span>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem', alignItems: 'center' }}>
+            <button onClick={handleLike} style={{ ...btnStyle, color: liked ? '#e53e3e' : '#828282' }}>
+              <span>{liked ? '❤️' : '🤍'}</span> {likeCount}
+            </button>
+            <button onClick={e => { e.stopPropagation(); onClick(); }} style={btnStyle}>
+              <span>💬</span> {comment.replyCount}
+            </button>
+            <ShareButton title={(comment.content || '').slice(0, 40)} path={`/posts/${comment.postId}?commentId=${comment.id}`} />
+          </div>
+        )}
 
         {/* 回覆摘要（mini avatars） */}
         {hasReplies && (
@@ -281,11 +375,17 @@ function ReplyComposer({
 }
 
 /** 當前留言的互動按鈕（讚 / 回覆數 / 分享） */
-function ThreadRootActions({ comment, postId }: { comment: Comment; postId: number }) {
+function ThreadRootActions({ comment, postId, onStatusChange }: { comment: Comment; postId: number; onStatusChange?: (c: Partial<Comment>) => void }) {
   const { user, token, showLoginModal } = useAuth();
   const [liked, setLiked] = useState(comment.liked === true);
   const [likeCount, setLikeCount] = useState(comment.likeCount ?? 0);
   const [pending, setPending] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState(comment.content || '');
+  const [editLoading, setEditLoading] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const isSelf = user?.userId === comment.userId;
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   async function handleLike() {
     if (!token || !user || user.role === 'GUEST') { showLoginModal(); return; }
@@ -303,9 +403,29 @@ function ThreadRootActions({ comment, postId }: { comment: Comment; postId: numb
       else { setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1); }
     } catch {
       setLiked(v => !v); setLikeCount(c => liked ? c + 1 : c - 1);
-    } finally {
-      setPending(false);
-    }
+    } finally { setPending(false); }
+  }
+
+  async function handleEdit() {
+    if (!editText.trim() || !token) return;
+    setEditLoading(true);
+    try {
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${comment.id}`,
+        { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ content: editText.trim() }) });
+      const json = await res.json();
+      if (json.code === 200) { setEditing(false); onStatusChange?.({ content: editText.trim(), edited: true }); }
+    } catch {} finally { setEditLoading(false); }
+  }
+
+  async function handleDelete() {
+    if (!token) return;
+    try {
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${comment.id}`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      const json = await res.json();
+      if (json.code === 200) { setConfirmDelete(false); onStatusChange?.({ contentDeleted: true, content: undefined }); }
+    } catch {} finally { setConfirmDelete(false); }
   }
 
   const btnStyle: React.CSSProperties = {
@@ -314,18 +434,48 @@ function ThreadRootActions({ comment, postId }: { comment: Comment; postId: numb
     fontSize: '0.85rem', color: '#828282',
   };
 
+  if (editing) {
+    return (
+      <div>
+        <textarea value={editText} onChange={e => setEditText(e.target.value)}
+          style={{ width: '100%', border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.4rem', fontSize: '0.88rem', resize: 'vertical', minHeight: 60, outline: 'none' }} />
+        <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem' }}>
+          <button onClick={() => setEditing(false)}
+            style={{ background: '#f0f0f0', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: '0.78rem', cursor: 'pointer', color: '#666' }}>取消</button>
+          <button onClick={handleEdit} disabled={editLoading || !editText.trim()}
+            style={{ background: '#1c5373', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: '0.78rem', cursor: 'pointer' }}>
+            {editLoading ? '...' : '儲存'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+    <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
       <button onClick={handleLike} style={{ ...btnStyle, color: liked ? '#e53e3e' : '#828282' }}>
         <span>{liked ? '❤️' : '🤍'}</span> {likeCount} 喜歡
       </button>
       <span style={{ fontSize: '0.85rem', color: '#828282', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
         💬 {comment.replyCount} 回覆
       </span>
-      <ShareButton
-        title={comment.content.slice(0, 40)}
-        path={`/posts/${comment.postId}?commentId=${comment.id}`}
-      />
+      <ShareButton title={(comment.content || '').slice(0, 40)} path={`/posts/${comment.postId}?commentId=${comment.id}`} />
+      <span style={{ flex: 1 }} />
+      {isSelf && (
+        <button onClick={() => { setEditText(comment.content || ''); setEditing(true); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#999' }}>編輯</button>
+      )}
+      {(isSelf || isAdmin) && !confirmDelete && (
+        <button onClick={() => setConfirmDelete(true)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#e53e3e' }}>刪除</button>
+      )}
+      {confirmDelete && (
+        <>
+          <span style={{ fontSize: '0.78rem', color: '#e53e3e' }}>確認？</span>
+          <button onClick={handleDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#e53e3e', fontWeight: 700 }}>是</button>
+          <button onClick={() => setConfirmDelete(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#999' }}>否</button>
+        </>
+      )}
     </div>
   );
 }
@@ -351,10 +501,11 @@ function ThreadPanel({
   const [loading, setLoading] = useState(true);
   const [subThread, setSubThread] = useState<Comment | null>(null);
   const [subAutoOpened, setSubAutoOpened] = useState(false);
+  const [localRoot, setLocalRoot] = useState(rootComment);
   const { user, token } = useAuth();
   const autoSubDone = useRef(false);
 
-  const name = isSelf ? selfName : (rootComment.nickname ?? `用戶 #${rootComment.userId}`);
+  const name = isSelf ? selfName : (localRoot.nickname ?? `用戶 #${localRoot.userId}`);
 
   const fetchReplies = useCallback(async () => {
     // 優先使用預載資料（分享連結進入時）
@@ -443,21 +594,28 @@ function ThreadPanel({
                   <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{postSummary.authorName ?? '系統'}</span>
                 </div>
               </div>
-              <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
-                {postSummary.title && (
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#333', marginBottom: '0.2rem' }}>
-                    {postSummary.title}
-                  </div>
-                )}
-                <p style={{
-                  fontSize: '0.85rem', lineHeight: 1.55, color: '#666',
-                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  overflow: 'hidden', display: '-webkit-box',
-                  WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
-                }}>
-                  {postSummary.content}
-                </p>
-              </div>
+              {!postSummary.content && !postSummary.title ? (
+                <div style={{ background: '#f9f9f9', borderRadius: 6, padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span style={{ fontSize: '0.95rem' }}>🗑️</span>
+                  <span style={{ fontSize: '0.82rem', color: '#999', fontStyle: 'italic' }}>此內容已被刪除</span>
+                </div>
+              ) : (
+                <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+                  {postSummary.title && (
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#333', marginBottom: '0.2rem' }}>
+                      {postSummary.title}
+                    </div>
+                  )}
+                  <p style={{
+                    fontSize: '0.85rem', lineHeight: 1.55, color: '#666',
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    overflow: 'hidden', display: '-webkit-box',
+                    WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+                  }}>
+                    {postSummary.content}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -477,14 +635,21 @@ function ThreadPanel({
                     <span style={{ fontSize: '0.72rem', color: '#bbb', marginLeft: '0.4rem' }}>{timeAgo(a.createdAt)}</span>
                   </div>
                 </div>
-                <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
-                  <p style={{
-                    fontSize: '0.85rem', lineHeight: 1.5, color: '#666',
-                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  }}>
-                    {a.content}
-                  </p>
-                </div>
+                {a.contentDeleted ? (
+                  <div style={{ background: '#f9f9f9', borderRadius: 6, padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span style={{ fontSize: '0.95rem' }}>🗑️</span>
+                    <span style={{ fontSize: '0.82rem', color: '#999', fontStyle: 'italic' }}>此留言已被刪除</span>
+                  </div>
+                ) : (
+                  <div style={{ borderLeft: '3px solid #e0e0e0', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+                    <p style={{
+                      fontSize: '0.85rem', lineHeight: 1.5, color: '#666',
+                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                    }}>
+                      {a.content}
+                    </p>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -498,19 +663,30 @@ function ThreadPanel({
                 <div style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(rootComment.createdAt)}</div>
               </div>
             </div>
-            <p style={{
-              fontSize: '0.95rem', lineHeight: 1.65, color: '#1e1e1e',
-              whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-              margin: '0.4rem 0 0.6rem',
-            }}>
-              {rootComment.content}
-            </p>
-            {/* 互動列 */}
-            <ThreadRootActions comment={rootComment} postId={postId} />
+            {localRoot.contentDeleted ? (
+              <div style={{
+                background: '#f9f9f9', borderRadius: 8, padding: '0.75rem 1rem', margin: '0.4rem 0 0.6rem',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+              }}>
+                <span style={{ fontSize: '1.1rem' }}>🗑️</span>
+                <span style={{ fontSize: '0.88rem', color: '#999', fontStyle: 'italic' }}>此留言已被刪除</span>
+              </div>
+            ) : (
+              <>
+                <p style={{
+                  fontSize: '0.95rem', lineHeight: 1.65, color: '#1e1e1e',
+                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  margin: '0.4rem 0 0.6rem',
+                }}>
+                  {localRoot.content}
+                </p>
+                <ThreadRootActions comment={localRoot} postId={postId} onStatusChange={(changes) => setLocalRoot(prev => ({ ...prev, ...changes } as Comment))} />
+              </>
+            )}
           </div>
 
-          {/* ── 回覆輸入 ── */}
-          {user && user.role !== 'GUEST' ? (
+          {/* ── 回覆輸入（已刪除留言不允許新回覆） ── */}
+          {!localRoot.contentDeleted && user && user.role !== 'GUEST' ? (
             <ReplyComposer
               postId={postId}
               parentId={rootComment.id}
@@ -587,7 +763,7 @@ function ThreadPanel({
 
 /* ── 主元件 ─────────────────────────────────────────────── */
 
-export default function CommentSection({ postId, onCommentAdded, initialCommentId, postSummary }: Props) {
+export default function CommentSection({ postId, onCommentAdded, initialCommentId, postSummary, postDeleted }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const selfName = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`
@@ -697,8 +873,8 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
         </p>
       )}
 
-      {/* 頂層留言輸入框 */}
-      {user && user.role !== 'GUEST' ? (
+      {/* 頂層留言輸入框 — 貼文已刪除則不顯示 */}
+      {!postDeleted && user && user.role !== 'GUEST' ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Avatar name={selfName ?? 'U'} size={28} self />
           <input
@@ -729,7 +905,7 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
             {sending ? '…' : '送出'}
           </button>
         </form>
-      ) : (
+      ) : !postDeleted ? (
         <button
           onClick={() => showLoginModal()}
           style={{
@@ -740,7 +916,7 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
         >
           登入後留言
         </button>
-      )}
+      ) : null}
 
       {/* 討論串面板 */}
       {activeThread && (

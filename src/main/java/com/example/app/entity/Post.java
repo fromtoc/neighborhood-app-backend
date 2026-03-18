@@ -36,6 +36,7 @@ public class Post {
     private Integer likeCount;
     private Integer commentCount;
     private Integer status;
+    private Integer edited;
 
     @TableLogic
     private Integer deleted;

@@ -5,11 +5,15 @@ import com.example.app.dto.chat.ChatMessageResponse;
 import com.example.app.dto.chat.ChatRoomResponse;
 import com.example.app.entity.ChatMessage;
 import com.example.app.entity.ChatRoom;
+import com.example.app.entity.LiChief;
+import com.example.app.entity.Neighborhood;
 import com.example.app.entity.User;
 import com.example.app.entity.ChatReadCursor;
 import com.example.app.mapper.ChatMessageMapper;
 import com.example.app.mapper.ChatReadCursorMapper;
 import com.example.app.mapper.ChatRoomMapper;
+import com.example.app.mapper.LiChiefMapper;
+import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.UserMapper;
 import com.example.app.service.ChatQueryService;
 import com.example.app.service.NotificationService;
@@ -33,6 +37,8 @@ public class ChatQueryServiceImpl implements ChatQueryService {
     private final ChatMessageMapper chatMessageMapper;
     private final ChatReadCursorMapper chatReadCursorMapper;
     private final UserMapper userMapper;
+    private final LiChiefMapper liChiefMapper;
+    private final NeighborhoodMapper neighborhoodMapper;
     private final NotificationService notificationService;
 
     @Override
@@ -92,18 +98,28 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         Collections.reverse(messages);
         if (messages.isEmpty()) return List.of();
 
-        // Batch-load current nicknames from DB
+        // Batch-load current nicknames + badges from DB
         List<Long> userIds = messages.stream().map(ChatMessage::getUserId).distinct().toList();
         Map<Long, String> nicknameMap = buildNicknameMap(userIds);
+        Map<Long, String> badgeMap = buildBadgeMap(userIds);
 
         return messages.stream()
-                .map(m -> ChatMessageResponse.from(m, nicknameMap.get(m.getUserId())))
+                .map(m -> {
+                    ChatMessageResponse resp = ChatMessageResponse.from(m, nicknameMap.get(m.getUserId()));
+                    resp.setAuthorBadge(badgeMap.get(m.getUserId()));
+                    return resp;
+                })
                 .toList();
     }
 
     @Override
     @Transactional
     public ChatRoomResponse getOrCreatePrivateRoom(Long requesterId, Long targetId) {
+        // 驗證對方用戶存在
+        if (userMapper.selectById(targetId) == null) {
+            throw new com.example.app.common.exception.BusinessException(
+                    com.example.app.common.result.ResultCode.NOT_FOUND, "用戶不存在");
+        }
         // 正規化：較小 ID 存 user1_id
         Long u1 = Math.min(requesterId, targetId);
         Long u2 = Math.max(requesterId, targetId);
@@ -126,7 +142,10 @@ public class ChatQueryServiceImpl implements ChatQueryService {
             chatRoomMapper.insert(room);
         }
 
-        return ChatRoomResponse.from(room);
+        ChatRoomResponse resp = ChatRoomResponse.from(room);
+        Map<Long, String> badgeMap = buildBadgeMap(List.of(targetId));
+        resp.setOtherBadge(badgeMap.get(targetId));
+        return resp;
     }
 
     @Override
@@ -140,17 +159,20 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         );
         if (rooms.isEmpty()) return List.of();
 
-        // 批次撈對方暱稱
+        // 批次撈對方暱稱 + 徽章
         List<Long> otherIds = rooms.stream()
                 .map(r -> r.getUser1Id().equals(userId) ? r.getUser2Id() : r.getUser1Id())
                 .distinct().toList();
         Map<Long, String> nicknameMap = userMapper.selectBatchIds(otherIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u.getNickname() != null ? u.getNickname() : "用戶 #" + u.getId()));
+        Map<Long, String> badgeMap = buildBadgeMap(otherIds);
 
         return rooms.stream()
                 .map(r -> {
                     Long otherId = r.getUser1Id().equals(userId) ? r.getUser2Id() : r.getUser1Id();
-                    return ChatRoomResponse.from(r, nicknameMap.getOrDefault(otherId, "用戶 #" + otherId));
+                    ChatRoomResponse resp = ChatRoomResponse.from(r, nicknameMap.getOrDefault(otherId, "用戶 #" + otherId));
+                    resp.setOtherBadge(badgeMap.get(otherId));
+                    return resp;
                 })
                 .toList();
     }
@@ -184,7 +206,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
             if ("private".equals(room.getType())) {
                 // 私訊：通知對方
                 Long recipientId = userId.equals(room.getUser1Id()) ? room.getUser2Id() : room.getUser1Id();
-                notificationService.onPrivateMessage(recipientId, msg.getId(), nickname, shortContent);
+                notificationService.onPrivateMessage(recipientId, userId, nickname, shortContent);
             } else if (room.getNeighborhoodId() != null) {
                 // 聊聊：通知里內其他使用者
                 notificationService.onChatMessage(room.getNeighborhoodId(), userId,
@@ -192,7 +214,10 @@ public class ChatQueryServiceImpl implements ChatQueryService {
             }
         }
 
-        return ChatMessageResponse.from(msg);
+        ChatMessageResponse resp = ChatMessageResponse.from(msg);
+        Map<Long, String> badgeMap = buildBadgeMap(List.of(userId));
+        resp.setAuthorBadge(badgeMap.get(userId));
+        return resp;
     }
 
     @Override
@@ -254,5 +279,26 @@ public class ChatQueryServiceImpl implements ChatQueryService {
                     return "用戶 #" + u.getId();
                 }
         ));
+    }
+
+    /** userId → 里長徽章文字（如「堵南里里長」），非里長回傳 null */
+    private Map<Long, String> buildBadgeMap(List<Long> userIds) {
+        try {
+            if (userIds.isEmpty()) return Map.of();
+            List<LiChief> chiefs = liChiefMapper.selectList(
+                    new LambdaQueryWrapper<LiChief>().in(LiChief::getUserId, userIds));
+            if (chiefs.isEmpty()) return Map.of();
+            List<Long> nhIds = chiefs.stream().map(LiChief::getNeighborhoodId).toList();
+            Map<Long, Neighborhood> nhMap = neighborhoodMapper.selectBatchIds(nhIds).stream()
+                    .collect(Collectors.toMap(Neighborhood::getId, n -> n));
+            Map<Long, String> result = new HashMap<>();
+            for (LiChief c : chiefs) {
+                Neighborhood nh = nhMap.get(c.getNeighborhoodId());
+                result.put(c.getUserId(), nh != null ? nh.getName() + "里長" : "里長");
+            }
+            return result;
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 }

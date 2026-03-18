@@ -112,14 +112,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── 從 JWT payload 解析 role ────────────────────────────────────
-  function decodeJwtRole(token: string): string {
+  function decodeJwt(token: string): { role: string; cnb?: number } {
     try {
-      // JWT uses base64url (- instead of +, _ instead of /); atob requires standard base64
       const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(b64));
-      return payload.role ?? 'USER';
+      return { role: payload.role ?? 'USER', cnb: payload.cnb ?? undefined };
     } catch {
-      return 'USER';
+      return { role: 'USER' };
     }
   }
 
@@ -142,7 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authUser: AuthUser = {
       userId:         u.id,
       neighborhoodId: u.defaultNeighborhoodId ?? neighborhoodId,
-      role:           decodeJwtRole(accessToken),
+      role:           decodeJwt(accessToken).role,
+      chiefNeighborhoodId: decodeJwt(accessToken).cnb ?? null,
       displayName:    profile?.displayName ?? null,
       photoURL:       profile?.photoURL ?? null,
     };
@@ -200,7 +200,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authUser: AuthUser = {
       userId:         u.id,
       neighborhoodId: u.defaultNeighborhoodId ?? neighborhoodId,
-      role:           decodeJwtRole(accessToken),
+      role:           decodeJwt(accessToken).role,
+      chiefNeighborhoodId: decodeJwt(accessToken).cnb ?? null,
     };
     saveAuth(accessToken, authUser);
     setToken(accessToken);

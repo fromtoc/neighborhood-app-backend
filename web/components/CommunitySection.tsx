@@ -75,6 +75,9 @@ interface PostItem {
   userId: number;
   authorName?: string;
   authorRole?: string;
+  authorBadge?: string | null;
+  contentDeleted?: boolean;
+  edited?: boolean;
   likeCount: number;
   commentCount: number;
   createdAt: string;
@@ -342,7 +345,7 @@ export default function CommunitySection({ neighborhoodId, type, title, mode = '
           style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
       )}
 
-      {!hideCreateForm && user?.role !== 'GUEST' && (mode === 'community' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+      {!hideCreateForm && user?.role !== 'GUEST' && (mode === 'community' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' || (user?.role === 'LI_CHIEF' && type !== 'district_info')) && (
         <CreatePostForm neighborhoodId={neighborhoodId} mode={mode} scope={scope} defaultPostType={defaultPostType} allowedPostTypes={allowedPostTypes} onCreated={fetchPosts} />
       )}
 
@@ -573,13 +576,10 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
   const authorName = post.authorName ?? `里民 #${post.userId}`;
   const avatarLetter = authorName[0]?.toUpperCase() ?? String(post.userId % 10);
 
-  const isAdminPost = ['info', 'broadcast', 'district_info', 'li_info'].includes(post.type);
-  const isAdmin = post.authorRole === 'ADMIN' || post.authorRole === 'SUPER_ADMIN';
-  const badge = isAdminPost
-    ? { label: '公告', bg: '#DBEAFE', color: '#1E40AF' }
-    : isAdmin
-      ? { label: '管理員', bg: '#FEF3C7', color: '#92400E' }
-      : undefined;
+  // authorBadge 由後端回傳（如「堵南里里長」），僅在有值時顯示
+  const badge = post.authorBadge
+    ? { label: post.authorBadge, bg: '#E6FCF5', color: '#047857' }
+    : undefined;
 
   // Broadcast-style left border color based on urgency (matching app)
   const BROADCAST_COLOR: Record<string, string> = { normal: '#22C55E', medium: '#F59E0B', urgent: '#EF4444' };
@@ -603,7 +603,7 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e1e1e' }}>{authorName}</span>
-            {mode !== 'info' && badge && (
+            {badge && (
               <span style={{
                 fontSize: '0.65rem', background: badge.bg,
                 color: badge.color, padding: '1px 5px', borderRadius: 4, fontWeight: 600,
@@ -619,7 +619,7 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
                 {typeLabel[post.type]}
               </span>
             )}
-            {post.urgency && BROADCAST_COLOR[post.urgency] && (
+            {mode === 'info' && post.urgency && BROADCAST_COLOR[post.urgency] && (
               <span style={{
                 fontSize: '0.65rem', padding: '2px 7px', borderRadius: 4, fontWeight: 700,
                 background: BROADCAST_COLOR[post.urgency],
@@ -638,10 +638,10 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
            !(post.authorRole === 'GUEST' && (currentUser.role === 'ADMIN' || currentUser.role === 'SUPER_ADMIN')) && (
             <button onClick={() => onPrivateChat(post.userId, post.authorName ?? undefined)} style={chatBtnStyle('#1c5373')}>私聊</button>
           )}
-          {canEdit && !editing && (
-            <button onClick={() => { setEditTitle(post.title ?? ''); setEditContent(post.content); setEditImages(post.images); setEditExtra(post.extra ? { ...post.extra } : {}); setEditUrgency(post.urgency ?? ''); setEditing(true); }} style={chatBtnStyle('#555')}>編輯</button>
+          {canEdit && !editing && !post.contentDeleted && (
+            <button onClick={() => { setEditTitle(post.title ?? ''); setEditContent(post.content || ''); setEditImages(post.images); setEditExtra(post.extra ? { ...post.extra } : {}); setEditUrgency(post.urgency ?? ''); setEditing(true); }} style={chatBtnStyle('#555')}>編輯</button>
           )}
-          {canDelete && !confirmDelete && (
+          {canDelete && !confirmDelete && !post.contentDeleted && (
             <button onClick={() => setConfirmDelete(true)} style={chatBtnStyle('#e53e3e')}>刪除</button>
           )}
           {confirmDelete && (
@@ -773,78 +773,108 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
             </button>
           </div>
         </form>
+      ) : post.contentDeleted ? (
+        <div style={{
+          background: '#f9f9f9', borderRadius: 8, padding: '1rem',
+          display: 'flex', alignItems: 'center', gap: '0.5rem',
+        }}>
+          <span style={{ fontSize: '1.1rem' }}>🗑️</span>
+          <span style={{ fontSize: '0.88rem', color: '#999', fontStyle: 'italic' }}>此內容已被刪除</span>
+        </div>
       ) : (
         <Link href={`/posts/${post.id}`} style={{ textDecoration: 'none', display: 'block' }}>
-          {/* 標題 */}
           {post.title && (
             <p style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.4rem', color: '#1e1e1e' }}>
               {post.title}
             </p>
           )}
-          {/* 內文（列表只顯示摘要，去除 URL 那行） */}
           <p style={{ fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-            {post.content.replace(/https?:\/\/\S+/g, '').replace(/📰[^\n]*/g, '').trim()}
+            {post.content?.replace(/https?:\/\/\S+/g, '').replace(/📰[^\n]*/g, '').trim()}
           </p>
+          {post.edited && (
+            <span style={{ fontSize: '0.7rem', color: '#bbb', fontStyle: 'italic' }}>（已編輯）</span>
+          )}
         </Link>
       )}
 
-      {/* Extra fields */}
-      {!editing && post.extra && Object.keys(post.extra).length > 0 && (
+      {/* Extra fields — 已刪除不顯示 */}
+      {!editing && !post.contentDeleted && post.extra && Object.keys(post.extra).length > 0 && (
         <PostExtraFields extra={post.extra} />
       )}
 
-      {/* 圖片 */}
-      {!editing && post.images.length > 0 && (
+      {/* 圖片 — 已刪除不顯示 */}
+      {!editing && !post.contentDeleted && post.images.length > 0 && (
         <PostImageGrid images={post.images} />
       )}
 
       {/* 互動列 */}
-      <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.75rem', alignItems: 'center' }}>
-        <button
-          onClick={handleLike}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: liked ? '#e53e3e' : '#828282' }}
-        >
-          <span>{liked ? '❤️' : '🤍'}</span> {likeCount}
-        </button>
+      {post.contentDeleted ? (
+        <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.75rem', alignItems: 'center' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: '#bbb' }}>
+            🤍 {likeCount}
+          </span>
+          {commentCount > 0 ? (
+            <button
+              onClick={() => setCommentOpen(v => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: commentOpen ? '#1c5373' : '#828282' }}
+            >
+              <span>💬</span> {commentCount}
+            </button>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: '#bbb' }}>
+              💬 {commentCount}
+            </span>
+          )}
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.75rem', alignItems: 'center' }}>
+          <button
+            onClick={handleLike}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: liked ? '#e53e3e' : '#828282' }}
+          >
+            <span>{liked ? '❤️' : '🤍'}</span> {likeCount}
+          </button>
 
-        <button
-          onClick={() => { if (!commentOpen && (!currentUser || isGuest)) { showLoginModal(); return; } setCommentOpen(v => !v); }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: commentOpen ? '#1c5373' : '#828282' }}
-        >
-          <span>💬</span> {commentCount}
-        </button>
+          <button
+            onClick={() => { if (!commentOpen && (!currentUser || isGuest)) { showLoginModal(); return; } setCommentOpen(v => !v); }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: commentOpen ? '#1c5373' : '#828282' }}
+          >
+            <span>💬</span> {commentCount}
+          </button>
 
-        <button
-          onClick={async () => {
-            if (!token || isGuest) { showLoginModal(); return; }
-            if (bookmarkPending) return;
-            setBookmarkPending(true);
-            setBookmarked(v => !v);
-            try {
-              const res = await fetch(`${CLIENT_BASE_URL}/api/v1/bookmarks/${post.id}`, {
-                method: 'POST',
-                headers: { Authorization: `Bearer ${token}` },
-              });
-              const json = await res.json();
-              if (json.code === 401) { dispatchAuthExpired(); setBookmarked(v => !v); }
-              else if (json.code === 200) setBookmarked(json.data.bookmarked);
-              else setBookmarked(v => !v);
-            } catch { setBookmarked(v => !v); }
-            finally { setBookmarkPending(false); }
-          }}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: bookmarked ? '#C8A951' : '#828282' }}
-        >
-          <span>{bookmarked ? '🔖' : '📑'}</span> 收藏
-        </button>
+          <button
+            onClick={async () => {
+              if (!token || isGuest) { showLoginModal(); return; }
+              if (bookmarkPending) return;
+              setBookmarkPending(true);
+              setBookmarked(v => !v);
+              try {
+                const res = await fetch(`${CLIENT_BASE_URL}/api/v1/bookmarks/${post.id}`, {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                const json = await res.json();
+                if (json.code === 401) { dispatchAuthExpired(); setBookmarked(v => !v); }
+                else if (json.code === 200) setBookmarked(json.data.bookmarked);
+                else setBookmarked(v => !v);
+              } catch { setBookmarked(v => !v); }
+              finally { setBookmarkPending(false); }
+            }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.82rem', color: bookmarked ? '#C8A951' : '#828282' }}
+          >
+            <span>{bookmarked ? '🔖' : '📑'}</span> 收藏
+          </button>
 
-        <ShareButton title={post.title ?? post.content.slice(0, 40)} path={`/posts/${post.id}`} />
-      </div>
+          <ShareButton title={post.title ?? (post.content || '').slice(0, 40)} path={`/posts/${post.id}`} />
+        </div>
+      )}
 
       {commentOpen && (
         <CommentSection
           postId={post.id}
           onCommentAdded={() => setCommentCount(c => c + 1)}
           postSummary={{ title: post.title, content: post.content, authorName: post.authorName ?? null }}
+          postDeleted={post.contentDeleted}
         />
       )}
     </div>

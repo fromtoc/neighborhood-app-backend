@@ -3,6 +3,7 @@ package com.example.app.dto.chat;
 import com.example.app.entity.ChatRoom;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -17,6 +18,7 @@ public class ChatRoomResponse {
     private Long user1Id;
     private Long user2Id;
     private String otherNickname;
+    @Setter private String otherBadge;
     private String lastMessage;
     private String lastMessageNickname;
     private Long lastMessageUserId;

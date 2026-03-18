@@ -88,9 +88,17 @@ public class PostController {
         }
         String type = req.getType() != null ? req.getType() : "fresh";
         boolean isAdminType = "info".equals(type) || "broadcast".equals(type)
-                || "district_info".equals(type) || "li_info".equals(type);
-        if (isAdminType && claims.getRole() != UserRole.ADMIN && claims.getRole() != UserRole.SUPER_ADMIN) {
-            throw new BusinessException(ResultCode.FORBIDDEN, "只有管理員可以發布資訊/廣播");
+                || "district_info".equals(type) || "li_info".equals(type) || "guide".equals(type);
+        if (isAdminType) {
+            if (claims.getRole() == UserRole.LI_CHIEF) {
+                // 里長只能發布 li_info 和 broadcast，且限本里
+                if ("district_info".equals(type) || "info".equals(type) || "guide".equals(type))
+                    throw new BusinessException(ResultCode.FORBIDDEN, "里長只能發布里資訊和廣播");
+                if (!req.getNeighborhoodId().equals(claims.getChiefNeighborhoodId()))
+                    throw new BusinessException(ResultCode.FORBIDDEN, "里長只能在自己的里發布資訊");
+            } else if (claims.getRole() != UserRole.ADMIN && claims.getRole() != UserRole.SUPER_ADMIN) {
+                throw new BusinessException(ResultCode.FORBIDDEN, "只有管理員或里長可以發布資訊/廣播");
+            }
         }
         Post post = postQueryService.create(claims.getUserId(), req);
         seoUrlService.upsertPost(post);                                          // async

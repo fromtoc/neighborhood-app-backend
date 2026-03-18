@@ -50,10 +50,15 @@ public class JwtServiceImpl implements JwtService {
 
     @Override
     public TokenPair generateTokenPair(Long userId, UserRole role, Long defaultNeighborhoodId) {
+        return generateTokenPair(userId, role, defaultNeighborhoodId, null);
+    }
+
+    @Override
+    public TokenPair generateTokenPair(Long userId, UserRole role, Long defaultNeighborhoodId, Long chiefNeighborhoodId) {
         Date now = new Date();
-        String accessToken = buildToken(userId, role, defaultNeighborhoodId, TokenType.ACCESS,
+        String accessToken = buildToken(userId, role, defaultNeighborhoodId, chiefNeighborhoodId, TokenType.ACCESS,
                 now, new Date(now.getTime() + accessTokenExpiryMs));
-        String refreshToken = buildToken(userId, role, defaultNeighborhoodId, TokenType.REFRESH,
+        String refreshToken = buildToken(userId, role, defaultNeighborhoodId, chiefNeighborhoodId, TokenType.REFRESH,
                 now, new Date(now.getTime() + refreshTokenExpiryMs));
         return new TokenPair(accessToken, refreshToken, accessTokenExpiryMs / 1000);
     }
@@ -69,11 +74,14 @@ public class JwtServiceImpl implements JwtService {
 
             Object ngbRaw = claims.get("ngb");
             Long ngb = ngbRaw == null ? null : ((Number) ngbRaw).longValue();
+            Object cnbRaw = claims.get("cnb");
+            Long cnb = cnbRaw == null ? null : ((Number) cnbRaw).longValue();
 
             return JwtClaims.builder()
                     .userId(Long.parseLong(claims.getSubject()))
                     .role(UserRole.valueOf(claims.get("role", String.class)))
                     .defaultNeighborhoodId(ngb)
+                    .chiefNeighborhoodId(cnb)
                     .jti(claims.getId())
                     .tokenType(TokenType.valueOf(claims.get("type", String.class)))
                     .issuedAt(claims.getIssuedAt())
@@ -100,7 +108,7 @@ public class JwtServiceImpl implements JwtService {
         return Boolean.TRUE.equals(redisTemplate.hasKey(CacheKeys.jwtBlacklist(jti)));
     }
 
-    private String buildToken(Long userId, UserRole role, Long ngb,
+    private String buildToken(Long userId, UserRole role, Long ngb, Long cnb,
                                TokenType type, Date iat, Date exp) {
         JwtBuilder builder = Jwts.builder()
                 .subject(userId.toString())
@@ -110,9 +118,8 @@ public class JwtServiceImpl implements JwtService {
                 .issuedAt(iat)
                 .expiration(exp)
                 .signWith(secretKey);
-        if (ngb != null) {
-            builder.claim("ngb", ngb);
-        }
+        if (ngb != null) builder.claim("ngb", ngb);
+        if (cnb != null) builder.claim("cnb", cnb);
         return builder.compact();
     }
 }

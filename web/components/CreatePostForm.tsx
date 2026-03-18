@@ -119,7 +119,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
   const [content, setContent] = useState('');
   const [title, setTitle] = useState('');
   const [type, setType] = useState(defaultPostType ?? (mode === 'info' ? 'district_info' : 'fresh'));
-  const [infoUnified, setInfoUnified] = useState('post');
+  const [infoUnified, setInfoUnified] = useState(user?.role === 'LI_CHIEF' ? 'broadcast_normal' : 'post');
   const [extra, setExtra] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -195,7 +195,10 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
       let submitType = type;
       let submitUrgency: string | undefined;
       if (mode === 'info') {
-        if (infoUnified === 'post') {
+        if (defaultPostType === 'guide') {
+          submitType = 'guide';
+          submitUrgency = undefined;
+        } else if (infoUnified === 'post') {
           submitType = defaultPostType ?? 'district_info';
           submitUrgency = undefined;
         } else {
@@ -256,7 +259,9 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
   }
 
   const typeOptions = COMMUNITY_TYPES;
-  const placeholder = mode === 'info' ? '發布在地資訊或廣播...' : '分享你的社區動態...';
+  const placeholder = mode === 'info'
+    ? (defaultPostType === 'guide' ? '發布巷口說明書...' : '發布在地資訊或廣播...')
+    : '分享你的社區動態...';
   const selfName = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`
     : (nickname || `用戶 #${user?.userId}`);
@@ -294,12 +299,16 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
         }}>{avatarLetter}</div>
-        {mode === 'info' ? (
+        {mode === 'info' && defaultPostType !== 'guide' ? (
           <select value={infoUnified} onChange={e => setInfoUnified(e.target.value)}
             style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.25rem 0.5rem', fontSize: '0.8rem',
               color: infoUnified.includes('urgent') ? '#c0392b' : infoUnified.includes('medium') ? '#e67e22' : '#555', background: '#f8f9f9' }}>
-            {INFO_UNIFIED_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {INFO_UNIFIED_OPTIONS
+              .filter(o => user?.role !== 'LI_CHIEF' || o.value !== 'post')
+              .map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
+        ) : mode === 'info' && defaultPostType === 'guide' ? (
+          <span style={{ fontSize: '0.82rem', color: '#1c5373', fontWeight: 600 }}>巷口說明書</span>
         ) : (
           <select value={type} onChange={e => handleTypeChange(e.target.value)}
             style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.25rem 0.5rem', fontSize: '0.8rem', color: '#555', background: '#f8f9f9' }}>

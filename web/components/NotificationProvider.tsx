@@ -81,22 +81,48 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       client.subscribe(`/topic/user/${user.userId}`, (msg) => {
         try {
           const notif = JSON.parse(msg.body) as { type: string; title: string; body: string; refType: string; refId: number };
-          // 即時加入清單最前面
-          setItems(prev => [{
-            id: Date.now(),           // 暫時 id，refresh 後覆蓋
-            type: notif.type as NotificationItem['type'],
-            title: notif.title,
-            body: notif.body || null,
-            refType: notif.refType || null,
-            refId: notif.refId || null,
-            isRead: 0,
-            createdAt: new Date().toISOString(),
-            neighborhoodId: null,
-            neighborhoodName: null,
-            city: null,
-            district: null,
-          }, ...prev.slice(0, 49)]);
-          setUnread(n => n + 1);
+
+          // 通知聊聊列表刷新
+          if (notif.type === 'private_message' || notif.type === 'chat') {
+            window.dispatchEvent(new CustomEvent('chat-update'));
+          }
+
+          // 私訊：合併同一發送者的未讀通知，unread 只在新增時 +1
+          if (notif.type === 'private_message' && notif.refType === 'user' && notif.refId) {
+            setItems(prev => {
+              const existIdx = prev.findIndex(
+                n => n.type === 'private_message' && n.refType === 'user'
+                  && n.refId === notif.refId && n.isRead === 0
+              );
+              if (existIdx >= 0) {
+                // 合併：更新內容，移到最前面，不增加 unread
+                const updated = [...prev];
+                updated[existIdx] = { ...updated[existIdx], body: notif.body || null, createdAt: new Date().toISOString() };
+                const [item] = updated.splice(existIdx, 1);
+                return [item, ...updated];
+              }
+              // 新增：unread +1
+              setUnread(n => n + 1);
+              return [{
+                id: Date.now(), type: 'private_message' as const,
+                title: notif.title, body: notif.body || null,
+                refType: 'user', refId: notif.refId, isRead: 0,
+                createdAt: new Date().toISOString(),
+                neighborhoodId: null, neighborhoodName: null, city: null, district: null,
+              }, ...prev.slice(0, 49)];
+            });
+          } else {
+            // 非私訊：直接加入
+            setItems(prev => [{
+              id: Date.now(),
+              type: notif.type as NotificationItem['type'],
+              title: notif.title, body: notif.body || null,
+              refType: notif.refType || null, refId: notif.refId || null,
+              isRead: 0, createdAt: new Date().toISOString(),
+              neighborhoodId: null, neighborhoodName: null, city: null, district: null,
+            }, ...prev.slice(0, 49)]);
+            setUnread(n => n + 1);
+          }
         } catch { /* ignore */ }
       });
     };

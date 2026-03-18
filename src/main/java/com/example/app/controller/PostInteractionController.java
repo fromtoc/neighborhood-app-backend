@@ -110,4 +110,36 @@ public class PostInteractionController {
         return ApiResponse.success(
                 interactionService.addComment(postId, claims.getUserId(), content, parentId));
     }
+
+    @DeleteMapping("/comments/{commentId}")
+    @Operation(summary = "刪除留言（軟刪除，需登入）",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<Void> deleteComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal JwtClaims claims
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        interactionService.deleteComment(postId, commentId, claims.getUserId(), claims.getRole().name());
+        return ApiResponse.success(null);
+    }
+
+    @PatchMapping("/comments/{commentId}")
+    @Operation(summary = "編輯留言（需登入）",
+               security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<PostCommentResponse> editComment(
+            @PathVariable Long postId,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal JwtClaims claims,
+            @RequestBody Map<String, Object> body
+    ) {
+        if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
+        String content = (String) body.get("content");
+        if (content == null || content.isBlank())
+            throw new BusinessException(ResultCode.BAD_REQUEST, "留言內容不得為空");
+        if (content.length() > 500)
+            content = content.substring(0, 500);
+        return ApiResponse.success(
+                interactionService.editComment(postId, commentId, claims.getUserId(), content));
+    }
 }

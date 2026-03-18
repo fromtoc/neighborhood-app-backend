@@ -312,4 +312,42 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 }
         ));
     }
+
+    @Override
+    @Transactional
+    public void deleteComment(Long postId, Long commentId, Long requesterId, String requesterRole) {
+        PostComment c = postCommentMapper.selectById(commentId);
+        if (c == null || !c.getPostId().equals(postId))
+            throw new com.example.app.common.exception.BusinessException(
+                    com.example.app.common.result.ResultCode.NOT_FOUND, "留言不存在");
+        boolean isOwn = c.getUserId().equals(requesterId);
+        boolean isAdmin = "ADMIN".equals(requesterRole) || "SUPER_ADMIN".equals(requesterRole);
+        if (!isOwn && !isAdmin)
+            throw new com.example.app.common.exception.BusinessException(
+                    com.example.app.common.result.ResultCode.FORBIDDEN, "無權刪除此留言");
+        // 軟刪除：只改狀態，保留原始內容（回傳時由 DTO 清空）
+        c.setContentDeleted(1);
+        c.setUpdatedAt(java.time.LocalDateTime.now());
+        postCommentMapper.updateById(c);
+    }
+
+    @Override
+    @Transactional
+    public PostCommentResponse editComment(Long postId, Long commentId, Long requesterId, String content) {
+        PostComment c = postCommentMapper.selectById(commentId);
+        if (c == null || !c.getPostId().equals(postId))
+            throw new com.example.app.common.exception.BusinessException(
+                    com.example.app.common.result.ResultCode.NOT_FOUND, "留言不存在");
+        if (!c.getUserId().equals(requesterId))
+            throw new com.example.app.common.exception.BusinessException(
+                    com.example.app.common.result.ResultCode.FORBIDDEN, "只能編輯自己的留言");
+        if (Integer.valueOf(1).equals(c.getContentDeleted()))
+            throw new com.example.app.common.exception.BusinessException(
+                    com.example.app.common.result.ResultCode.BAD_REQUEST, "已刪除的留言無法編輯");
+        c.setContent(content);
+        c.setEdited(1);
+        c.setUpdatedAt(java.time.LocalDateTime.now());
+        postCommentMapper.updateById(c);
+        return PostCommentResponse.from(c);
+    }
 }

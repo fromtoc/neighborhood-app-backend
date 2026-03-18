@@ -20,6 +20,7 @@ public class PostResponse {
     private Long userId;
     private String authorName;
     private String authorRole;
+    @Setter private String authorBadge;
     private String title;
     private String content;
     private List<String> images;
@@ -32,6 +33,8 @@ public class PostResponse {
     private Integer commentCount;
     @Setter private Boolean liked;
     @Setter private Boolean bookmarked;
+    @Setter private Boolean contentDeleted;
+    @Setter private Boolean edited;
     private LocalDateTime createdAt;
 
     public static PostResponse from(Post p) {
@@ -43,22 +46,24 @@ public class PostResponse {
     }
 
     public static PostResponse from(Post p, String authorName, String authorRole) {
+        boolean deleted = Integer.valueOf(2).equals(p.getStatus());
         return PostResponse.builder()
                 .id(p.getId())
                 .neighborhoodId(p.getNeighborhoodId())
                 .userId(p.getUserId())
                 .authorName(authorName)
                 .authorRole(authorRole)
-                .title(p.getTitle())
-                .content(p.getContent())
-                .images(parseImages(p.getImagesJson()))
-                .extra(parseExtra(p.getExtraJson()))
+                .title(deleted ? null : p.getTitle())
+                .content(deleted ? null : p.getContent())
+                .images(deleted ? List.of() : parseImages(p.getImagesJson()))
+                .extra(deleted ? null : parseExtra(p.getExtraJson()))
                 .type(p.getType())
                 .scope(p.getScope())
-                .urgency(p.getUrgency())
+                .urgency(deleted ? null : p.getUrgency())
                 .placeId(p.getPlaceId())
                 .likeCount(p.getLikeCount())
                 .commentCount(p.getCommentCount())
+                .contentDeleted(deleted ? true : null)
                 .createdAt(p.getCreatedAt())
                 .build();
     }

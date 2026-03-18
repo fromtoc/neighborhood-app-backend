@@ -38,4 +38,10 @@ public interface PostInteractionService {
      * @return null 若目標留言不存在或不屬於 postId
      */
     CommentThreadResponse getCommentThread(Long postId, Long commentId);
+
+    /** 刪除留言（軟刪除：清空內容，保留記錄） */
+    void deleteComment(Long postId, Long commentId, Long requesterId, String requesterRole);
+
+    /** 編輯留言 */
+    PostCommentResponse editComment(Long postId, Long commentId, Long requesterId, String content);
 }

@@ -10,11 +10,13 @@ import com.example.app.common.result.PageResult;
 import com.example.app.common.result.ResultCode;
 import com.example.app.dto.post.CreatePostRequest;
 import com.example.app.dto.post.PostResponse;
+import com.example.app.entity.LiChief;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.Post;
 import com.example.app.entity.PostBookmark;
 import com.example.app.entity.PostLike;
 import com.example.app.entity.User;
+import com.example.app.mapper.LiChiefMapper;
 import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.PostBookmarkMapper;
 import com.example.app.mapper.PostLikeMapper;
@@ -45,11 +47,12 @@ public class PostQueryServiceImpl implements PostQueryService {
     private final PostBookmarkMapper  postBookmarkMapper;
     private final UserMapper          userMapper;
     private final NeighborhoodMapper  neighborhoodMapper;
+    private final LiChiefMapper       liChiefMapper;
     private final ObjectMapper        objectMapper;
     private final NotificationService notificationService;
 
     /** 所有管理員類型（用於社群 tab 排除） */
-    private static final List<String> ADMIN_TYPES       = List.of("info", "broadcast", "district_info", "li_info");
+    private static final List<String> ADMIN_TYPES       = List.of("info", "broadcast", "district_info", "li_info", "guide");
     /** 里層管理員類型（district_info 除外） */
     private static final List<String> LOCAL_ADMIN_TYPES = List.of("info", "li_info", "broadcast");
 
@@ -61,7 +64,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size, Long currentUserId) {
         LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
-                .eq(Post::getStatus, 1);
+                .ge(Post::getStatus, 1);
 
         if ("info".equals(type)) {
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
@@ -94,6 +97,9 @@ public class PostQueryServiceImpl implements PostQueryService {
             wrapper.eq(Post::getScope, "district")
                    .notIn(Post::getType, ADMIN_TYPES)
                    .in(Post::getNeighborhoodId, districtNhIds);
+        } else if ("guide".equals(type)) {
+            // 巷口說明書：全域可見，不限里
+            wrapper.eq(Post::getType, "guide");
         } else if ("li_community".equals(type)) {
             wrapper.eq(Post::getNeighborhoodId, neighborhoodId)
                    .eq(Post::getScope, "li")
@@ -112,8 +118,9 @@ public class PostQueryServiceImpl implements PostQueryService {
         List<Post> posts = result.getRecords();
 
         Map<Long, User> userMap = batchLoadUsers(posts);
+        List<Long> authorIds = posts.stream().map(Post::getUserId).distinct().toList();
+        Map<Long, LiChief> chiefMap = batchLoadChiefs(authorIds);
 
-        // 批次查詢當前用戶的 liked / bookmarked 狀態
         List<Long> postIds = posts.stream().map(Post::getId).toList();
         Set<Long> likedIds = batchCheckLiked(postIds, currentUserId);
         Set<Long> bookmarkedIds = batchCheckBookmarked(postIds, currentUserId);
@@ -121,7 +128,9 @@ public class PostQueryServiceImpl implements PostQueryService {
         List<PostResponse> responses = posts.stream()
                 .map(p -> {
                     User u = userMap.get(p.getUserId());
-                    PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u));
+                    PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u, chiefMap));
+                    resp.setAuthorBadge(buildBadge(u, chiefMap));
+                    if (Integer.valueOf(1).equals(p.getEdited()) && !Integer.valueOf(2).equals(p.getStatus())) resp.setEdited(true);
                     fillInteractionStatus(resp, p.getId(), likedIds, bookmarkedIds, currentUserId);
                     return resp;
                 })
@@ -143,9 +152,9 @@ public class PostQueryServiceImpl implements PostQueryService {
         return "里民 #" + u.getId();
     }
 
-    private static String buildRole(User u) {
+    private String buildRole(User u, Map<Long, LiChief> chiefMap) {
         if (u == null) return null;
-        return resolveRoleFromUser(u).name();
+        return resolveRoleFromUser(u, chiefMap).name();
     }
 
     @Override
@@ -161,6 +170,8 @@ public class PostQueryServiceImpl implements PostQueryService {
                 .orderByDesc(Post::getCreatedAt);
         IPage<Post> result = postMapper.selectPage(new Page<>(page, size), wrapper);
         Map<Long, User> userMap = batchLoadUsers(result.getRecords());
+        List<Long> authorIds = result.getRecords().stream().map(Post::getUserId).distinct().toList();
+        Map<Long, LiChief> chiefMap = batchLoadChiefs(authorIds);
 
         List<Long> postIds = result.getRecords().stream().map(Post::getId).toList();
         Set<Long> likedIds = batchCheckLiked(postIds, currentUserId);
@@ -169,7 +180,9 @@ public class PostQueryServiceImpl implements PostQueryService {
         List<PostResponse> responses = result.getRecords().stream()
                 .map(p -> {
                     User u = userMap.get(p.getUserId());
-                    PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u));
+                    PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u, chiefMap));
+                    resp.setAuthorBadge(buildBadge(u, chiefMap));
+                    if (Integer.valueOf(1).equals(p.getEdited()) && !Integer.valueOf(2).equals(p.getStatus())) resp.setEdited(true);
                     fillInteractionStatus(resp, p.getId(), likedIds, bookmarkedIds, currentUserId);
                     return resp;
                 }).toList();
@@ -187,7 +200,10 @@ public class PostQueryServiceImpl implements PostQueryService {
         if (post == null) return null;
         List<User> users = userMapper.selectBatchIds(List.of(post.getUserId()));
         User u = users.isEmpty() ? null : users.get(0);
-        PostResponse resp = PostResponse.from(post, buildName(u), buildRole(u));
+        Map<Long, LiChief> chiefMap = batchLoadChiefs(List.of(post.getUserId()));
+        PostResponse resp = PostResponse.from(post, buildName(u), buildRole(u, chiefMap));
+        resp.setAuthorBadge(buildBadge(u, chiefMap));
+        if (Integer.valueOf(1).equals(post.getEdited()) && !Integer.valueOf(2).equals(post.getStatus())) resp.setEdited(true);
         Set<Long> likedIds = batchCheckLiked(List.of(id), currentUserId);
         Set<Long> bookmarkedIds = batchCheckBookmarked(List.of(id), currentUserId);
         fillInteractionStatus(resp, id, likedIds, bookmarkedIds, currentUserId);
@@ -233,6 +249,7 @@ public class PostQueryServiceImpl implements PostQueryService {
             wrapper.set(Post::getUrgency, urgency.isBlank() ? null : urgency);
         }
 
+        wrapper.set(Post::getEdited, 1);
         postMapper.update(wrapper);
         return getById(postId);
     }
@@ -250,7 +267,8 @@ public class PostQueryServiceImpl implements PostQueryService {
             if (!isOwn) {
                 // 管理員只能刪一般用戶的貼文
                 User author = userMapper.selectById(post.getUserId());
-                UserRole authorRole = resolveRoleFromUser(author);
+                Map<Long, LiChief> cm = batchLoadChiefs(List.of(post.getUserId()));
+                UserRole authorRole = resolveRoleFromUser(author, cm);
                 if (authorRole == UserRole.ADMIN || authorRole == UserRole.SUPER_ADMIN)
                     throw new BusinessException(ResultCode.FORBIDDEN, "無法刪除其他管理員的貼文");
             }
@@ -262,7 +280,10 @@ public class PostQueryServiceImpl implements PostQueryService {
                 throw new BusinessException(ResultCode.FORBIDDEN, "一般用戶無法刪除資訊/廣播貼文");
         }
 
-        postMapper.deleteById(postId);
+        // 軟刪除：只改 status，後端保留原始資料，回傳時清空
+        postMapper.update(new LambdaUpdateWrapper<Post>()
+                .eq(Post::getId, postId)
+                .set(Post::getStatus, 2));
     }
 
     // ── liked / bookmarked 批次查詢 ──────────────────────────
@@ -308,12 +329,34 @@ public class PostQueryServiceImpl implements PostQueryService {
         ).stream().map(Neighborhood::getId).toList();
     }
 
-    private static UserRole resolveRoleFromUser(User user) {
+    private UserRole resolveRoleFromUser(User user, Map<Long, LiChief> chiefMap) {
         if (user == null) return UserRole.GUEST;
         if (Integer.valueOf(1).equals(user.getIsGuest()))      return UserRole.GUEST;
         if (Integer.valueOf(1).equals(user.getIsSuperAdmin())) return UserRole.SUPER_ADMIN;
         if (Integer.valueOf(1).equals(user.getIsAdmin()))      return UserRole.ADMIN;
+        if (chiefMap.containsKey(user.getId()))                 return UserRole.LI_CHIEF;
         return UserRole.USER;
+    }
+
+    /** 批次載入用戶 → 里長對應 */
+    private Map<Long, LiChief> batchLoadChiefs(List<Long> userIds) {
+        try {
+            if (userIds.isEmpty()) return Map.of();
+            return liChiefMapper.selectList(
+                    new LambdaQueryWrapper<LiChief>().in(LiChief::getUserId, userIds)
+            ).stream().collect(Collectors.toMap(LiChief::getUserId, c -> c));
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    /** 取得里長徽章文字，如「仁愛里里長」 */
+    private String buildBadge(User user, Map<Long, LiChief> chiefMap) {
+        if (user == null) return null;
+        LiChief chief = chiefMap.get(user.getId());
+        if (chief == null) return null;
+        Neighborhood nh = neighborhoodMapper.selectById(chief.getNeighborhoodId());
+        return nh != null ? nh.getName() + "里長" : "里長";
     }
 
     @Override
@@ -357,7 +400,9 @@ public class PostQueryServiceImpl implements PostQueryService {
         String notifTitle = post.getTitle() != null && !post.getTitle().isBlank()
                 ? post.getTitle()
                 : (notifBody.isBlank() ? "新貼文" : notifBody);
-        if (List.of("district_info", "li_info").contains(post.getType())) {
+        if ("guide".equals(post.getType())) {
+            // 巷口說明書不發通知
+        } else if (List.of("district_info", "li_info").contains(post.getType())) {
             notificationService.onNewInfo(post.getNeighborhoodId(), post.getType(),
                     post.getId(), notifTitle, notifBody);
         } else {

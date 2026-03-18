@@ -10,6 +10,7 @@ interface PrivateRoom {
   user1Id: number;
   user2Id: number;
   otherNickname: string | null;
+  otherBadge?: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
 }
@@ -87,9 +88,12 @@ export default function PrivateInbox() {
 
   const timeLabel = (at: string | null) => {
     if (!at) return '';
-    const d = new Date(at);
+    const normalized = /[Zz]|[+-]\d{2}:?\d{2}$/.test(at) ? at : at + '+08:00';
+    const d = new Date(normalized);
     const now = new Date();
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    const diffMs = now.getTime() - d.getTime();
+    if (diffMs < 0) return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    const diffDays = Math.floor(diffMs / 86400000);
     if (diffDays === 0) return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
     if (diffDays === 1) return '昨天';
     if (diffDays < 7) return `${diffDays} 天前`;
@@ -138,8 +142,11 @@ export default function PrivateInbox() {
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e1e1e', marginBottom: '0.15rem' }}>
+                  <p style={{ fontWeight: 600, fontSize: '0.9rem', color: '#1e1e1e', marginBottom: '0.15rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     {otherName}
+                    {room.otherBadge && (
+                      <span style={{ fontSize: '0.6rem', background: '#E6FCF5', color: '#047857', padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>{room.otherBadge}</span>
+                    )}
                   </p>
                   <p style={{
                     fontSize: '0.8rem', color: '#828282',
@@ -178,6 +185,7 @@ export default function PrivateInbox() {
         <PrivateChatModal
           targetUserId={openRoomTargetId}
           targetNickname={rooms.find(r => getOtherUserId(r) === openRoomTargetId)?.otherNickname}
+          targetBadge={rooms.find(r => getOtherUserId(r) === openRoomTargetId)?.otherBadge}
           onClose={() => {
             const room = rooms.find(r => getOtherUserId(r) === openRoomTargetId);
             if (room && token) {

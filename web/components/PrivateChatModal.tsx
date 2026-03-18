@@ -11,6 +11,7 @@ interface ChatMessage {
   roomId: number;
   userId: number;
   nickname: string | null;
+  authorBadge?: string | null;
   content: string;
   type: string;
   createdAt: string;
@@ -19,12 +20,14 @@ interface ChatMessage {
 interface Props {
   targetUserId: number;
   targetNickname?: string | null;
+  targetBadge?: string | null;
   onClose: () => void;
 }
 
-export default function PrivateChatModal({ targetUserId, targetNickname, onClose }: Props) {
+export default function PrivateChatModal({ targetUserId, targetNickname, targetBadge: initialBadge, onClose }: Props) {
   const { user, token, nickname } = useAuth();
   const [roomId, setRoomId] = useState<number | null>(null);
+  const [badge, setBadge] = useState<string | null | undefined>(initialBadge);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
@@ -47,7 +50,10 @@ export default function PrivateChatModal({ targetUserId, targetNickname, onClose
     })
       .then(r => r.json())
       .then(json => {
-        if (json.code === 200) setRoomId(json.data.id);
+        if (json.code === 200) {
+          setRoomId(json.data.id);
+          if (!badge && json.data.otherBadge) setBadge(json.data.otherBadge);
+        }
         else setError(json.message ?? '無法開啟私聊');
       })
       .catch(e => setError(e.message))
@@ -129,12 +135,21 @@ export default function PrivateChatModal({ targetUserId, targetNickname, onClose
     }
   }
 
+  function handleClose() {
+    if (roomId && token) {
+      fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${roomId}/read`, {
+        method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => {});
+    }
+    onClose();
+  }
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       background: 'rgba(0,0,0,0.4)',
       display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
-    }} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    }} onClick={e => { if (e.target === e.currentTarget) handleClose(); }}>
       <div style={{
         width: '100%', maxWidth: 480, background: '#fff',
         borderRadius: '16px 16px 0 0', padding: '1rem',
@@ -150,10 +165,15 @@ export default function PrivateChatModal({ targetUserId, targetNickname, onClose
             {displayTarget.charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
-            <p style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1e1e1e' }}>{displayTarget}</p>
+            <p style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1e1e1e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              {displayTarget}
+              {badge && (
+                <span style={{ fontSize: '0.6rem', background: '#E6FCF5', color: '#047857', padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>{badge}</span>
+              )}
+            </p>
             <p style={{ fontSize: '0.72rem', color: '#bbb' }}>私人對話</p>
           </div>
-          <button onClick={onClose} style={{
+          <button onClick={handleClose} style={{
             background: 'none', border: 'none', fontSize: '1.2rem',
             cursor: 'pointer', color: '#828282', padding: '0.25rem',
           }}>✕</button>
@@ -195,18 +215,18 @@ export default function PrivateChatModal({ targetUserId, targetNickname, onClose
                   <p style={{ fontSize: '0.7rem', color: '#bbb', marginBottom: '0.15rem', textAlign: isSelf ? 'right' : 'left' }}>
                     {name}
                   </p>
-                  <div style={{
-                    background: isSelf ? '#A6D785' : '#f0f4f7',
-                    color: '#1a1a1a',
-                    padding: '0.45rem 0.7rem',
-                    borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                    fontSize: '0.88rem', lineHeight: 1.5, wordBreak: 'break-word',
-                  }}>
-                    {m.content}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.35rem', flexDirection: isSelf ? 'row-reverse' : 'row' }}>
+                    <div style={{
+                      background: isSelf ? '#A6D785' : '#f0f4f7',
+                      color: '#1a1a1a',
+                      padding: '0.45rem 0.7rem',
+                      borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                      fontSize: '0.88rem', lineHeight: 1.5, wordBreak: 'break-word',
+                    }}>
+                      {m.content}
+                    </div>
+                    <span style={{ fontSize: '0.65rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
                   </div>
-                  <p style={{ fontSize: '0.68rem', color: '#bbb', marginTop: '0.15rem', textAlign: isSelf ? 'right' : 'left' }}>
-                    {time}
-                  </p>
                 </div>
               </div>
             );

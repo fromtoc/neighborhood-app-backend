@@ -83,6 +83,7 @@ const TYPE_LABEL: Record<string, string> = {
   broadcast:     '廣播',
   district_info: '區資訊',
   li_info:       '里資訊',
+  guide:         '巷口說明書',
   fresh:       '動態',
   store_visit: '踩點',
   selling:     '我要賣',
@@ -261,19 +262,23 @@ export default async function PostDetailPage({ params }: Props) {
 
         {/* Back */}
         {nb && (() => {
-          const isInfo = ['info', 'broadcast', 'district_info', 'li_info'].includes(post.type);
+          const isGuide = post.type === 'guide';
+          const isInfo = ['info', 'broadcast', 'district_info', 'li_info', 'guide'].includes(post.type);
           const isDistrict = isInfo
             ? post.type === 'district_info'
             : post.scope === 'district';
           const tab = isInfo ? 'info' : 'community';
-          const sub = isDistrict ? 'district' : 'li';
-          const label = isInfo
-            ? (isDistrict ? `${nb.district} 區資訊` : `${nb.name} 里資訊`)
-            : (isDistrict ? `${nb.district} 區社群` : `${nb.name} 里社群`);
-          // district_info 的 neighborhoodId 是代表里，不一定是用戶來源的里，改用 liUrl 僅限非區級
-          const backHref = !isDistrictLevel && liUrl
-            ? `${liUrl}?tab=${tab}&sub=${sub}`
-            : null;
+          const sub = isGuide ? 'guide' : isDistrict ? 'district' : 'li';
+          const label = isGuide
+            ? '巷口說明書'
+            : isInfo
+              ? (isDistrict ? `${nb.district} 區資訊` : `${nb.name} 里資訊`)
+              : (isDistrict ? `${nb.district} 區社群` : `${nb.name} 里社群`);
+          const backHref = isGuide && liUrl
+            ? `${liUrl}?tab=info&sub=guide`
+            : !isDistrictLevel && liUrl
+              ? `${liUrl}?tab=${tab}&sub=${sub}`
+              : null;
           return (
             <div style={{ marginTop: '1.25rem' }}>
               {backHref ? (

@@ -95,13 +95,33 @@ public class NotificationService {
                 title, body, "chat_message", messageId, senderId);
     }
 
-    /** 私訊 — 只通知接收方。refType="user", refId=senderId，供前端開啟對話框用 */
+    /** 私訊 — 只通知接收方。同一發送者的未讀通知會合併（更新內容），不重複建立 */
     @Async
     public void onPrivateMessage(Long recipientId, Long senderId,
                                  String senderName, String body) {
+        if (!isEnabled(recipientId, "private_message")) return;
         String title = senderName + " 傳給你私訊";
-        notifyUser(recipientId, "private_message", title, body,
-                "user", senderId);
+        String shortBody = body != null && body.length() > 500 ? body.substring(0, 500) : body;
+
+        // 合併：同一發送者的未讀私訊通知只保留一則，更新內容
+        Notification existing = notificationMapper.selectOne(
+                new LambdaQueryWrapper<Notification>()
+                        .eq(Notification::getUserId, recipientId)
+                        .eq(Notification::getType, "private_message")
+                        .eq(Notification::getRefType, "user")
+                        .eq(Notification::getRefId, senderId)
+                        .eq(Notification::getIsRead, 0)
+                        .last("LIMIT 1"));
+        if (existing != null) {
+            existing.setBody(shortBody);
+            existing.setCreatedAt(java.time.LocalDateTime.now());
+            notificationMapper.updateById(existing);
+        } else {
+            insertNotification(recipientId, "private_message", title, shortBody, "user", senderId, null);
+        }
+        pushWs(recipientId, "private_message", title, body, "user", senderId);
+        List<String> tokens = deviceTokenMapper.findTokensByUserId(recipientId);
+        sendFcm(tokens, title, body, "private_message", "user", senderId);
     }
 
     // ── 內部邏輯 ─────────────────────────────────────────────────────────

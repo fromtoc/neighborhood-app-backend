@@ -68,7 +68,10 @@ public class NeighborhoodQueryServiceImpl implements NeighborhoodQueryService {
                     .or().like(Neighborhood::getCity, keyword)
                     .or().like(Neighborhood::getDistrict, keyword))
                .eq(StringUtils.hasText(city),     Neighborhood::getCity, city)
-               .eq(StringUtils.hasText(district), Neighborhood::getDistrict, district);
+               .eq(StringUtils.hasText(district), Neighborhood::getDistrict, district)
+               .orderByAsc(Neighborhood::getCity)
+               .orderByAsc(Neighborhood::getDistrict)
+               .orderByAsc(Neighborhood::getName);
 
         IPage<Neighborhood> result = neighborhoodMapper.selectPage(new Page<>(page, size), wrapper);
         PageResult<Neighborhood> pageResult = new PageResult<>(result.getTotal(), result.getRecords());

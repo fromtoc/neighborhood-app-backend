@@ -10,12 +10,12 @@ interface Props {
   liName: string;
 }
 
-type SubTab = 'district' | 'li' | 'garbage';
+type SubTab = 'district' | 'li' | 'garbage' | 'guide';
 
 export default function InfoSection({ neighborhoodId, district, liName }: Props) {
   const searchParams = useSearchParams();
   const subParam = searchParams.get('sub');
-  const initialSub: SubTab = subParam === 'li' ? 'li' : subParam === 'garbage' ? 'garbage' : 'district';
+  const initialSub: SubTab = subParam === 'li' ? 'li' : subParam === 'garbage' ? 'garbage' : subParam === 'guide' ? 'guide' : 'district';
   const [subTab, setSubTab] = useState<SubTab>(initialSub);
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -33,7 +33,7 @@ export default function InfoSection({ neighborhoodId, district, liName }: Props)
   return (
     <>
       {/* 子 Tab */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <button style={tabStyle(subTab === 'district')} onClick={() => setSubTab('district')}>
           {district}
         </button>
@@ -42,6 +42,9 @@ export default function InfoSection({ neighborhoodId, district, liName }: Props)
         </button>
         <button style={tabStyle(subTab === 'garbage')} onClick={() => setSubTab('garbage')}>
           垃圾車
+        </button>
+        <button style={tabStyle(subTab === 'guide')} onClick={() => setSubTab('guide')}>
+          巷口說明書
         </button>
       </div>
 
@@ -76,6 +79,17 @@ export default function InfoSection({ neighborhoodId, district, liName }: Props)
           <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>里垃圾車即將上線</p>
           <p style={{ fontSize: '0.82rem', color: '#bbb' }}>垃圾車路線與時間資訊敬請期待</p>
         </div>
+      )}
+
+      {subTab === 'guide' && (
+        <CommunitySection
+          neighborhoodId={neighborhoodId}
+          type="guide"
+          title=""
+          mode="info"
+          defaultPostType="guide"
+          allowedPostTypes={['guide']}
+        />
       )}
     </>
   );

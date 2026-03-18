@@ -8,6 +8,7 @@ export interface AuthUser {
   userId: number;
   neighborhoodId: number | null;
   role: string;
+  chiefNeighborhoodId?: number | null;
   displayName?: string | null;
   photoURL?: string | null;
 }

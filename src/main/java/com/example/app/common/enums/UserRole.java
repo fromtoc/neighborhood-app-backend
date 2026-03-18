@@ -1,5 +1,5 @@
 package com.example.app.common.enums;
 
 public enum UserRole {
-    GUEST, USER, ADMIN, SUPER_ADMIN
+    GUEST, USER, LI_CHIEF, ADMIN, SUPER_ADMIN
 }

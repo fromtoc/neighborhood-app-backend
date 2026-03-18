@@ -19,6 +19,7 @@ interface PrivateRoom {
   user1Id: number;
   user2Id: number;
   otherNickname: string | null;
+  otherBadge?: string | null;
   lastMessage: string | null;
   lastMessageNickname: string | null;
   lastMessageAt: string | null;
@@ -33,9 +34,13 @@ function formatUnread(n: number): string {
 
 function timeLabel(at: string | null): string {
   if (!at) return '';
-  const d = new Date(at);
+  // 後端回傳無時區的 ISO 時間（台北時間），補上 +08:00 避免被當 UTC 解析
+  const normalized = /[Zz]|[+-]\d{2}:?\d{2}$/.test(at) ? at : at + '+08:00';
+  const d = new Date(normalized);
   const now = new Date();
-  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 0) return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+  const diffDays = Math.floor(diffMs / 86400000);
   if (diffDays === 0) return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
   if (diffDays === 1) return '昨天';
   if (diffDays < 7) return `${diffDays} 天前`;
@@ -105,12 +110,14 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
 
   useEffect(() => { fetchUnread(); }, [fetchUnread]);
 
-  // Refresh unread on interval
+  // Refresh on interval + WebSocket event
   useEffect(() => {
     if (!token) return;
-    const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
-  }, [fetchUnread, token]);
+    const interval = setInterval(() => { fetchUnread(); fetchPrivateRooms(); }, 30000);
+    const onChatUpdate = () => { fetchUnread(); fetchPrivateRooms(); };
+    window.addEventListener('chat-update', onChatUpdate);
+    return () => { clearInterval(interval); window.removeEventListener('chat-update', onChatUpdate); };
+  }, [fetchUnread, fetchPrivateRooms, token]);
 
   // Mark read + return to list
   const handleBackFromChat = (roomId: number | null) => {
@@ -262,6 +269,9 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span style={chatNameStyle}>{otherName}</span>
+                      {room.otherBadge && (
+                        <span style={{ fontSize: '0.6rem', background: '#E6FCF5', color: '#047857', padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>{room.otherBadge}</span>
+                      )}
                     </div>
                     <div style={chatPreviewStyle}>
                       {room.lastMessage ?? '開始對話吧！'}
@@ -288,6 +298,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
         <PrivateChatModal
           targetUserId={openPrivateTargetId}
           targetNickname={privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId)?.otherNickname}
+          targetBadge={privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId)?.otherBadge}
           onClose={() => {
             const room = privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId);
             if (room && token) {

@@ -9,6 +9,7 @@ import java.util.Date;
 public interface JwtService {
 
     TokenPair generateTokenPair(Long userId, UserRole role, Long defaultNeighborhoodId);
+    TokenPair generateTokenPair(Long userId, UserRole role, Long defaultNeighborhoodId, Long chiefNeighborhoodId);
 
     JwtClaims parseToken(String token);
 

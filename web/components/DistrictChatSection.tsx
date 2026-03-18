@@ -11,6 +11,7 @@ interface ChatMessage {
   roomId: number;
   userId: number;
   nickname: string | null;
+  authorBadge?: string | null;
   content: string;
   type: string;
   createdAt: string;
@@ -188,11 +189,18 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
         {senderName.charAt(0).toUpperCase()}
       </div>
       <div style={{ maxWidth: '70%' }}>
-        <p style={{ fontSize: '0.72rem', color: '#828282', marginBottom: '0.2rem', textAlign: isSelf ? 'right' : 'left' }}>{senderName}</p>
-        <div style={{ background: isSelf ? '#A6D785' : '#f0f4f7', color: '#1a1a1a',
-          padding: '0.5rem 0.75rem', borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-          fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.content}</div>
-        <p style={{ fontSize: '0.7rem', color: '#bbb', marginTop: '0.2rem', textAlign: isSelf ? 'right' : 'left' }}>{time}</p>
+        <p style={{ fontSize: '0.72rem', color: '#828282', marginBottom: '0.2rem', textAlign: isSelf ? 'right' : 'left', display: 'flex', alignItems: 'center', gap: '0.3rem', justifyContent: isSelf ? 'flex-end' : 'flex-start' }}>
+          {senderName}
+          {msg.authorBadge && (
+            <span style={{ fontSize: '0.6rem', background: '#E6FCF5', color: '#047857', padding: '1px 4px', borderRadius: 3, fontWeight: 600 }}>{msg.authorBadge}</span>
+          )}
+        </p>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.4rem', flexDirection: isSelf ? 'row-reverse' : 'row' }}>
+          <div style={{ background: isSelf ? '#A6D785' : '#f0f4f7', color: '#1a1a1a',
+            padding: '0.5rem 0.75rem', borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+            fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.content}</div>
+          <span style={{ fontSize: '0.68rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
+        </div>
       </div>
     </div>
   );

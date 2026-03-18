@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>App 推播通知 — 完整串接指南</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e1e1e; background: #f8f9fa; line-height: 1.7; }
+  .container { max-width: 920px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.8rem; font-weight: 800; color: #1c5373; margin-bottom: 0.5rem; }
+  h1 small { font-size: 0.85rem; font-weight: 400; color: #999; display: block; margin-top: 0.3rem; }
+  h2 { font-size: 1.3rem; font-weight: 700; color: #1c5373; margin: 2.5rem 0 1rem; padding-bottom: 0.4rem; border-bottom: 2px solid #e8e8e8; }
+  h3 { font-size: 1.05rem; font-weight: 700; color: #333; margin: 1.5rem 0 0.6rem; }
+  h4 { font-size: 0.95rem; font-weight: 700; color: #555; margin: 1.2rem 0 0.4rem; }
+  p, li { font-size: 0.92rem; color: #444; }
+  ul, ol { padding-left: 1.5rem; margin: 0.5rem 0; }
+  li { margin-bottom: 0.3rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.88rem; }
+  th, td { border: 1px solid #e0e0e0; padding: 0.55rem 0.75rem; text-align: left; }
+  th { background: #f0f7ff; color: #1c5373; font-weight: 600; white-space: nowrap; }
+  td { background: #fff; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; font-size: 0.85rem; font-family: 'SF Mono', Consolas, monospace; color: #c7254e; }
+  pre { background: #1e1e2e; color: #cdd6f4; padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; font-size: 0.82rem; line-height: 1.6; }
+  pre code { background: none; color: inherit; padding: 0; }
+  .cm { color: #6c7086; }
+  .kw { color: #cba6f7; }
+  .str { color: #a6e3a1; }
+  .tp { color: #89b4fa; }
+  .num { color: #fab387; }
+  .fn { color: #89dceb; }
+  .card { background: #fff; border: 1px solid #e8e8e8; border-radius: 10px; padding: 1.25rem; margin: 1rem 0; }
+  .card-title { font-weight: 700; font-size: 0.95rem; color: #1c5373; margin-bottom: 0.5rem; }
+  .flow { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1.5rem; margin: 1rem 0; font-family: 'SF Mono', Consolas, monospace; font-size: 0.82rem; line-height: 2; white-space: pre; overflow-x: auto; color: #444; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+  .badge-public { background: #e6fcf5; color: #22c55e; }
+  .badge-auth { background: #fef2f2; color: #ef4444; }
+  .badge-get { background: #dbeafe; color: #2563eb; }
+  .badge-put { background: #e0e7ff; color: #6366f1; }
+  .badge-del { background: #fce7f3; color: #db2777; }
+  .json-block { background: #1e1e2e; color: #cdd6f4; padding: 1rem 1.25rem; border-radius: 8px; overflow-x: auto; margin: 0.75rem 0; font-size: 0.82rem; line-height: 1.6; font-family: 'SF Mono', Consolas, monospace; }
+  .jk { color: #89b4fa; }
+  .js { color: #a6e3a1; }
+  .jn { color: #fab387; }
+  .note { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.85rem; color: #92400e; }
+  .note strong { color: #78350f; }
+  .info { background: #eff6ff; border-left: 3px solid #3b82f6; padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.85rem; color: #1e40af; }
+  .timeline { position: relative; padding-left: 2rem; }
+  .timeline::before { content: ''; position: absolute; left: 0.55rem; top: 0.3rem; bottom: 0.3rem; width: 2px; background: #ddd; }
+  .timeline-item { position: relative; margin-bottom: 1.25rem; }
+  .timeline-item::before { content: ''; position: absolute; left: -1.65rem; top: 0.35rem; width: 12px; height: 12px; border-radius: 50%; background: #1c5373; border: 2px solid #fff; box-shadow: 0 0 0 2px #1c5373; }
+  .timeline-item .step { font-weight: 700; color: #1c5373; font-size: 0.9rem; }
+  .timeline-item .desc { font-size: 0.85rem; color: #666; margin-top: 0.15rem; }
+  hr { border: none; border-top: 1px solid #e8e8e8; margin: 2rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>App 推播通知 — 完整串接指南
+<small>GoLocal Firebase Cloud Messaging (FCM) — iOS / Android App 串接說明</small>
+</h1>
+
+<!-- ========== 架構總覽 ========== -->
+<h2>一、架構總覽</h2>
+
+<div class="flow">
+┌──────────┐    ┌──────────────┐    ┌────────────────┐
+│  後台事件  │───→│ NotifService │───→│  FCM (Google)  │
+│          │    │              │    │                │
+│ 新資訊    │    │ 1.寫入收件匣  │    │  推播到裝置     │
+│ 新貼文    │    │ 2.WebSocket  │    │                │
+│ 新回覆    │    │ 3.FCM push   │    └───────┬────────┘
+│ 聊天訊息  │    └──────────────┘            │
+│ 私訊      │                               ▼
+└──────────┘                        ┌──────────────┐
+                                    │   App 裝置    │
+                                    │              │
+                                    │ 前景：onMessage│
+                                    │ 背景：系統通知  │
+                                    └──────────────┘
+</div>
+
+<h3>Firebase 專案資訊</h3>
+<table>
+<tr><th>項目</th><th>值</th></tr>
+<tr><td>Project ID</td><td><code>golocal-4065a</code></td></tr>
+<tr><td>Messaging Sender ID</td><td><code>811824553721</code></td></tr>
+<tr><td>Auth Domain</td><td><code>golocal-4065a.firebaseapp.com</code></td></tr>
+</table>
+
+<!-- ========== 通知類型 ========== -->
+<h2>二、通知類型</h2>
+
+<table>
+<tr><th>type</th><th>觸發時機</th><th>推播對象</th><th>可關閉</th></tr>
+<tr><td><code>new_info</code></td><td>系統爬蟲抓到新資訊（氣象/地震/空品/疫情等）</td><td>關注該里/區的使用者</td><td>依 urgency 分級</td></tr>
+<tr><td><code>new_post</code></td><td>有人在里/區發新貼文</td><td>關注該里的使用者（排除作者）</td><td>✅</td></tr>
+<tr><td><code>post_reply</code></td><td>有人回覆你的貼文</td><td>貼文作者</td><td>✅</td></tr>
+<tr><td><code>chat</code></td><td>聊天室有新訊息</td><td>關注該里的使用者（排除發訊者）</td><td>✅</td></tr>
+<tr><td><code>private_message</code></td><td>收到私訊</td><td>接收方</td><td>✅</td></tr>
+</table>
+
+<h3>資訊通知的緊急分級</h3>
+<table>
+<tr><th>urgency</th><th>對應設定欄位</th><th>行為</th><th>範例</th></tr>
+<tr><td><code>urgent</code></td><td><code>master</code></td><td>總開關開啟就送達（不可單獨關閉）</td><td>強震速報、颱風警報</td></tr>
+<tr><td><code>medium</code></td><td><code>info_medium</code></td><td>可在設定中關閉</td><td>空品 AQI≥150、水情公告</td></tr>
+<tr><td><code>normal</code></td><td><code>info_normal</code></td><td>可在設定中關閉</td><td>一般新聞、里公告</td></tr>
+</table>
+
+<!-- ========== API ========== -->
+<h2>三、相關 API</h2>
+
+<h3>3.1 註冊 FCM Device Token</h3>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-put">PUT</span> &nbsp; <code>/api/v1/notifications/token</code> <span class="badge badge-auth">需登入</span></div>
+<p>App 啟動後取得 FCM token，呼叫此 API 註冊到後台。<br>後台以 <code>userId + platform</code> 為唯一鍵，自動新增或更新。</p>
+<p><strong>Request Body：</strong></p>
+<div class="json-block">{
+  <span class="jk">"token"</span>: <span class="js">"fMx7K9...(FCM device token)"</span>,
+  <span class="jk">"platform"</span>: <span class="js">"ios"</span>   <span class="cm">// "ios" | "android"</span>
+}</div>
+<p><strong>回傳：</strong></p>
+<div class="json-block">{ <span class="jk">"code"</span>: <span class="jn">200</span>, <span class="jk">"message"</span>: <span class="js">"success"</span> }</div>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-del">DEL</span> &nbsp; <code>/api/v1/notifications/token?platform=ios</code> <span class="badge badge-auth">需登入</span></div>
+<p>登出時呼叫，移除 device token，停止推播。</p>
+</div>
+
+<h3>3.2 通知收件匣</h3>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-get">GET</span> &nbsp; <code>/api/v1/notifications?page=1&size=20</code> <span class="badge badge-auth">需登入</span></div>
+<p>取得通知列表（分頁），包含未讀數。</p>
+<p><strong>回傳範例：</strong></p>
+<div class="json-block">{
+  <span class="jk">"code"</span>: <span class="jn">200</span>,
+  <span class="jk">"data"</span>: {
+    <span class="jk">"records"</span>: [
+      {
+        <span class="jk">"id"</span>: <span class="jn">123</span>,
+        <span class="jk">"type"</span>: <span class="js">"new_info"</span>,
+        <span class="jk">"title"</span>: <span class="js">"【氣象特報】臺北市 大雨特報"</span>,
+        <span class="jk">"body"</span>: <span class="js">"臺北市大雨特報，請注意安全..."</span>,
+        <span class="jk">"refType"</span>: <span class="js">"post"</span>,
+        <span class="jk">"refId"</span>: <span class="jn">456</span>,
+        <span class="jk">"isRead"</span>: <span class="jn">0</span>,
+        <span class="jk">"createdAt"</span>: <span class="js">"2026-03-18T10:30:00"</span>,
+        <span class="jk">"neighborhoodId"</span>: <span class="jn">7742</span>,
+        <span class="jk">"neighborhoodName"</span>: <span class="js">"堵南里"</span>,
+        <span class="jk">"city"</span>: <span class="js">"基隆市"</span>,
+        <span class="jk">"district"</span>: <span class="js">"七堵區"</span>
+      }
+    ],
+    <span class="jk">"total"</span>: <span class="jn">48</span>,
+    <span class="jk">"unread"</span>: <span class="jn">5</span>,
+    <span class="jk">"page"</span>: <span class="jn">1</span>,
+    <span class="jk">"size"</span>: <span class="jn">20</span>
+  }
+}</div>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-put">PUT</span> &nbsp; <code>/api/v1/notifications/{id}/read</code> <span class="badge badge-auth">需登入</span></div>
+<p>標記單則通知為已讀。</p>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-put">PUT</span> &nbsp; <code>/api/v1/notifications/read-all</code> <span class="badge badge-auth">需登入</span></div>
+<p>一鍵全部已讀。</p>
+</div>
+
+<h3>3.3 通知設定</h3>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-get">GET</span> &nbsp; <code>/api/v1/notifications/settings</code> <span class="badge badge-auth">需登入</span></div>
+<p>取得使用者的通知偏好設定。</p>
+<div class="json-block">{
+  <span class="jk">"code"</span>: <span class="jn">200</span>,
+  <span class="jk">"data"</span>: {
+    <span class="jk">"userId"</span>: <span class="jn">1</span>,
+    <span class="jk">"master"</span>: <span class="jn">1</span>,          <span class="cm">// 總開關（0=全部關閉）</span>
+    <span class="jk">"infoMedium"</span>: <span class="jn">1</span>,      <span class="cm">// 中等資訊（空品/水情）</span>
+    <span class="jk">"infoNormal"</span>: <span class="jn">1</span>,      <span class="cm">// 一般資訊（新聞/公告）</span>
+    <span class="jk">"garbageTruck"</span>: <span class="jn">1</span>,    <span class="cm">// 垃圾車（預留）</span>
+    <span class="jk">"newPost"</span>: <span class="jn">1</span>,         <span class="cm">// 新貼文</span>
+    <span class="jk">"postReply"</span>: <span class="jn">1</span>,       <span class="cm">// 貼文回覆</span>
+    <span class="jk">"chat"</span>: <span class="jn">1</span>,            <span class="cm">// 聊天室</span>
+    <span class="jk">"privateMessage"</span>: <span class="jn">1</span>   <span class="cm">// 私訊</span>
+  }
+}</div>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="badge badge-put">PUT</span> &nbsp; <code>/api/v1/notifications/settings</code> <span class="badge badge-auth">需登入</span></div>
+<p>更新通知設定（只傳需要改的欄位）。</p>
+<div class="json-block"><span class="cm">// 範例：關閉聊天通知</span>
+{ <span class="jk">"chat"</span>: <span class="jn">0</span> }
+
+<span class="cm">// 範例：關閉總開關（所有通知停止）</span>
+{ <span class="jk">"master"</span>: <span class="jn">0</span> }</div>
+</div>
+
+<!-- ========== 通知點擊導頁 ========== -->
+<h2>四、通知點擊導頁規則</h2>
+
+<p>每則通知包含 <code>refType</code> + <code>refId</code>，App 根據這兩個欄位決定跳轉目的地：</p>
+
+<table>
+<tr><th>refType</th><th>refId</th><th>導頁目的地</th></tr>
+<tr><td><code>post</code></td><td>貼文 ID</td><td>貼文詳情頁</td></tr>
+<tr><td><code>chat_message</code></td><td>訊息 ID</td><td>聊天室頁面</td></tr>
+<tr><td><code>user</code></td><td>對方的 userId</td><td>私訊對話頁面</td></tr>
+</table>
+
+<div class="info">
+<strong>💡 neighborhoodId 的用途：</strong>通知帶有 <code>neighborhoodId</code> / <code>city</code> / <code>district</code> / <code>neighborhoodName</code>，可用於在通知列表顯示「來自哪個里」，或導頁時切換到對應的里。
+</div>
+
+<!-- ========== App 串接步驟 ========== -->
+<h2>五、App 端串接步驟</h2>
+
+<h3>5.1 前置設定</h3>
+
+<div class="timeline">
+  <div class="timeline-item">
+    <div class="step">1. Firebase Console 加入 App</div>
+    <div class="desc">
+      Project: <code>golocal-4065a</code><br>
+      iOS：加入 Bundle ID → 下載 <code>GoogleService-Info.plist</code><br>
+      Android：加入 Package Name → 下載 <code>google-services.json</code>
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="step">2. 安裝 Firebase SDK</div>
+    <div class="desc">
+      iOS：<code>pod 'FirebaseMessaging'</code> 或 SPM<br>
+      Android：<code>implementation 'com.google.firebase:firebase-messaging'</code>
+    </div>
+  </div>
+  <div class="timeline-item">
+    <div class="step">3. iOS 額外設定</div>
+    <div class="desc">
+      Apple Developer → Certificates → 建立 APNs Key<br>
+      Firebase Console → Project Settings → Cloud Messaging → 上傳 APNs Auth Key<br>
+      Xcode → Signing & Capabilities → 加入 <code>Push Notifications</code> + <code>Background Modes → Remote notifications</code>
+    </div>
+  </div>
+</div>
+
+<h3>5.2 Android（Kotlin）完整代碼</h3>
+
+<pre><code><span class="cm">// ========== 1. build.gradle (app) ==========</span>
+<span class="cm">// plugins { id 'com.google.gms.google-services' }</span>
+<span class="cm">// dependencies { implementation 'com.google.firebase:firebase-messaging:24.0.0' }</span>
+
+<span class="cm">// ========== 2. MyFirebaseMessagingService.kt ==========</span>
+<span class="kw">class</span> <span class="tp">MyFirebaseMessagingService</span> : <span class="tp">FirebaseMessagingService</span>() {
+
+    <span class="cm">// Token 更新時（首次安裝 / Token 刷新）</span>
+    <span class="kw">override fun</span> <span class="fn">onNewToken</span>(token: <span class="tp">String</span>) {
+        <span class="kw">super</span>.onNewToken(token)
+        <span class="cm">// 儲存到本地，等登入後上傳</span>
+        PreferenceManager.getDefaultSharedPreferences(<span class="kw">this</span>)
+            .edit().putString(<span class="str">"fcm_token"</span>, token).apply()
+        <span class="cm">// 如果已登入，立即上傳</span>
+        uploadTokenIfLoggedIn(token)
+    }
+
+    <span class="cm">// 前景收到推播</span>
+    <span class="kw">override fun</span> <span class="fn">onMessageReceived</span>(message: <span class="tp">RemoteMessage</span>) {
+        <span class="kw">val</span> title = message.notification?.title ?: <span class="kw">return</span>
+        <span class="kw">val</span> body  = message.notification?.body ?: <span class="str">""</span>
+
+        <span class="cm">// 顯示本地通知</span>
+        <span class="kw">val</span> channelId = <span class="str">"golocal_default"</span>
+        <span class="kw">val</span> intent = Intent(<span class="kw">this</span>, MainActivity::<span class="kw">class</span>.java)
+        <span class="kw">val</span> pending = PendingIntent.getActivity(<span class="kw">this</span>, <span class="num">0</span>, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT <span class="kw">or</span> PendingIntent.FLAG_IMMUTABLE)
+
+        <span class="kw">val</span> notification = NotificationCompat.Builder(<span class="kw">this</span>, channelId)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(<span class="kw">true</span>)
+            .setContentIntent(pending)
+            .build()
+
+        <span class="kw">val</span> manager = getSystemService(NotificationManager::<span class="kw">class</span>.java)
+        <span class="cm">// Android 8+ 需要 Channel</span>
+        <span class="kw">if</span> (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            manager.createNotificationChannel(
+                NotificationChannel(channelId, <span class="str">"GoLocal 通知"</span>,
+                    NotificationManager.IMPORTANCE_DEFAULT))
+        }
+        manager.notify(System.currentTimeMillis().toInt(), notification)
+    }
+}
+
+<span class="cm">// ========== 3. AndroidManifest.xml ==========</span>
+<span class="cm">// &lt;service android:name=".MyFirebaseMessagingService"
+//          android:exported="false"&gt;
+//   &lt;intent-filter&gt;
+//     &lt;action android:name="com.google.firebase.MESSAGING_EVENT" /&gt;
+//   &lt;/intent-filter&gt;
+// &lt;/service&gt;</span>
+
+<span class="cm">// ========== 4. 登入後上傳 Token ==========</span>
+<span class="kw">fun</span> <span class="fn">registerFcmToken</span>(authToken: <span class="tp">String</span>) {
+    FirebaseMessaging.getInstance().token.addOnSuccessListener { fcmToken ->
+        <span class="kw">val</span> body = mapOf(<span class="str">"token"</span> to fcmToken, <span class="str">"platform"</span> to <span class="str">"android"</span>)
+        api.put(<span class="str">"/api/v1/notifications/token"</span>, body, authToken)
+    }
+}
+
+<span class="cm">// ========== 5. 登出時移除 Token ==========</span>
+<span class="kw">fun</span> <span class="fn">unregisterFcmToken</span>(authToken: <span class="tp">String</span>) {
+    api.delete(<span class="str">"/api/v1/notifications/token?platform=android"</span>, authToken)
+}</code></pre>
+
+<h3>5.3 iOS（Swift）完整代碼</h3>
+
+<pre><code><span class="cm">// ========== 1. AppDelegate.swift ==========</span>
+<span class="kw">import</span> <span class="tp">UIKit</span>
+<span class="kw">import</span> <span class="tp">FirebaseCore</span>
+<span class="kw">import</span> <span class="tp">FirebaseMessaging</span>
+<span class="kw">import</span> <span class="tp">UserNotifications</span>
+
+<span class="kw">@main</span>
+<span class="kw">class</span> <span class="tp">AppDelegate</span>: <span class="tp">UIResponder</span>, <span class="tp">UIApplicationDelegate</span>,
+                    <span class="tp">UNUserNotificationCenterDelegate</span>,
+                    <span class="tp">MessagingDelegate</span> {
+
+    <span class="kw">func</span> <span class="fn">application</span>(_ application: <span class="tp">UIApplication</span>,
+        didFinishLaunchingWithOptions launchOptions: [<span class="tp">UIApplication</span>.<span class="tp">LaunchOptionsKey</span>: <span class="tp">Any</span>]?) -> <span class="tp">Bool</span> {
+
+        FirebaseApp.configure()
+
+        <span class="cm">// 設定通知代理</span>
+        UNUserNotificationCenter.current().delegate = <span class="kw">self</span>
+        Messaging.messaging().delegate = <span class="kw">self</span>
+
+        <span class="cm">// 請求通知權限</span>
+        UNUserNotificationCenter.current().requestAuthorization(
+            options: [.alert, .badge, .sound]) { granted, error <span class="kw">in</span>
+            <span class="kw">if</span> granted {
+                DispatchQueue.main.async { application.registerForRemoteNotifications() }
+            }
+        }
+        <span class="kw">return true</span>
+    }
+
+    <span class="cm">// APNs Token 取得後交給 Firebase</span>
+    <span class="kw">func</span> <span class="fn">application</span>(_ application: <span class="tp">UIApplication</span>,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: <span class="tp">Data</span>) {
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    <span class="cm">// FCM Token 更新</span>
+    <span class="kw">func</span> <span class="fn">messaging</span>(_ messaging: <span class="tp">Messaging</span>,
+        didReceiveRegistrationToken fcmToken: <span class="tp">String</span>?) {
+        <span class="kw">guard let</span> token = fcmToken <span class="kw">else</span> { <span class="kw">return</span> }
+        UserDefaults.standard.set(token, forKey: <span class="str">"fcm_token"</span>)
+        <span class="cm">// 如果已登入，立即上傳</span>
+        uploadTokenIfLoggedIn(token)
+    }
+
+    <span class="cm">// 前景收到推播 — 顯示 banner</span>
+    <span class="kw">func</span> <span class="fn">userNotificationCenter</span>(_ center: <span class="tp">UNUserNotificationCenter</span>,
+        willPresent notification: <span class="tp">UNNotification</span>,
+        withCompletionHandler handler: @escaping (<span class="tp">UNNotificationPresentationOptions</span>) -> <span class="tp">Void</span>) {
+        handler([.banner, .badge, .sound])
+    }
+
+    <span class="cm">// 使用者點擊通知</span>
+    <span class="kw">func</span> <span class="fn">userNotificationCenter</span>(_ center: <span class="tp">UNUserNotificationCenter</span>,
+        didReceive response: <span class="tp">UNNotificationResponse</span>,
+        withCompletionHandler handler: @escaping () -> <span class="tp">Void</span>) {
+        <span class="kw">let</span> userInfo = response.notification.request.content.userInfo
+        <span class="cm">// 從 userInfo 解析 refType / refId 進行導頁</span>
+        handleNotificationTap(userInfo)
+        handler()
+    }
+}
+
+<span class="cm">// ========== 2. 登入後上傳 Token ==========</span>
+<span class="kw">func</span> <span class="fn">registerFcmToken</span>(authToken: <span class="tp">String</span>) {
+    Messaging.messaging().token { token, error <span class="kw">in</span>
+        <span class="kw">guard let</span> token = token <span class="kw">else</span> { <span class="kw">return</span> }
+        <span class="kw">let</span> body: [<span class="tp">String</span>: <span class="tp">Any</span>] = [<span class="str">"token"</span>: token, <span class="str">"platform"</span>: <span class="str">"ios"</span>]
+        api.put(<span class="str">"/api/v1/notifications/token"</span>, body: body, token: authToken)
+    }
+}
+
+<span class="cm">// ========== 3. 登出時移除 Token ==========</span>
+<span class="kw">func</span> <span class="fn">unregisterFcmToken</span>(authToken: <span class="tp">String</span>) {
+    api.delete(<span class="str">"/api/v1/notifications/token?platform=ios"</span>, token: authToken)
+}</code></pre>
+
+<!-- ========== 完整流程 ========== -->
+<h2>六、完整生命週期</h2>
+
+<div class="flow">
+┌─────────────────────────────────────────────────┐
+│                  App 生命週期                     │
+├─────────────────────────────────────────────────┤
+│                                                 │
+│  首次安裝                                        │
+│    ↓                                            │
+│  請求通知權限 → 用戶同意 → 取得 FCM Token          │
+│    ↓                                            │
+│  儲存 Token 到本地（等登入後上傳）                  │
+│                                                 │
+│  ─── 登入 ────────────────────────────────────  │
+│    ↓                                            │
+│  PUT /api/v1/notifications/token                │
+│  { token: "xxx", platform: "ios" }              │
+│    ↓                                            │
+│  開始收到推播 ✅                                   │
+│                                                 │
+│  ─── Token 刷新（Firebase 自動觸發）─────────── │
+│    ↓                                            │
+│  onNewToken / didReceiveRegistrationToken        │
+│    ↓                                            │
+│  重新 PUT /api/v1/notifications/token            │
+│                                                 │
+│  ─── 登出 ────────────────────────────────────  │
+│    ↓                                            │
+│  DELETE /api/v1/notifications/token?platform=ios │
+│    ↓                                            │
+│  停止收到推播 ❌                                   │
+│                                                 │
+└─────────────────────────────────────────────────┘
+</div>
+
+<!-- ========== 推播內容格式 ========== -->
+<h2>七、推播 Payload 格式</h2>
+
+<p>後台發送的是 <strong>Notification Message</strong>（非 Data Message），格式如下：</p>
+
+<div class="json-block">{
+  <span class="jk">"notification"</span>: {
+    <span class="jk">"title"</span>: <span class="js">"【氣象特報】臺北市 大雨特報"</span>,
+    <span class="jk">"body"</span>: <span class="js">"臺北市大雨特報，請注意安全..."</span>
+  }
+}</div>
+
+<div class="note">
+<strong>⚠️ 目前只傳 notification，不帶 data payload。</strong><br>
+如果 App 需要在推播中攜帶 <code>refType</code> / <code>refId</code> 來實現點擊導頁，需要後台改為同時發送 <code>data</code> 欄位。屆時可以擴充。
+</div>
+
+<h3>如需攜帶 data（未來擴充）</h3>
+<p>後台只需在 <code>MulticastMessage.builder()</code> 加上 <code>.putAllData()</code>，App 端即可從 <code>userInfo</code> / <code>remoteMessage.data</code> 取得：</p>
+<div class="json-block">{
+  <span class="jk">"notification"</span>: { <span class="jk">"title"</span>: <span class="js">"..."</span>, <span class="jk">"body"</span>: <span class="js">"..."</span> },
+  <span class="jk">"data"</span>: {
+    <span class="jk">"refType"</span>: <span class="js">"post"</span>,
+    <span class="jk">"refId"</span>: <span class="js">"456"</span>,
+    <span class="jk">"notifType"</span>: <span class="js">"new_info"</span>
+  }
+}</div>
+
+<!-- ========== 通知設定 UI ========== -->
+<h2>八、通知設定頁面 UI 參考</h2>
+
+<div class="card">
+<div class="card-title">通知設定</div>
+<table style="margin:0;">
+<tr><td style="font-weight:600;">🔔 推播通知總開關</td><td style="width:60px; text-align:center;"><code>master</code></td></tr>
+<tr><td colspan="2" style="background:#f8f9fa; font-size:0.8rem; color:#999;">關閉後所有推播將停止（緊急通知除外）</td></tr>
+<tr><td style="padding-left:1.5rem;">📰 一般資訊通知</td><td style="text-align:center;"><code>infoNormal</code></td></tr>
+<tr><td style="padding-left:1.5rem;">⚡ 中等資訊通知</td><td style="text-align:center;"><code>infoMedium</code></td></tr>
+<tr><td style="padding-left:1.5rem;">🚛 垃圾車提醒</td><td style="text-align:center;"><code>garbageTruck</code></td></tr>
+<tr><td style="padding-left:1.5rem;">📝 新貼文通知</td><td style="text-align:center;"><code>newPost</code></td></tr>
+<tr><td style="padding-left:1.5rem;">💬 貼文回覆通知</td><td style="text-align:center;"><code>postReply</code></td></tr>
+<tr><td style="padding-left:1.5rem;">🗨️ 聊天室通知</td><td style="text-align:center;"><code>chat</code></td></tr>
+<tr><td style="padding-left:1.5rem;">✉️ 私訊通知</td><td style="text-align:center;"><code>privateMessage</code></td></tr>
+</table>
+<p style="font-size:0.8rem; color:#999; margin-top:0.5rem;">每個項目對應一個 Toggle 開關，值為 1（開）/ 0（關），透過 <code>PUT /api/v1/notifications/settings</code> 更新。</p>
+</div>
+
+<!-- ========== 注意事項 ========== -->
+<h2>九、注意事項</h2>
+
+<table>
+<tr><th>項目</th><th>說明</th></tr>
+<tr><td>Token 上傳時機</td><td>① 登入成功後 ② Token 刷新時（若已登入）</td></tr>
+<tr><td>Token 移除時機</td><td>登出時呼叫 <code>DELETE /api/v1/notifications/token</code></td></tr>
+<tr><td>無效 Token 清理</td><td>後台自動處理 — FCM 回傳 <code>UNREGISTERED</code> 時自動刪除</td></tr>
+<tr><td>FCM 批次上限</td><td>每次最多 500 個 token，後台已自動分批</td></tr>
+<tr><td>前景推播</td><td>iOS 需實作 <code>willPresent</code> 才會顯示 banner；Android 需自建 Notification</td></tr>
+<tr><td>背景推播</td><td>Notification Message 由系統自動顯示，無需額外處理</td></tr>
+<tr><td>iOS 權限</td><td>Xcode 要開 Push Notifications + Background Modes (Remote notifications)</td></tr>
+<tr><td>APNs Key</td><td>需在 Apple Developer 建立，並上傳到 Firebase Console</td></tr>
+</table>
+
+<hr>
+<p style="text-align: center; color: #bbb; font-size: 0.8rem; margin-top: 1rem;">
+  GoLocal — Push Notification Integration Guide &nbsp;|&nbsp; 最後更新：2026-03-18
+</p>
+
+</div>
+</body>
+</html>

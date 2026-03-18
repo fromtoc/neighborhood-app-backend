@@ -7,6 +7,7 @@ import { useAuth } from '@/components/AuthProvider';
 const NAV_ITEMS = [
   { icon: '📊', label: '總覽', href: '/admin' },
   { icon: '👥', label: '用戶管理', href: '/admin/users' },
+  { icon: '🏠', label: '里長管理', href: '/admin/li-chiefs' },
   { icon: '📝', label: '貼文管理', href: '/admin/posts' },
   { icon: '🚀', label: '版本發佈', href: '/admin/releases' },
   { icon: '📈', label: '數據分析', href: '/admin/analytics' },

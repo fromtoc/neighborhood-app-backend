@@ -14,10 +14,12 @@ import com.example.app.dto.auth.GuestLoginRequest;
 import com.example.app.dto.auth.RefreshRequest;
 import com.example.app.dto.firebase.FirebasePrincipal;
 import com.example.app.entity.AuthSession;
+import com.example.app.entity.LiChief;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.User;
 import com.example.app.entity.UserIdentity;
 import com.example.app.mapper.AuthSessionMapper;
+import com.example.app.mapper.LiChiefMapper;
 import com.example.app.mapper.NeighborhoodMapper;
 import com.example.app.mapper.UserIdentityMapper;
 import com.example.app.mapper.UserMapper;
@@ -49,6 +51,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper           userMapper;
     private final UserIdentityMapper   userIdentityMapper;
     private final AuthSessionMapper    authSessionMapper;
+    private final LiChiefMapper        liChiefMapper;
     private final JwtService           jwtService;
     private final UserEventProducer    userEventProducer;
 
@@ -143,7 +146,8 @@ public class AuthServiceImpl implements AuthService {
         // 5. Issue tokens & persist session
         User userForRole = userMapper.selectById(userId);
         UserRole role = resolveRole(userForRole);
-        TokenPair pair = jwtService.generateTokenPair(userId, role, req.getNeighborhoodId());
+        Long chiefNhId = role == UserRole.LI_CHIEF ? resolveChiefNeighborhoodId(userId) : null;
+        TokenPair pair = jwtService.generateTokenPair(userId, role, req.getNeighborhoodId(), chiefNhId);
         saveSession(userId, pair.getRefreshToken());
 
         // 6. Publish domain event (TX-safe: sent after commit)
@@ -181,8 +185,9 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ResultCode.UNAUTHORIZED, "User not found");
         }
         UserRole role = resolveRole(user);
+        Long chiefNhId = role == UserRole.LI_CHIEF ? resolveChiefNeighborhoodId(user.getId()) : null;
         TokenPair pair = jwtService.generateTokenPair(
-                user.getId(), role, user.getDefaultNeighborhoodId());
+                user.getId(), role, user.getDefaultNeighborhoodId(), chiefNhId);
         saveSession(user.getId(), pair.getRefreshToken());
 
         return buildResponse(pair, user.getId(),
@@ -234,6 +239,8 @@ public class AuthServiceImpl implements AuthService {
                                         boolean isGuest, Long defaultNeighborhoodId) {
         User u = userMapper.selectById(userId);
         String nickname = (u != null) ? u.getNickname() : null;
+        UserRole role = resolveRole(u);
+        Long chiefNhId = role == UserRole.LI_CHIEF ? resolveChiefNeighborhoodId(userId) : null;
         return AuthResponse.builder()
                 .accessToken(pair.getAccessToken())
                 .refreshToken(pair.getRefreshToken())
@@ -242,17 +249,34 @@ public class AuthServiceImpl implements AuthService {
                         .id(userId)
                         .isGuest(isGuest)
                         .nickname(nickname)
+                        .role(role.name())
                         .defaultNeighborhoodId(defaultNeighborhoodId)
+                        .chiefNeighborhoodId(chiefNhId)
                         .build())
                 .build();
     }
 
-    private static UserRole resolveRole(User user) {
+    private UserRole resolveRole(User user) {
         if (user == null) return UserRole.GUEST;
         if (Integer.valueOf(1).equals(user.getIsGuest()))      return UserRole.GUEST;
         if (Integer.valueOf(1).equals(user.getIsSuperAdmin())) return UserRole.SUPER_ADMIN;
         if (Integer.valueOf(1).equals(user.getIsAdmin()))      return UserRole.ADMIN;
+        try {
+            LiChief chief = liChiefMapper.selectOne(
+                    new LambdaQueryWrapper<LiChief>().eq(LiChief::getUserId, user.getId()));
+            if (chief != null) return UserRole.LI_CHIEF;
+        } catch (Exception ignored) {}
         return UserRole.USER;
+    }
+
+    private Long resolveChiefNeighborhoodId(Long userId) {
+        try {
+            LiChief chief = liChiefMapper.selectOne(
+                    new LambdaQueryWrapper<LiChief>().eq(LiChief::getUserId, userId));
+            return chief != null ? chief.getNeighborhoodId() : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** SHA-256 hex of the token. */

@@ -19,8 +19,10 @@ public class PostComment {
     private String content;
     private Integer likeCount;
 
-    @TableLogic
+    @com.baomidou.mybatisplus.annotation.TableLogic
     private Integer deleted;
+    private Integer contentDeleted;
+    private Integer edited;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

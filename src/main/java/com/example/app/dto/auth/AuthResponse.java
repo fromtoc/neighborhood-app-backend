@@ -18,6 +18,8 @@ public class AuthResponse {
         private Long id;
         private Boolean isGuest;
         private String nickname;
+        private String role;
         private Long defaultNeighborhoodId;
+        private Long chiefNeighborhoodId;
     }
 }
