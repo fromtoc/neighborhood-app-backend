@@ -6,6 +6,7 @@ import { apiFetch } from '@/lib/api';
 import ShareButton from '@/components/ShareButton';
 import PostDetailComments from '@/components/PostDetailComments'
 import ContentWithLinks from '@/components/ContentWithLinks';
+import BackButton from '@/components/BackButton';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
 
@@ -105,6 +106,7 @@ export default async function PostDetailPage({ params }: Props) {
   }
 
   const nb = await getNeighborhood(post.neighborhoodId);
+  const isDistrictLevel = post.type === 'district_info';
 
   const timeLabel = new Date(post.createdAt).toLocaleDateString('zh-TW', {
     year: 'numeric', month: 'long', day: 'numeric',
@@ -139,12 +141,14 @@ export default async function PostDetailPage({ params }: Props) {
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: '首頁', item: SITE_URL },
-      ...(nb && liUrl
+      ...(nb
         ? [
             { '@type': 'ListItem', position: 2, name: nb.city, item: `${SITE_URL}/${encodeURIComponent(nb.city)}` },
             { '@type': 'ListItem', position: 3, name: nb.district, item: `${SITE_URL}/${encodeURIComponent(nb.city)}/${encodeURIComponent(nb.district)}` },
-            { '@type': 'ListItem', position: 4, name: nb.name, item: `${SITE_URL}${liUrl}` },
-            { '@type': 'ListItem', position: 5, name: post.title ?? '貼文', item: `${SITE_URL}/posts/${post.id}` },
+            ...(!isDistrictLevel && liUrl
+              ? [{ '@type': 'ListItem', position: 4, name: nb.name, item: `${SITE_URL}${liUrl}` }]
+              : []),
+            { '@type': 'ListItem', position: isDistrictLevel ? 4 : 5, name: post.title ?? '貼文', item: `${SITE_URL}/posts/${post.id}` },
           ]
         : [
             { '@type': 'ListItem', position: 2, name: post.title ?? '貼文', item: `${SITE_URL}/posts/${post.id}` },
@@ -163,14 +167,18 @@ export default async function PostDetailPage({ params }: Props) {
       <div className="location-bar" style={{ margin: '-1.5rem -1.5rem 0', padding: '0.5rem 1.5rem' }}>
         <div className="inner">
           <Link href="/">首頁</Link>
-          {nb && liUrl && (
+          {nb && (
             <>
               <span className="sep">›</span>
               <Link href={`/${encodeURIComponent(nb.city)}`}>{nb.city}</Link>
               <span className="sep">›</span>
               <Link href={`/${encodeURIComponent(nb.city)}/${encodeURIComponent(nb.district)}`}>{nb.district}</Link>
-              <span className="sep">›</span>
-              <Link href={liUrl}>{nb.name}</Link>
+              {!isDistrictLevel && liUrl && (
+                <>
+                  <span className="sep">›</span>
+                  <Link href={liUrl}>{nb.name}</Link>
+                </>
+              )}
             </>
           )}
           <span className="sep">›</span>
@@ -199,7 +207,7 @@ export default async function PostDetailPage({ params }: Props) {
           <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: '#bbb', marginTop: '0.5rem', flexWrap: 'wrap' }}>
             <span>👤 {post.authorName ?? `用戶 #${post.userId}`}</span>
             <span>{timeLabel}</span>
-            {nb && <span>📍 {nb.city}{nb.district}{nb.name}</span>}
+            {nb && <span>📍 {nb.city}{nb.district}{isDistrictLevel ? '' : nb.name}</span>}
           </div>
         </div>
 
@@ -249,7 +257,7 @@ export default async function PostDetailPage({ params }: Props) {
         <PostDetailComments postId={post.id} />
 
         {/* Back */}
-        {liUrl && (() => {
+        {nb && (() => {
           const isInfo = ['info', 'broadcast', 'district_info', 'li_info'].includes(post.type);
           const isDistrict = isInfo
             ? post.type === 'district_info'
@@ -257,16 +265,24 @@ export default async function PostDetailPage({ params }: Props) {
           const tab = isInfo ? 'info' : 'community';
           const sub = isDistrict ? 'district' : 'li';
           const label = isInfo
-            ? (isDistrict ? `${nb?.district} 區資訊` : `${nb?.name} 里資訊`)
-            : (isDistrict ? `${nb?.district} 區社群` : `${nb?.name} 里社群`);
+            ? (isDistrict ? `${nb.district} 區資訊` : `${nb.name} 里資訊`)
+            : (isDistrict ? `${nb.district} 區社群` : `${nb.name} 里社群`);
+          // district_info 的 neighborhoodId 是代表里，不一定是用戶來源的里，改用 liUrl 僅限非區級
+          const backHref = !isDistrictLevel && liUrl
+            ? `${liUrl}?tab=${tab}&sub=${sub}`
+            : null;
           return (
             <div style={{ marginTop: '1.25rem' }}>
-              <Link
-                href={`${liUrl}?tab=${tab}&sub=${sub}`}
-                style={{ fontSize: '0.85rem', color: '#1c5373', textDecoration: 'none' }}
-              >
-                ← 回到{label}
-              </Link>
+              {backHref ? (
+                <Link
+                  href={backHref}
+                  style={{ fontSize: '0.85rem', color: '#1c5373', textDecoration: 'none' }}
+                >
+                  ← 回到{label}
+                </Link>
+              ) : (
+                <BackButton label={label} />
+              )}
             </div>
           );
         })()}
