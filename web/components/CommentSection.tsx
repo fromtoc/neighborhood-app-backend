@@ -276,13 +276,15 @@ function ReplyComposer({
 /** 滑入式討論面板（可無限堆疊） */
 function ThreadPanel({
   postId, rootComment, selfName, isSelf, onClose, onReplied,
-  initialChain, preloadedRepliesMap,
+  initialChain, preloadedRepliesMap, ancestors = [],
 }: {
   postId: number; rootComment: Comment; selfName: string;
   isSelf: boolean; onClose: () => void; onReplied?: () => void;
   initialChain?: number[];
   /** 分享連結預載的回覆 map（key = commentId），避免每層各自 fetch */
   preloadedRepliesMap?: Record<number, Comment[]>;
+  /** 祖先鏈（從最早的祖先到 rootComment 的父層），用於顯示完整上下文 */
+  ancestors?: Comment[];
 }) {
   const [replies, setReplies] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -378,7 +380,29 @@ function ThreadPanel({
         </div>
 
         <div style={{ maxWidth: 680, margin: '0 auto', padding: '1rem' }}>
-          {/* 根留言（作為 OP） */}
+          {/* 祖先鏈（上下文，較淡顯示） */}
+          {ancestors.map((a) => {
+            const aName = (user?.userId === a.userId ? selfName : (a.nickname ?? `用戶 #${a.userId}`));
+            return (
+              <div key={a.id} style={{ display: 'flex', gap: '0.65rem', opacity: 0.55 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                  <Avatar name={aName} size={32} self={user?.userId === a.userId} />
+                  <div style={{ width: 2, flex: 1, minHeight: 12, background: '#e6e6e6', marginTop: 4 }} />
+                </div>
+                <div style={{ flex: 1, paddingBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: 2 }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.82rem' }}>{aName}</span>
+                    <span style={{ fontSize: '0.68rem', color: '#bbb' }}>{timeAgo(a.createdAt)}</span>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', lineHeight: 1.5, color: '#555', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {a.content}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* 當前留言（作為 OP） */}
           <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '0.5rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
               <Avatar name={name} size={40} self={isSelf} />
@@ -436,7 +460,7 @@ function ThreadPanel({
         </div>
       </div>
 
-      {/* 子討論串（無限堆疊） */}
+      {/* 子討論串（無限堆疊，傳遞祖先鏈） */}
       {subThread && (
         <ThreadPanel
           postId={postId}
@@ -447,6 +471,7 @@ function ThreadPanel({
           onReplied={() => { fetchReplies(); onReplied?.(); }}
           initialChain={initialChain && initialChain.length > 1 ? initialChain.slice(1) : undefined}
           preloadedRepliesMap={preloadedRepliesMap}
+          ancestors={[...ancestors, rootComment]}
         />
       )}
 
