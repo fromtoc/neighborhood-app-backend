@@ -3,1519 +3,518 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>巷口 App — API 串接文件</title>
+<title>GoLocal App — API 串接完整指南 v3</title>
 <style>
-  :root {
-    --primary: #1c5373;
-    --accent: #C8A951;
-    --bg: #f8f9fa;
-    --card: #fff;
-    --border: #e8e8e8;
-    --text: #1e1e1e;
-    --muted: #828282;
-    --code-bg: #f0f4f8;
-    --badge-get: #22c55e;
-    --badge-post: #3b82f6;
-    --badge-put: #f59e0b;
-    --badge-patch: #a855f7;
-    --badge-delete: #ef4444;
-    --badge-ws: #06b6d4;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px;
-  }
-  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
-  h1 { font-size: 2rem; color: var(--primary); margin-bottom: 0.5rem; }
-  h1 small { font-size: 0.9rem; color: var(--muted); font-weight: 400; }
-  h2 {
-    font-size: 1.5rem; color: var(--primary); margin: 2.5rem 0 1rem;
-    padding-bottom: 0.5rem; border-bottom: 2px solid var(--primary);
-  }
-  h3 {
-    font-size: 1.15rem; color: #333; margin: 1.5rem 0 0.5rem;
-    padding-left: 0.5rem; border-left: 4px solid var(--accent);
-  }
-  h4 { font-size: 0.95rem; color: var(--muted); margin: 1rem 0 0.4rem; text-transform: uppercase; letter-spacing: 0.5px; }
-
-  .toc { background: var(--card); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; border: 1px solid var(--border); }
-  .toc h2 { margin: 0 0 1rem; border: none; font-size: 1.2rem; }
-  .toc ol { padding-left: 1.5rem; }
-  .toc li { margin: 0.3rem 0; }
-  .toc a { color: var(--primary); text-decoration: none; }
-  .toc a:hover { text-decoration: underline; }
-
-  .card {
-    background: var(--card); border-radius: 12px; padding: 1.25rem 1.5rem;
-    margin-bottom: 1rem; border: 1px solid var(--border);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  }
-  .endpoint-row {
-    display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
-    margin-bottom: 0.5rem;
-  }
-  .method {
-    display: inline-block; padding: 2px 10px; border-radius: 4px;
-    font-size: 0.75rem; font-weight: 700; color: #fff; letter-spacing: 0.5px;
-    min-width: 58px; text-align: center;
-  }
-  .method.get { background: var(--badge-get); }
-  .method.post { background: var(--badge-post); }
-  .method.put { background: var(--badge-put); color: #1e1e1e; }
-  .method.patch { background: var(--badge-patch); }
-  .method.delete { background: var(--badge-delete); }
-  .method.ws { background: var(--badge-ws); }
-  .path { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.92rem; font-weight: 600; color: #333; }
-  .auth-badge {
-    font-size: 0.72rem; padding: 2px 8px; border-radius: 4px;
-    font-weight: 600; margin-left: auto;
-  }
-  .auth-badge.public { background: #dcfce7; color: #15803d; }
-  .auth-badge.auth { background: #fef3c7; color: #92400e; }
-  .auth-badge.admin { background: #fce7f3; color: #9d174d; }
-  .desc { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.75rem; }
-
-  table {
-    width: 100%; border-collapse: collapse; margin: 0.5rem 0;
-    font-size: 0.88rem;
-  }
-  th {
-    text-align: left; padding: 0.4rem 0.75rem;
-    background: var(--code-bg); color: #555; font-size: 0.78rem;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border);
-  }
-  td {
-    padding: 0.4rem 0.75rem; border-bottom: 1px solid #f0f0f0;
-    vertical-align: top;
-  }
-  td:first-child { font-family: monospace; font-weight: 600; color: var(--primary); white-space: nowrap; }
-  .required { color: var(--badge-delete); font-size: 0.72rem; font-weight: 700; }
-  .optional { color: #bbb; font-size: 0.72rem; }
-
-  pre {
-    background: #1e293b; color: #e2e8f0; padding: 1rem 1.25rem;
-    border-radius: 8px; overflow-x: auto; font-size: 0.82rem;
-    line-height: 1.5; margin: 0.5rem 0;
-  }
-  code {
-    font-family: 'SF Mono', 'Fira Code', monospace;
-    background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
-    font-size: 0.88em;
-  }
-  pre code { background: none; padding: 0; }
-
-  .page-icon { font-size: 1.3rem; vertical-align: middle; margin-right: 0.3rem; }
-  .note {
-    background: #eff6ff; border-left: 4px solid #3b82f6;
-    padding: 0.75rem 1rem; border-radius: 0 8px 8px 0;
-    font-size: 0.85rem; color: #1e40af; margin: 0.75rem 0;
-  }
-  .warn {
-    background: #fefce8; border-left: 4px solid #eab308;
-    padding: 0.75rem 1rem; border-radius: 0 8px 8px 0;
-    font-size: 0.85rem; color: #854d0e; margin: 0.75rem 0;
-  }
-  .section-divider {
-    border: none; border-top: 1px dashed #ddd; margin: 1.5rem 0;
-  }
-  .response-label { font-size: 0.8rem; color: var(--muted); font-weight: 600; margin-top: 0.5rem; }
-
-  @media (max-width: 700px) {
-    .container { padding: 1rem; }
-    .endpoint-row { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
-    .auth-badge { margin-left: 0; }
-    table { font-size: 0.8rem; }
-    td, th { padding: 0.3rem 0.5rem; }
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e1e1e;background:#f8f9fa;line-height:1.7}
+.container{max-width:960px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.8rem;font-weight:800;color:#1c5373;margin-bottom:.5rem}
+h1 small{font-size:.85rem;font-weight:400;color:#999;display:block;margin-top:.3rem}
+h2{font-size:1.3rem;font-weight:700;color:#1c5373;margin:2.5rem 0 1rem;padding-bottom:.4rem;border-bottom:2px solid #e8e8e8}
+h3{font-size:1.05rem;font-weight:700;color:#333;margin:1.5rem 0 .6rem}
+h4{font-size:.95rem;font-weight:700;color:#555;margin:1.2rem 0 .4rem}
+p,li{font-size:.92rem;color:#444}
+ul,ol{padding-left:1.5rem;margin:.5rem 0}
+li{margin-bottom:.3rem}
+table{width:100%;border-collapse:collapse;margin:1rem 0;font-size:.85rem}
+th,td{border:1px solid #e0e0e0;padding:.5rem .6rem;text-align:left}
+th{background:#f0f7ff;color:#1c5373;font-weight:600;white-space:nowrap}
+td{background:#fff}
+code{background:#f0f0f0;padding:1px 5px;border-radius:3px;font-size:.83rem;font-family:'SF Mono',Consolas,monospace;color:#c7254e}
+pre{background:#1e1e2e;color:#cdd6f4;padding:1rem 1.25rem;border-radius:8px;overflow-x:auto;margin:.75rem 0;font-size:.8rem;line-height:1.6}
+pre code{background:none;color:inherit;padding:0}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.72rem;font-weight:600}
+.get{background:#dbeafe;color:#2563eb}.post{background:#fef3c7;color:#d97706}.put{background:#e0e7ff;color:#6366f1}.patch{background:#fce7f3;color:#db2777}.del{background:#fee2e2;color:#ef4444}
+.auth{background:#fef2f2;color:#ef4444;font-size:.68rem}.pub{background:#e6fcf5;color:#22c55e;font-size:.68rem}
+.note{background:#fffbeb;border-left:3px solid #f59e0b;padding:.75rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.85rem;color:#92400e}
+.info{background:#eff6ff;border-left:3px solid #3b82f6;padding:.75rem 1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.85rem;color:#1e40af}
+.jk{color:#89b4fa}.js{color:#a6e3a1}.jn{color:#fab387}.cm{color:#6c7086}
+hr{border:none;border-top:1px solid #e8e8e8;margin:2rem 0}
+.toc{background:#fff;border:1px solid #e8e8e8;border-radius:10px;padding:1.25rem;margin:1.5rem 0}
+.toc a{color:#1c5373;text-decoration:none;font-size:.88rem}
+.toc ul{list-style:none;padding-left:0}
+.toc li{margin:.25rem 0}
 </style>
 </head>
 <body>
 <div class="container">
 
-<h1>巷口 App — API 串接文件 <br><small>Base URL: <code>https://your-domain.com</code> &nbsp;|&nbsp; 版本: 2026-03-13</small></h1>
+<h1>GoLocal App — API 串接完整指南
+<small>React Native App 開發者參考文件 v3 — 最後更新：2026-03-19</small>
+</h1>
+
+<p>Base URL: <code>https://golocal.tw/api/v1</code></p>
+<p>所有需認證的 API 請在 Header 帶上 <code>Authorization: Bearer {accessToken}</code></p>
+
+<div class="toc">
+<strong>目錄</strong>
+<ul>
+<li><a href="#auth">1. 認證 & 登入</a></li>
+<li><a href="#neighborhood">2. 里 & 地理</a></li>
+<li><a href="#post">3. 貼文 & 資訊</a></li>
+<li><a href="#comment">4. 留言 & 回覆</a></li>
+<li><a href="#chat">5. 聊天（群聊/私訊）</a></li>
+<li><a href="#user">6. 用戶資料 & 追蹤</a></li>
+<li><a href="#mention">7. @ Mention（標記）</a></li>
+<li><a href="#notification">8. 通知 & 推播</a></li>
+<li><a href="#follow">9. 關注里管理</a></li>
+<li><a href="#bookmark">10. 收藏</a></li>
+<li><a href="#place">11. 店家</a></li>
+<li><a href="#image">12. 圖片上傳</a></li>
+<li><a href="#version">13. 版本更新</a></li>
+<li><a href="#mgmt">14. 後台管理</a></li>
+<li><a href="#role">15. 角色系統</a></li>
+<li><a href="#ws">16. WebSocket</a></li>
+<li><a href="#deleted">17. 刪除 & 編輯規則</a></li>
+</ul>
+</div>
+
+<!-- ==================== 1. AUTH ==================== -->
+<h2 id="auth">1. 認證 & 登入</h2>
+
+<h3>1.1 訪客登入</h3>
+<p><span class="badge post">POST</span> <code>/auth/guest</code> <span class="badge pub">公開</span></p>
+<pre><code><span class="cm">// Request</span>
+{ <span class="jk">"neighborhoodId"</span>: <span class="jn">7742</span>, <span class="jk">"deviceId"</span>: <span class="js">"uuid"</span> }
+
+<span class="cm">// Response</span>
+{
+  <span class="jk">"accessToken"</span>: <span class="js">"eyJ..."</span>,
+  <span class="jk">"refreshToken"</span>: <span class="js">"eyJ..."</span>,
+  <span class="jk">"accessExpiresIn"</span>: <span class="jn">86400</span>,
+  <span class="jk">"user"</span>: {
+    <span class="jk">"id"</span>: <span class="jn">46</span>, <span class="jk">"isGuest"</span>: <span class="jn">true</span>,
+    <span class="jk">"nickname"</span>: <span class="jn">null</span>, <span class="jk">"role"</span>: <span class="js">"GUEST"</span>,
+    <span class="jk">"defaultNeighborhoodId"</span>: <span class="jn">7742</span>,
+    <span class="jk">"chiefNeighborhoodId"</span>: <span class="jn">null</span>
+  }
+}</code></pre>
+
+<h3>1.2 Firebase 登入（Google / Apple / Facebook / Phone）</h3>
+<p><span class="badge post">POST</span> <code>/auth/firebase</code> <span class="badge pub">公開</span></p>
+<pre><code>{ <span class="jk">"idToken"</span>: <span class="js">"Firebase ID Token"</span>, <span class="jk">"neighborhoodId"</span>: <span class="jn">7742</span>, <span class="jk">"deviceId"</span>: <span class="js">"uuid"</span> }</code></pre>
+<p>Response 同上，<code>role</code> 可能是 <code>USER</code> / <code>LI_CHIEF</code> / <code>ADMIN</code> / <code>SUPER_ADMIN</code></p>
+
+<h3>1.3 LINE 登入</h3>
+<p><span class="badge post">POST</span> <code>/auth/line/custom-token</code> <span class="badge pub">公開</span></p>
+<pre><code>{ <span class="jk">"code"</span>: <span class="js">"LINE auth code"</span>, <span class="jk">"redirectUri"</span>: <span class="js">"..."</span>, <span class="jk">"codeVerifier"</span>: <span class="js">"..."</span> }
+<span class="cm">// Response: { customToken: "...", isNewUser: true }</span>
+<span class="cm">// 用 customToken 呼叫 Firebase signInWithCustomToken，再用 Firebase idToken 呼叫 /auth/firebase</span></code></pre>
+
+<h3>1.4 刷新 Token</h3>
+<p><span class="badge post">POST</span> <code>/auth/refresh</code> <span class="badge pub">公開</span></p>
+<pre><code>{ <span class="jk">"refreshToken"</span>: <span class="js">"eyJ..."</span> }</code></pre>
+
+<h3>1.5 登出</h3>
+<p><span class="badge post">POST</span> <code>/auth/logout</code> <span class="badge pub">公開</span></p>
+<pre><code>{ <span class="jk">"refreshToken"</span>: <span class="js">"eyJ..."</span> } <span class="cm">// optional</span></code></pre>
+
+<div class="info">
+<strong>JWT Claims</strong>：<code>sub</code>=userId, <code>role</code>=角色, <code>ngb</code>=defaultNeighborhoodId, <code>cnb</code>=chiefNeighborhoodId (里長才有), <code>type</code>=ACCESS|REFRESH<br>
+<strong>Rate Limit</strong>：guest + firebase 登入有 10 req/60s 限制
+</div>
+
+<!-- ==================== 2. NEIGHBORHOOD ==================== -->
+<h2 id="neighborhood">2. 里 & 地理</h2>
+
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods?keyword=&cityCode=&districtCode=&page=1&size=20</code></td><td>里列表（按 city→district→name 排序）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods/{id}</code></td><td>里詳情（id, name, city, district, lat, lng, status）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods/cities</code></td><td>縣市列表（排序）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods/districts?city=臺北市</code></td><td>行政區列表（排序）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods/recommend?lat=25.0&lng=121.5</code></td><td>推薦最近 5 里</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods/locate?lat=25.0&lng=121.5</code></td><td>座標定位所在里</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/neighborhoods/nearby?lat=&lng=&radius=5000</code></td><td>附近里（半徑 1-50000m）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/geo/cities</code></td><td>縣市列表</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/geo/districts?city=&district=</code></td><td>行政區列表</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/geo/lis?city=基隆市&district=七堵區</code></td><td>里列表（id, name, city, district, lat, lng）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/geo/li?city=基隆市&district=七堵區&li=堵南里</code></td><td>單一里</td></tr>
+</table>
+<p>以上全部 <span class="badge pub">公開</span></p>
+
+<!-- ==================== 3. POST ==================== -->
+<h2 id="post">3. 貼文 & 資訊</h2>
+
+<h3>3.1 列表查詢</h3>
+<p><span class="badge get">GET</span> <code>/posts?neighborhoodId=7742&type=community&page=1&size=20</code> <span class="badge pub">公開</span></p>
+<p>帶 Authorization header 時，回傳 <code>liked</code> / <code>bookmarked</code> 狀態。</p>
+
+<h4>type 參數完整列表</h4>
+<table>
+<tr><th>type 值</th><th>說明</th><th>內容來源</th></tr>
+<tr><td><code>info</code></td><td>整合資訊（里+區資訊）</td><td>查詢用</td></tr>
+<tr><td><code>district_info</code></td><td>區資訊</td><td>管理員 / 爬蟲</td></tr>
+<tr><td><code>li_info</code></td><td>里資訊</td><td>管理員 / 里長</td></tr>
+<tr><td><code>broadcast</code></td><td>廣播（需 urgency）</td><td>管理員 / 里長</td></tr>
+<tr><td><code>guide</code></td><td>巷口說明書（全域可見，不限里）</td><td>管理員</td></tr>
+<tr><td><code>community</code></td><td>社群整合（區+里）</td><td>查詢用</td></tr>
+<tr><td><code>district_community</code></td><td>區社群</td><td>查詢用</td></tr>
+<tr><td><code>li_community</code></td><td>里社群</td><td>查詢用</td></tr>
+<tr><td><code>fresh</code></td><td>動態</td><td>所有用戶</td></tr>
+<tr><td><code>store_visit</code></td><td>踩點</td><td>所有用戶</td></tr>
+<tr><td><code>selling</code></td><td>我要賣</td><td>所有用戶</td></tr>
+<tr><td><code>renting</code></td><td>要出租</td><td>所有用戶</td></tr>
+<tr><td><code>group_buy</code></td><td>發團購</td><td>所有用戶</td></tr>
+<tr><td><code>group_event</code></td><td>揪團活動</td><td>所有用戶</td></tr>
+<tr><td><code>free_give</code></td><td>免費贈</td><td>所有用戶</td></tr>
+<tr><td><code>help</code></td><td>生活求助</td><td>所有用戶</td></tr>
+<tr><td><code>want_rent</code></td><td>想承租</td><td>所有用戶</td></tr>
+<tr><td><code>find</code></td><td>尋人找物</td><td>所有用戶</td></tr>
+<tr><td><code>recruit</code></td><td>徵人求才</td><td>所有用戶</td></tr>
+<tr><td><code>report</code></td><td>通報</td><td>所有用戶</td></tr>
+</table>
+
+<h3>3.2 發布貼文</h3>
+<p><span class="badge post">POST</span> <code>/posts</code> <span class="badge auth">需登入</span></p>
+<pre><code>{
+  <span class="jk">"neighborhoodId"</span>: <span class="jn">7742</span>,
+  <span class="jk">"title"</span>: <span class="js">"標題（選填）"</span>,
+  <span class="jk">"content"</span>: <span class="js">"@[張里長](13) 你好"</span>,  <span class="cm">// 含 mention 格式</span>
+  <span class="jk">"type"</span>: <span class="js">"fresh"</span>,
+  <span class="jk">"scope"</span>: <span class="js">"li"</span>,      <span class="cm">// "li" | "district"</span>
+  <span class="jk">"urgency"</span>: <span class="jn">null</span>,    <span class="cm">// null | "normal" | "medium" | "urgent"（僅 broadcast）</span>
+  <span class="jk">"images"</span>: [<span class="js">"https://..."</span>],
+  <span class="jk">"extra"</span>: { <span class="jk">"price"</span>: <span class="js">"100"</span> }  <span class="cm">// 分類專屬欄位</span>
+}</code></pre>
+
+<h3>3.3 PostResponse 完整結構</h3>
+<pre><code>{
+  <span class="jk">"id"</span>: <span class="jn">1</span>,
+  <span class="jk">"neighborhoodId"</span>: <span class="jn">7742</span>,
+  <span class="jk">"userId"</span>: <span class="jn">7</span>,
+  <span class="jk">"authorName"</span>: <span class="js">"超管"</span>,
+  <span class="jk">"authorRole"</span>: <span class="js">"LI_CHIEF"</span>,
+  <span class="jk">"authorBadge"</span>: <span class="js">"堵南里里長"</span>,  <span class="cm">// 里長才有，null 則不顯示</span>
+  <span class="jk">"title"</span>: <span class="js">"標題"</span>,
+  <span class="jk">"content"</span>: <span class="js">"@[張里長](13) 你好"</span>,  <span class="cm">// 含 mention 格式</span>
+  <span class="jk">"images"</span>: [<span class="js">"https://..."</span>],
+  <span class="jk">"extra"</span>: { <span class="jk">"price"</span>: <span class="js">"100"</span> },
+  <span class="jk">"type"</span>: <span class="js">"fresh"</span>,
+  <span class="jk">"scope"</span>: <span class="js">"li"</span>,
+  <span class="jk">"urgency"</span>: <span class="jn">null</span>,
+  <span class="jk">"placeId"</span>: <span class="jn">null</span>,
+  <span class="jk">"likeCount"</span>: <span class="jn">5</span>,
+  <span class="jk">"commentCount"</span>: <span class="jn">2</span>,
+  <span class="jk">"liked"</span>: <span class="jn">true</span>,            <span class="cm">// 帶 token 時回傳，否則 null</span>
+  <span class="jk">"bookmarked"</span>: <span class="jn">false</span>,       <span class="cm">// 帶 token 時回傳，否則 null</span>
+  <span class="jk">"contentDeleted"</span>: <span class="jn">null</span>,    <span class="cm">// true = 已刪除（所有內容欄位為 null）</span>
+  <span class="jk">"edited"</span>: <span class="jn">null</span>,            <span class="cm">// true = 已編輯</span>
+  <span class="jk">"createdAt"</span>: <span class="js">"2026-03-19T10:00:00"</span>
+}</code></pre>
+
+<h3>3.4 編輯 / 刪除 / 喜歡</h3>
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th><th>權限</th></tr>
+<tr><td><span class="badge patch">PATCH</span></td><td><code>/posts/{id}</code></td><td>編輯貼文 {content, title, images, extra, urgency}</td><td>本人</td></tr>
+<tr><td><span class="badge del">DEL</span></td><td><code>/posts/{id}</code></td><td>軟刪除（status=2，API 不回傳內容）</td><td>本人 / 管理員</td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/posts/{postId}/like</code></td><td>切換喜歡 → {liked, likeCount}</td><td>登入用戶</td></tr>
+</table>
+
+<!-- ==================== 4. COMMENT ==================== -->
+<h2 id="comment">4. 留言 & 回覆</h2>
+
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th><th>Auth</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/posts/{postId}/comments?parentId=</code></td><td>留言列表（parentId=null 頂層，帶 token 回傳 liked）</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/posts/{postId}/comments/{commentId}</code></td><td>單則留言</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/posts/{postId}/comments/{commentId}/thread</code></td><td>完整討論串 {chain, repliesByParent}</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/posts/{postId}/comments</code></td><td>新增 {content, parentId}</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge patch">PATCH</span></td><td><code>/posts/{postId}/comments/{commentId}</code></td><td>編輯 {content}（本人）</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge del">DEL</span></td><td><code>/posts/{postId}/comments/{commentId}</code></td><td>軟刪除（本人/管理員）</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/posts/{postId}/comments/{commentId}/like</code></td><td>切換喜歡</td><td><span class="badge auth">需登入</span></td></tr>
+</table>
+
+<h4>PostCommentResponse</h4>
+<pre><code>{
+  <span class="jk">"id"</span>: <span class="jn">10</span>, <span class="jk">"postId"</span>: <span class="jn">1</span>, <span class="jk">"parentId"</span>: <span class="jn">null</span>,
+  <span class="jk">"userId"</span>: <span class="jn">7</span>, <span class="jk">"nickname"</span>: <span class="js">"超管"</span>,
+  <span class="jk">"content"</span>: <span class="js">"@[張里長](13) 好的"</span>,
+  <span class="jk">"likeCount"</span>: <span class="jn">2</span>, <span class="jk">"liked"</span>: <span class="jn">true</span>,
+  <span class="jk">"replyCount"</span>: <span class="jn">1</span>, <span class="jk">"topRepliers"</span>: [<span class="js">"張里長"</span>],
+  <span class="jk">"contentDeleted"</span>: <span class="jn">null</span>, <span class="jk">"edited"</span>: <span class="jn">null</span>,
+  <span class="jk">"createdAt"</span>: <span class="js">"2026-03-19T10:00:00"</span>
+}</code></pre>
+
+<!-- ==================== 5. CHAT ==================== -->
+<h2 id="chat">5. 聊天（群聊 / 私訊）</h2>
+
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th><th>Auth</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/chat/rooms/{neighborhoodId}</code></td><td>里聊天室</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/chat/rooms/district?city=&district=</code></td><td>區聊天室</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/chat/rooms/{roomId}/messages?before={msgId}&limit=20</code></td><td>訊息歷史（cursor 分頁，往前載入）</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/chat/rooms/{roomId}/messages</code></td><td>發訊息 {content}</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/chat/private/{targetUserId}</code></td><td>取得/建立私聊房間</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/chat/private/rooms</code></td><td>私聊列表（含 otherBadge）</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/chat/unread-counts?roomIds=1,2,3</code></td><td>批次查未讀數</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/chat/rooms/{roomId}/read</code></td><td>標記已讀</td><td><span class="badge auth">需登入</span></td></tr>
+</table>
+
+<h4>ChatMessageResponse</h4>
+<pre><code>{
+  <span class="jk">"id"</span>: <span class="jn">100</span>, <span class="jk">"roomId"</span>: <span class="jn">1</span>, <span class="jk">"userId"</span>: <span class="jn">13</span>,
+  <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>,
+  <span class="jk">"authorBadge"</span>: <span class="js">"堵南里里長"</span>,  <span class="cm">// 里長才有</span>
+  <span class="jk">"content"</span>: <span class="js">"@[超管](7) 你好"</span>,
+  <span class="jk">"type"</span>: <span class="js">"text"</span>,
+  <span class="jk">"createdAt"</span>: <span class="js">"2026-03-19T12:00:00"</span>
+}</code></pre>
 
 <div class="note">
-  所有 API 回傳格式統一為 <code>ApiResponse&lt;T&gt;</code>：
-  <pre><code>{
-  "code": 200,
-  "message": "成功",
-  "data": { ... },
-  "traceId": "uuid"
-}</code></pre>
-  需要認證的端點，Header 加上 <code>Authorization: Bearer {accessToken}</code>。<br>
-  Access Token 有效期 15 分鐘，Refresh Token 30 天。
+<strong>時間格式</strong>：後端回傳的時間無時區（台北時間），App 端解析時需補上 <code>+08:00</code>
 </div>
 
-<!-- ═══ TOC ═══ -->
-<nav class="toc">
-<h2>目錄</h2>
+<!-- ==================== 6. USER ==================== -->
+<h2 id="user">6. 用戶資料 & 追蹤</h2>
+
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th><th>Auth</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/users/me</code></td><td>自己的資料</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/users/me/profile</code></td><td>更新 {nickname, bio, useAvatar}</td><td><span class="badge auth">需登入</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/users/{id}/profile</code></td><td>他人資料（帶 token 回傳 isFollowed）</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/users/{id}/posts?page=1&size=20</code></td><td>他人貼文列表</td><td><span class="badge pub">公開</span></td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/users/{id}/follow</code></td><td>追蹤/取消追蹤 → {followed, followerCount}</td><td><span class="badge auth">需登入</span></td></tr>
+</table>
+
+<h4>UserProfileResponse</h4>
+<pre><code>{
+  <span class="jk">"id"</span>: <span class="jn">13</span>, <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>,
+  <span class="jk">"avatarUrl"</span>: <span class="jn">null</span>, <span class="jk">"bio"</span>: <span class="js">"為社區服務"</span>,
+  <span class="jk">"role"</span>: <span class="js">"LI_CHIEF"</span>, <span class="jk">"badge"</span>: <span class="js">"堵南里里長"</span>,
+  <span class="jk">"postCount"</span>: <span class="jn">14</span>, <span class="jk">"followerCount"</span>: <span class="jn">3</span>, <span class="jk">"followingCount"</span>: <span class="jn">1</span>,
+  <span class="jk">"isFollowed"</span>: <span class="jn">true</span>,
+  <span class="jk">"createdAt"</span>: <span class="js">"2026-01-15T10:00:00"</span>
+}</code></pre>
+
+<!-- ==================== 7. MENTION ==================== -->
+<h2 id="mention">7. @ Mention（標記）</h2>
+
+<p><span class="badge get">GET</span> <code>/users/mention-candidates?keyword=張&neighborhoodId=7742&scope=li</code> <span class="badge auth">需登入</span></p>
+
+<h4>Response</h4>
+<pre><code>[
+  { <span class="jk">"id"</span>: <span class="jn">13</span>, <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>, <span class="jk">"avatarUrl"</span>: <span class="jn">null</span>, <span class="jk">"badge"</span>: <span class="js">"堵南里里長"</span> }
+]</code></pre>
+
+<h4>完整流程</h4>
 <ol>
-  <li><a href="#common">通用：回應格式、錯誤碼、認證</a></li>
-  <li><a href="#auth">登入 / 註冊</a></li>
-  <li><a href="#home">首頁</a></li>
-  <li><a href="#geo">地理導航（縣市 → 區 → 里）</a></li>
-  <li><a href="#neighborhood">里頁面（五大 Tab）</a></li>
-  <li><a href="#info">資訊 Tab</a></li>
-  <li><a href="#community">社群 Tab</a></li>
-  <li><a href="#shops">店家 Tab</a></li>
-  <li><a href="#chat">聊聊 Tab</a></li>
-  <li><a href="#post-detail">貼文詳情頁</a></li>
-  <li><a href="#place-detail">店家詳情頁</a></li>
-  <li><a href="#profile">個人資料</a></li>
-  <li><a href="#follows">關注里管理</a></li>
-  <li><a href="#bookmarks">我的收藏</a></li>
-  <li><a href="#my-posts">我的貼文</a></li>
-  <li><a href="#notifications">通知</a></li>
-  <li><a href="#search">搜尋</a></li>
-  <li><a href="#private-chat">私人訊息</a></li>
-  <li><a href="#image-upload">圖片上傳</a></li>
-  <li><a href="#websocket">WebSocket 即時通訊</a></li>
-  <li><a href="#admin">後台管理</a></li>
+<li><strong>搜尋</strong>：用戶輸入 <code>@</code> 後呼叫 API（keyword 可為空，返回關注該里/區的用戶）</li>
+<li><strong>scope 判斷</strong>：區級頁面傳 <code>district</code>，里級頁面傳 <code>li</code></li>
+<li><strong>輸入框</strong>：選擇後顯示 <code>@張里長</code>（好看），內部記錄 nickname→userId 映射</li>
+<li><strong>提交前</strong>：把 <code>@張里長</code> 替換為 <code>@[張里長](13)</code> 格式存到後端</li>
+<li><strong>顯示時</strong>：正則解析 <code>/@\[([^\]]+)\]\((\d+)\)/g</code>，渲染為藍色可點擊連結 → <code>/users/{userId}</code></li>
+<li><strong>純文字場景</strong>（通知預覽等）：<code>text.replace(/@\[([^\]]+)\]\(\d+\)/g, '@$1')</code></li>
+<li><strong>中文輸入法</strong>：監聽 <code>compositionstart</code> / <code>compositionend</code>，組字中不攔截 Enter</li>
 </ol>
-</nav>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="common">1. 通用</h2>
+<!-- ==================== 8. NOTIFICATION ==================== -->
+<h2 id="notification">8. 通知 & 推播</h2>
 
-<h3>回應格式</h3>
-<pre><code>// 成功
-{ "code": 200, "message": "成功", "data": { ... }, "traceId": "abc-123" }
-
-// 失敗
-{ "code": 400, "message": "暱稱不得為空", "data": null, "traceId": "abc-456" }</code></pre>
-
-<h3>錯誤碼</h3>
+<h3>8.1 FCM Token 管理</h3>
 <table>
-  <tr><th>code</th><th>說明</th></tr>
-  <tr><td>200</td><td>成功</td></tr>
-  <tr><td>400</td><td>參數錯誤 / 業務邏輯錯誤</td></tr>
-  <tr><td>401</td><td>未登入 / Token 過期</td></tr>
-  <tr><td>403</td><td>權限不足（如訪客嘗試發文）</td></tr>
-  <tr><td>404</td><td>資源不存在</td></tr>
-  <tr><td>422</td><td>欄位驗證失敗</td></tr>
-  <tr><td>429</td><td>請求過於頻繁（限流）</td></tr>
-  <tr><td>500</td><td>伺服器錯誤</td></tr>
+<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/notifications/token</code></td><td>註冊 {token, platform: "ios"|"android"}</td></tr>
+<tr><td><span class="badge del">DEL</span></td><td><code>/notifications/token?platform=ios</code></td><td>登出時移除</td></tr>
 </table>
 
-<h3>認證方式</h3>
-<div class="card">
-  <p>需要認證的 API，在 Header 加上：</p>
-  <pre><code>Authorization: Bearer eyJhbGciOiJIUzI1NiJ9...</code></pre>
-  <p>收到 <code>code: 401</code> 時，用 Refresh Token 呼叫 <code>POST /api/v1/auth/refresh</code> 換新 Access Token。</p>
-  <p>JWT Claims 包含：<code>userId</code>、<code>role</code> (GUEST/USER/ADMIN/SUPER_ADMIN)、<code>defaultNeighborhoodId</code>、<code>jti</code></p>
-</div>
+<h3>8.2 通知列表</h3>
+<p><span class="badge get">GET</span> <code>/notifications?page=1&size=20</code></p>
+<pre><code>{
+  <span class="jk">"records"</span>: [{
+    <span class="jk">"id"</span>: <span class="jn">123</span>, <span class="jk">"type"</span>: <span class="js">"mention"</span>,
+    <span class="jk">"title"</span>: <span class="js">"張里長 提及了你"</span>,
+    <span class="jk">"body"</span>: <span class="js">"@超管 你好"</span>,  <span class="cm">// body 已清理 mention 格式</span>
+    <span class="jk">"refType"</span>: <span class="js">"post"</span>, <span class="jk">"refId"</span>: <span class="jn">456</span>,
+    <span class="jk">"isRead"</span>: <span class="jn">0</span>,
+    <span class="jk">"neighborhoodId"</span>: <span class="jn">7742</span>,
+    <span class="jk">"neighborhoodName"</span>: <span class="js">"堵南里"</span>,
+    <span class="jk">"city"</span>: <span class="js">"基隆市"</span>, <span class="jk">"district"</span>: <span class="js">"七堵區"</span>,
+    <span class="jk">"createdAt"</span>: <span class="js">"2026-03-19T10:30:00"</span>
+  }],
+  <span class="jk">"total"</span>: <span class="jn">48</span>, <span class="jk">"unread"</span>: <span class="jn">5</span>, <span class="jk">"page"</span>: <span class="jn">1</span>, <span class="jk">"size"</span>: <span class="jn">20</span>
+}</code></pre>
 
-<h3>角色權限</h3>
+<h3>8.3 通知類型 & 導頁規則</h3>
 <table>
-  <tr><th>角色</th><th>可執行操作</th></tr>
-  <tr><td>GUEST</td><td>瀏覽所有內容（不可發文、留言、按讚、收藏、聊天、關注里）</td></tr>
-  <tr><td>USER</td><td>所有一般功能（發文、留言、按讚、收藏、聊天、關注里）</td></tr>
-  <tr><td>ADMIN</td><td>USER 權限 + 發布資訊/廣播、管理店家、查看後台</td></tr>
-  <tr><td>SUPER_ADMIN</td><td>ADMIN 權限 + 管理其他管理員</td></tr>
+<tr><th>type</th><th>中文</th><th>refType</th><th>refId</th><th>導頁</th></tr>
+<tr><td><code>new_info</code></td><td>新資訊</td><td>post</td><td>貼文ID</td><td>貼文詳情</td></tr>
+<tr><td><code>new_post</code></td><td>新貼文</td><td>post</td><td>貼文ID</td><td>貼文詳情</td></tr>
+<tr><td><code>follow_post</code></td><td>追蹤</td><td>post</td><td>貼文ID</td><td>貼文詳情</td></tr>
+<tr><td><code>post_reply</code></td><td>回覆</td><td>post</td><td>貼文ID</td><td>貼文詳情</td></tr>
+<tr><td><code>mention</code></td><td>提及</td><td>post / chat_message</td><td>貼文ID / 訊息ID</td><td>貼文詳情 / 聊天</td></tr>
+<tr><td><code>chat</code></td><td>聊聊</td><td>chat_message</td><td>訊息ID</td><td>聊天室</td></tr>
+<tr><td><code>private_message</code></td><td>私訊</td><td>user</td><td>發送者userId</td><td>私訊對話</td></tr>
 </table>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="auth"><span class="page-icon">🔐</span> 2. 登入 / 註冊</h2>
+<h3>8.4 通知設定</h3>
+<p><span class="badge get">GET</span> / <span class="badge put">PUT</span> <code>/notifications/settings</code></p>
+<pre><code>{
+  <span class="jk">"master"</span>: <span class="jn">1</span>,           <span class="cm">// 總開關</span>
+  <span class="jk">"infoMedium"</span>: <span class="jn">1</span>,       <span class="cm">// 中等公告（空品/水情）</span>
+  <span class="jk">"infoNormal"</span>: <span class="jn">1</span>,       <span class="cm">// 一般公告（新聞/公告）</span>
+  <span class="jk">"garbageTruck"</span>: <span class="jn">1</span>,     <span class="cm">// 垃圾車（預留）</span>
+  <span class="jk">"newPost"</span>: <span class="jn">1</span>,          <span class="cm">// 社群貼文（關注里有新貼文）</span>
+  <span class="jk">"followPost"</span>: <span class="jn">1</span>,       <span class="cm">// 追蹤對象發文</span>
+  <span class="jk">"postReply"</span>: <span class="jn">1</span>,        <span class="cm">// 貼文回覆</span>
+  <span class="jk">"chat"</span>: <span class="jn">1</span>,             <span class="cm">// 聊天室</span>
+  <span class="jk">"privateMessage"</span>: <span class="jn">1</span>    <span class="cm">// 私訊</span>
+}
+<span class="cm">// PUT 只傳需要改的欄位，如 { "chat": 0 }</span></code></pre>
 
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/auth/guest</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">訪客快速登入（無需第三方帳號）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>預設里 ID</td></tr>
-    <tr><td>deviceId</td><td>String</td><td><span class="optional">選填</span></td><td>裝置識別碼（限流用）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "accessToken": "eyJ...",
-  "refreshToken": "abc...",
-  "accessExpiresIn": 900,
-  "user": {
-    "id": 42,
-    "isGuest": true,
-    "nickname": null,
-    "defaultNeighborhoodId": 123
+<h3>8.5 FCM Payload</h3>
+<pre><code>{
+  <span class="jk">"notification"</span>: { <span class="jk">"title"</span>: <span class="js">"張里長 提及了你"</span>, <span class="jk">"body"</span>: <span class="js">"@超管 你好"</span> },
+  <span class="jk">"data"</span>: {
+    <span class="jk">"notifType"</span>: <span class="js">"mention"</span>,
+    <span class="jk">"refType"</span>: <span class="js">"post"</span>,
+    <span class="jk">"refId"</span>: <span class="js">"456"</span>
   }
 }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/auth/firebase</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">第三方登入（Google / Apple / Facebook / Phone / LINE custom token）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>idToken</td><td>String</td><td><span class="required">必填</span></td><td>Firebase ID Token</td></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>預設里 ID</td></tr>
-    <tr><td>deviceId</td><td>String</td><td><span class="optional">選填</span></td><td>裝置識別碼</td></tr>
-  </table>
-  <h4>Response</h4>
-  <p>同上 <code>AuthResponse</code>，<code>isGuest</code> 為 <code>false</code></p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/auth/line/custom-token</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">LINE Login — 用 OAuth code 換 Firebase custom token</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>code</td><td>String</td><td><span class="required">必填</span></td><td>LINE OAuth authorization code</td></tr>
-    <tr><td>redirectUri</td><td>String</td><td><span class="required">必填</span></td><td>LINE 回呼 URI</td></tr>
-    <tr><td>codeVerifier</td><td>String</td><td><span class="required">必填</span></td><td>PKCE code verifier</td></tr>
-    <tr><td>deviceId</td><td>String</td><td><span class="optional">選填</span></td><td>裝置識別碼</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{ "firebaseCustomToken": "eyJ..." }</code></pre>
-  <div class="note">取得 custom token 後，用 Firebase SDK <code>signInWithCustomToken()</code> 登入，再取得 <code>idToken</code> 呼叫 <code>/auth/firebase</code>。</div>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/auth/line/id-token</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">LINE Login — 直接用 LINE ID Token 換 Firebase custom token</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>idToken</td><td>String</td><td><span class="required">必填</span></td><td>LINE ID Token</td></tr>
-    <tr><td>nonce</td><td>String</td><td><span class="optional">選填</span></td><td>LINE nonce</td></tr>
-    <tr><td>deviceId</td><td>String</td><td><span class="optional">選填</span></td><td>裝置識別碼</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{ "firebaseCustomToken": "eyJ..." }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/auth/refresh</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">用 Refresh Token 換新 Access Token</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>refreshToken</td><td>String</td><td><span class="required">必填</span></td><td>Refresh Token</td></tr>
-  </table>
-  <h4>Response</h4>
-  <p>同 <code>AuthResponse</code></p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/auth/logout</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">登出（將 Access Token 加入黑名單）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>refreshToken</td><td>String</td><td><span class="optional">選填</span></td><td>一併作廢 Refresh Token</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="home"><span class="page-icon">🏠</span> 3. 首頁</h2>
-
-<div class="card">
-  <p>首頁顯示使用者預設里的簡要資訊。需要串接以下 API：</p>
-  <table>
-    <tr><th>功能</th><th>API</th></tr>
-    <tr><td>取得關注里清單（含預設里）</td><td><code>GET /api/v1/follows</code></td></tr>
-    <tr><td>天氣</td><td><code>GET /api/v1/weather?city={城市名}</code></td></tr>
-    <tr><td>里資訊（最新公告/廣播）</td><td><code>GET /api/v1/posts?neighborhoodId={id}&type=info&size=5</code></td></tr>
-    <tr><td>里社群（最新貼文）</td><td><code>GET /api/v1/posts?neighborhoodId={id}&type=fresh&size=5</code></td></tr>
-    <tr><td>GPS 定位里</td><td><code>GET /api/v1/neighborhoods/locate?lat={lat}&lng={lng}</code></td></tr>
-    <tr><td>推薦附近里</td><td><code>GET /api/v1/neighborhoods/recommend?lat={lat}&lng={lng}</code></td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/weather?city={城市名}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得天氣資訊（也可傳 lat/lng 用 Open-Meteo）</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>city</td><td>String</td><td><span class="optional">選填</span></td><td>城市名，如「臺北市」（優先使用 CWA）</td></tr>
-    <tr><td>lat</td><td>Double</td><td><span class="optional">選填</span></td><td>GPS 緯度（city 無值時用 Open-Meteo）</td></tr>
-    <tr><td>lng</td><td>Double</td><td><span class="optional">選填</span></td><td>GPS 經度</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="geo"><span class="page-icon">🗺️</span> 4. 地理導航</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/geo/cities</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得所有縣市清單</p>
-  <h4>Response — data</h4>
-  <pre><code>["台北市", "新北市", "桃園市", ...]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/geo/districts?city={城市}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得某縣市的所有行政區</p>
-  <h4>Response — data</h4>
-  <pre><code>["中正區", "大安區", "信義區", ...]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/geo/lis?city={城市}&district={行政區}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得某行政區的所有里</p>
-  <h4>Response — data</h4>
-  <pre><code>[
-  { "id": 123, "city": "台北市", "district": "大安區", "name": "龍泉里", "lat": 25.023, "lng": 121.529, "status": 1 },
-  ...
-]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/geo/li?city={城市}&district={區}&li={里名}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">根據名稱精確查詢單一里</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "id": 123, "city": "台北市", "district": "大安區", "name": "龍泉里", "lat": 25.023, "lng": 121.529, "status": 1 }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/neighborhoods/locate</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">GPS 座標或地址定位到所屬里</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>lat</td><td>Double</td><td><span class="optional">二擇一</span></td><td>GPS 緯度 [-90, 90]</td></tr>
-    <tr><td>lng</td><td>Double</td><td><span class="optional">二擇一</span></td><td>GPS 經度 [-180, 180]</td></tr>
-    <tr><td>address</td><td>String</td><td><span class="optional">二擇一</span></td><td>中文地址（最多 200 字）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "id": 123, "liCode": "63000040011",
-  "name": "龍泉里", "fullName": "台北市大安區龍泉里",
-  "district": "大安區", "city": "台北市",
-  "lat": 25.023, "lng": 121.529, "status": 1
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/neighborhoods/recommend?lat={lat}&lng={lng}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">推薦附近 5 個里（按距離排序）</p>
-  <h4>Response — data</h4>
-  <pre><code>[
-  { "id": 123, "fullName": "台北市大安區龍泉里", "distanceMeter": 350 },
-  ...
-]</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="neighborhood"><span class="page-icon">📍</span> 5. 里頁面（五大 Tab）</h2>
-<div class="card">
-  <p>里頁面是 App 的核心，包含五個 Tab：<strong>首頁、資訊、社群、店家、聊聊</strong>。</p>
-  <p>進入里頁面後，先呼叫以下 API 取得里的基本資訊：</p>
-  <pre><code>GET /api/v1/geo/li?city=台北市&district=大安區&li=龍泉里</code></pre>
-  <p>取得 <code>id</code> 後，後續 API 都用這個 <code>neighborhoodId</code>。</p>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="info"><span class="page-icon">📢</span> 6. 資訊 Tab</h2>
-
-<div class="card">
-  <p>資訊 Tab 分為兩區：<strong>區資訊</strong>（scope=district）和 <strong>里資訊</strong>（scope=li）。</p>
-  <p>每區有四種類型：<strong>貼文、廣播(一般)、廣播(中等)、廣播(緊急)</strong></p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts?neighborhoodId={id}&type=info&scope=district&page=1&size=20</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得區資訊列表</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts?neighborhoodId={id}&type=info&scope=li&page=1&size=20</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得里資訊列表</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/posts</span>
-    <span class="auth-badge admin">管理員</span>
-  </div>
-  <p class="desc">發布資訊/廣播（僅 ADMIN / SUPER_ADMIN）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>里 ID</td></tr>
-    <tr><td>content</td><td>String</td><td><span class="required">必填</span></td><td>內容（最多 5000 字）</td></tr>
-    <tr><td>title</td><td>String</td><td><span class="optional">選填</span></td><td>標題（最多 255 字）</td></tr>
-    <tr><td>type</td><td>String</td><td><span class="required">必填</span></td><td><code>info</code> 或 <code>broadcast</code></td></tr>
-    <tr><td>scope</td><td>String</td><td><span class="required">必填</span></td><td><code>li</code> 或 <code>district</code></td></tr>
-    <tr><td>urgency</td><td>String</td><td><span class="optional">選填</span></td><td><code>normal</code> | <code>medium</code> | <code>urgent</code>（預設 normal）</td></tr>
-    <tr><td>images</td><td>String[]</td><td><span class="optional">選填</span></td><td>圖片 URL 陣列（最多 9 張）</td></tr>
-    <tr><td>extra</td><td>Object</td><td><span class="optional">選填</span></td><td>額外 JSON 欄位</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="community"><span class="page-icon">💬</span> 7. 社群 Tab</h2>
-
-<div class="card">
-  <p>社群貼文有多種類型可用 <code>type</code> 篩選：</p>
-  <table>
-    <tr><th>type 值</th><th>中文</th></tr>
-    <tr><td>fresh</td><td>動態</td></tr>
-    <tr><td>store_visit</td><td>踩點分享</td></tr>
-    <tr><td>selling</td><td>我要賣</td></tr>
-    <tr><td>renting</td><td>要出租</td></tr>
-    <tr><td>group_buy</td><td>發團購</td></tr>
-    <tr><td>group_event</td><td>揪活動</td></tr>
-    <tr><td>free_give</td><td>免費送</td></tr>
-    <tr><td>help</td><td>求幫忙</td></tr>
-    <tr><td>want_rent</td><td>想租屋</td></tr>
-    <tr><td>find</td><td>找人/物</td></tr>
-    <tr><td>recruit</td><td>找工作</td></tr>
-    <tr><td>report</td><td>通報</td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts?neighborhoodId={id}&page=1&size=20</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得社群貼文列表（不傳 type 回傳全部非 info 貼文）</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>里 ID</td></tr>
-    <tr><td>type</td><td>String</td><td><span class="optional">選填</span></td><td>篩選類型（見上表）</td></tr>
-    <tr><td>page</td><td>Integer</td><td><span class="optional">選填</span></td><td>頁碼，預設 1</td></tr>
-    <tr><td>size</td><td>Integer</td><td><span class="optional">選填</span></td><td>每頁筆數，預設 20（最大 50）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "total": 156,
-  "records": [
-    {
-      "id": 789,
-      "neighborhoodId": 123,
-      "userId": 42,
-      "authorName": "小明",
-      "authorRole": "USER",
-      "title": null,
-      "content": "今天在巷口看到一隻貓...",
-      "images": ["https://r2.example.com/abc.jpg"],
-      "extra": { "price": "200", "quantity": "3" },
-      "type": "fresh",
-      "scope": "li",
-      "urgency": null,
-      "placeId": null,
-      "likeCount": 5,
-      "commentCount": 3,
-      "createdAt": "2026-03-12T14:30:00"
-    }
-  ]
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/posts</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">發布社群貼文</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>里 ID</td></tr>
-    <tr><td>content</td><td>String</td><td><span class="required">必填</span></td><td>內容（最多 5000 字）</td></tr>
-    <tr><td>title</td><td>String</td><td><span class="optional">選填</span></td><td>標題（最多 255 字）</td></tr>
-    <tr><td>type</td><td>String</td><td><span class="optional">選填</span></td><td>貼文類型（預設 <code>fresh</code>）</td></tr>
-    <tr><td>scope</td><td>String</td><td><span class="optional">選填</span></td><td><code>li</code> 或 <code>district</code>（預設 li）</td></tr>
-    <tr><td>placeId</td><td>Long</td><td><span class="optional">選填</span></td><td>關聯店家 ID（踩點分享用）</td></tr>
-    <tr><td>images</td><td>String[]</td><td><span class="optional">選填</span></td><td>圖片 URL 陣列（最多 9 張）</td></tr>
-    <tr><td>extra</td><td>Object</td><td><span class="optional">選填</span></td><td>額外欄位，如 price, quantity, deadline</td></tr>
-  </table>
-  <div class="warn">訪客（GUEST）無法發文，會回傳 <code>code: 403</code>。</div>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/posts/{postId}/like</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">按讚/取消按讚（toggle）</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "liked": true, "likeCount": 6 }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts/likes/check-batch?postIds=1,2,3</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">批次檢查哪些貼文已按讚（列表頁用）</p>
-  <h4>Response — data</h4>
-  <pre><code>[1, 3]  // 已按讚的 post IDs</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="shops"><span class="page-icon">🏪</span> 8. 店家 Tab</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/places?neighborhoodId={id}&page=1&size=20</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得里的店家列表</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>里 ID</td></tr>
-    <tr><td>categoryId</td><td>Long</td><td><span class="optional">選填</span></td><td>分類 ID 篩選</td></tr>
-    <tr><td>categoryName</td><td>String</td><td><span class="optional">選填</span></td><td>分類名稱篩選</td></tr>
-    <tr><td>keyword</td><td>String</td><td><span class="optional">選填</span></td><td>關鍵字搜尋（店名/地址）</td></tr>
-    <tr><td>sort</td><td>String</td><td><span class="optional">選填</span></td><td>排序方式</td></tr>
-    <tr><td>page</td><td>Integer</td><td><span class="optional">選填</span></td><td>頁碼（預設 1）</td></tr>
-    <tr><td>size</td><td>Integer</td><td><span class="optional">選填</span></td><td>每頁筆數（預設 20，最大 200）</td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/places/by-district?city={城市}&district={區}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得同區（排除目前里）的店家列表</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>city</td><td>String</td><td><span class="required">必填</span></td><td>城市名</td></tr>
-    <tr><td>district</td><td>String</td><td><span class="required">必填</span></td><td>行政區名</td></tr>
-    <tr><td>excludeNeighborhoodId</td><td>Long</td><td><span class="optional">選填</span></td><td>排除的里 ID</td></tr>
-    <tr><td>categoryName</td><td>String</td><td><span class="optional">選填</span></td><td>分類篩選</td></tr>
-    <tr><td>keyword</td><td>String</td><td><span class="optional">選填</span></td><td>關鍵字搜尋</td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/categories</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得分類樹（店家篩選用）</p>
-  <h4>Response — data</h4>
-  <pre><code>[
-  {
-    "id": 1, "name": "餐飲", "slug": "food", "icon": "🍜",
-    "parentId": null, "sortOrder": 1,
-    "children": [
-      { "id": 2, "name": "小吃", "slug": "snack", "icon": "🥟", "parentId": 1, "sortOrder": 1, "children": [] }
-    ]
-  }
-]</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="chat"><span class="page-icon">💭</span> 9. 聊聊 Tab</h2>
-
-<div class="card">
-  <p>聊聊 Tab 有三個區塊：<strong>區來聊聊</strong>、<strong>里來聊聊</strong>、<strong>私人訊息</strong>。</p>
-  <p>每個聊天室顯示：最後一筆訊息（含發送者暱稱）、時間、未讀數量。</p>
-  <p>公開聊天室如果最後訊息是自己發的，不顯示未讀 badge。</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/chat/rooms/district?city={城市}&district={區}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得區聊天室資訊</p>
-  <h4>Response — data (ChatRoomResponse)</h4>
-  <pre><code>{
-  "id": 10,
-  "neighborhoodId": null,
-  "name": "大安區",
-  "type": "district",
-  "lastMessage": "今天天氣不錯",
-  "lastMessageNickname": "小明",
-  "lastMessageUserId": 42,
-  "lastMessageAt": "2026-03-12T14:30:00",
-  "memberCount": 156
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/chat/rooms/{neighborhoodId}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得里聊天室資訊</p>
-  <h4>Response</h4>
-  <p>同上 <code>ChatRoomResponse</code>，<code>type</code> 為 <code>"li"</code></p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/chat/unread-counts?roomIds=10,11,12</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">批次取得未讀訊息數量</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "10": 3, "11": 0, "12": 15 }</code></pre>
-  <div class="note">建議每 30 秒輪詢一次，或搭配 WebSocket 做 push 通知。超過 999 則前端顯示 <code>999+</code>。</div>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/chat/rooms/{roomId}/messages?before={msgId}&limit=30</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得聊天室歷史訊息（向上滾動載入更多）</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>before</td><td>Long</td><td><span class="optional">選填</span></td><td>訊息 ID 游標（取比此 ID 更早的訊息）</td></tr>
-    <tr><td>limit</td><td>Integer</td><td><span class="optional">選填</span></td><td>筆數（預設 30，最大 50）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>[
-  {
-    "id": 500,
-    "roomId": 10,
-    "userId": 42,
-    "nickname": "小明",
-    "content": "大家好！",
-    "type": "text",
-    "createdAt": "2026-03-12T14:28:00"
-  }
-]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/chat/rooms/{roomId}/messages</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">發送訊息（REST 備援，建議優先用 WebSocket）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>content</td><td>String</td><td><span class="required">必填</span></td><td>訊息內容（最多 500 字）</td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method put">PUT</span>
-    <span class="path">/api/v1/chat/rooms/{roomId}/read</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">標記聊天室已讀（離開聊天室時呼叫）</p>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="post-detail"><span class="page-icon">📄</span> 10. 貼文詳情頁</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts/{id}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得單篇貼文詳情</p>
-  <h4>Response — data (PostResponse)</h4>
-  <pre><code>{
-  "id": 789,
-  "neighborhoodId": 123,
-  "userId": 42,
-  "authorName": "小明",
-  "authorRole": "USER",
-  "title": "巷口發現好店",
-  "content": "今天在龍泉街發現...",
-  "images": ["https://r2.example.com/abc.jpg"],
-  "extra": { "price": "200" },
-  "type": "store_visit",
-  "scope": "li",
-  "urgency": null,
-  "placeId": 56,
-  "likeCount": 12,
-  "commentCount": 8,
-  "createdAt": "2026-03-12T10:00:00"
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method patch">PATCH</span>
-    <span class="path">/api/v1/posts/{id}</span>
-    <span class="auth-badge auth">需登入（作者本人）</span>
-  </div>
-  <p class="desc">編輯貼文</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>content</td><td>String</td><td><span class="required">必填</span></td><td>更新內容</td></tr>
-    <tr><td>title</td><td>String</td><td><span class="optional">選填</span></td><td>更新標題</td></tr>
-    <tr><td>images</td><td>String[]</td><td><span class="optional">選填</span></td><td>更新圖片</td></tr>
-    <tr><td>extra</td><td>Object</td><td><span class="optional">選填</span></td><td>更新額外欄位</td></tr>
-    <tr><td>urgency</td><td>String</td><td><span class="optional">選填</span></td><td>更新緊急程度（info/broadcast 可用）</td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method delete">DELETE</span>
-    <span class="path">/api/v1/posts/{id}</span>
-    <span class="auth-badge auth">需登入（作者本人）</span>
-  </div>
-  <p class="desc">刪除貼文（軟刪除）</p>
-</div>
-
-<h3>留言系統</h3>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts/{postId}/comments</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得頂層留言列表</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>parentId</td><td>Long</td><td><span class="optional">選填</span></td><td>不傳 = 頂層留言；傳 parentId = 取得回覆</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>[
-  {
-    "id": 100,
-    "postId": 789,
-    "parentId": null,
-    "userId": 42,
-    "nickname": "小明",
-    "content": "好讚！",
-    "createdAt": "2026-03-12T14:30:00",
-    "likeCount": 3,
-    "replyCount": 2,
-    "topRepliers": ["小華", "阿強"]
-  }
-]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/posts/{postId}/comments</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">發表留言或回覆</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>content</td><td>String</td><td><span class="required">必填</span></td><td>留言內容（最多 500 字）</td></tr>
-    <tr><td>parentId</td><td>Long</td><td><span class="optional">選填</span></td><td>回覆的留言 ID（頂層留言不傳）</td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/posts/{postId}/comments/{commentId}/like</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">留言按讚/取消（toggle）</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "liked": true, "likeCount": 4 }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts/{postId}/comments/{commentId}/thread</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得留言討論串（分享連結用，完整祖先鏈 + 各層回覆）</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "chain": [ /* 從根到目標的 comment 陣列 */ ],
-  "repliesByParent": {
-    "100": [ /* 100 的子回覆 */ ],
-    "105": [ /* 105 的子回覆 */ ]
-  }
-}</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="place-detail"><span class="page-icon">🏬</span> 11. 店家詳情頁</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/places/{id}</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得店家詳情</p>
-  <h4>Response — data (PlaceResponse)</h4>
-  <pre><code>{
-  "id": 56,
-  "neighborhoodId": 123,
-  "categoryId": 2,
-  "categoryName": "小吃",
-  "name": "阿婆麵線",
-  "description": "在地 30 年老店...",
-  "address": "台北市大安區龍泉街 12 號",
-  "phone": "02-1234-5678",
-  "website": "https://example.com",
-  "hours": "週一至週五 11:00-20:00",
-  "lat": 25.023,
-  "lng": 121.529,
-  "coverImageUrl": "https://r2.example.com/cover.jpg",
-  "images": ["img1.jpg", "img2.jpg"],
-  "tags": ["老店", "銅板美食"],
-  "rating": 4.5,
-  "reviewCount": 23,
-  "likeCount": 45,
-  "hasHomeService": false,
-  "isPartner": true,
-  "status": 1
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/places/{id}/like</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">店家按讚/取消（toggle）</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "liked": true, "likeCount": 46 }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/places/{id}/comments?page=1&size=10</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">取得店家評論列表</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "total": 23,
-  "records": [
-    {
-      "id": 1,
-      "placeId": 56,
-      "userId": 42,
-      "authorName": "小明",
-      "content": "很好吃！",
-      "rating": 5,
-      "likeCount": 3,
-      "createdAt": "2026-03-11T18:00:00"
-    }
-  ]
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/places/{id}/comments</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">發表店家評論（每人限一則）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>content</td><td>String</td><td><span class="required">必填</span></td><td>評論內容</td></tr>
-    <tr><td>rating</td><td>Integer</td><td><span class="optional">選填</span></td><td>評分 1-5 星</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="profile"><span class="page-icon">👤</span> 12. 個人資料</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/users/me</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">取得個人資料（含貼文數、收藏數）</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "nickname": "小明",
-  "bio": "住在大安區的上班族",
-  "useAvatar": true,
-  "avatarUrl": "https://lh3.googleusercontent.com/...",
-  "postCount": 15,
-  "bookmarkCount": 8
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method patch">PATCH</span>
-    <span class="path">/api/v1/users/me/profile</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">更新個人資料（暱稱、自我介紹、頭像開關）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>nickname</td><td>String</td><td><span class="optional">選填</span></td><td>暱稱（最多 20 字）</td></tr>
-    <tr><td>bio</td><td>String</td><td><span class="optional">選填</span></td><td>自我介紹（最多 100 字，空字串=清除）</td></tr>
-    <tr><td>useAvatar</td><td>Boolean</td><td><span class="optional">選填</span></td><td>是否顯示第三方頭像</td></tr>
-  </table>
-  <h4>Response</h4>
-  <p>回傳更新後的 <code>ProfileResponse</code>（同上）</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method patch">PATCH</span>
-    <span class="path">/api/v1/users/me/nickname</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">單獨更新暱稱（簡化版）</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>nickname</td><td>String</td><td><span class="required">必填</span></td><td>暱稱（最多 20 字）</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="follows"><span class="page-icon">📍</span> 13. 關注里管理</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/follows</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">取得關注里清單 + 冷卻資訊</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "follows": [
-    { "id": 123, "name": "龍泉里", "city": "台北市", "district": "大安區", "isDefault": true, "alias": "老家" },
-    { "id": 456, "name": "樂善里", "city": "桃園市", "district": "龜山區", "isDefault": false, "alias": "公司" }
-  ],
-  "cooldownSlots": 0,
-  "cooldownExpiredAt": null
-}</code></pre>
-  <div class="note">最多關注 3 個里。取消關注後有 7 天冷卻期。<code>cooldownSlots</code> = 冷卻中的 slot 數，<code>cooldownExpiredAt</code> = 最近一個冷卻的到期時間。</div>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/follows/{neighborhoodId}</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">關注一個里</p>
-  <div class="warn">如果 <code>follows + cooldownSlots >= 3</code>，會回傳 400 拒絕。第一筆自動設為預設。</div>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method delete">DELETE</span>
-    <span class="path">/api/v1/follows/{neighborhoodId}</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">取消關注（預設里不可刪，至少保留 1 個）</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method put">PUT</span>
-    <span class="path">/api/v1/follows/{neighborhoodId}/default</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">設為預設里</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method patch">PATCH</span>
-    <span class="path">/api/v1/follows/{neighborhoodId}/alias</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">更新里的別名</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>alias</td><td>String</td><td><span class="optional">選填</span></td><td>別名（最多 30 字，空字串=清除）</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="bookmarks"><span class="page-icon">🔖</span> 14. 我的收藏</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/bookmarks/{postId}</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">收藏/取消收藏貼文（toggle）</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "bookmarked": true }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/bookmarks</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">取得所有收藏貼文（最新在前）</p>
-  <h4>Response — data</h4>
-  <pre><code>[ /* PostResponse 陣列 */ ]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/bookmarks/check?postId={id}</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">檢查單篇是否已收藏</p>
-  <h4>Response — data</h4>
-  <pre><code>{ "bookmarked": true }</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/bookmarks/check-batch?postIds=1,2,3</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">批次檢查收藏狀態（列表頁用）</p>
-  <h4>Response — data</h4>
-  <pre><code>[1, 3]  // 已收藏的 post IDs</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="my-posts"><span class="page-icon">📝</span> 15. 我的貼文</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/posts/mine?page=1&size=20</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">取得自己發布的貼文列表</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "total": 15,
-  "records": [ /* PostResponse 陣列 */ ]
-}</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="notifications"><span class="page-icon">🔔</span> 16. 通知</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method put">PUT</span>
-    <span class="path">/api/v1/notifications/token</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">註冊 FCM 推播 Token</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>token</td><td>String</td><td><span class="required">必填</span></td><td>FCM device token</td></tr>
-    <tr><td>platform</td><td>String</td><td><span class="optional">選填</span></td><td><code>ios</code> | <code>android</code> | <code>web</code></td></tr>
-  </table>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method delete">DELETE</span>
-    <span class="path">/api/v1/notifications/token?platform={平台}</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">移除推播 Token</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/notifications?page=1&size=20</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">取得通知列表</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "records": [
-    {
-      "id": 1,
-      "type": "new_post",
-      "title": "新貼文",
-      "body": "小明在龍泉里發了新貼文",
-      "refType": "post",
-      "refId": 789,
-      "isRead": 0,
-      "createdAt": "2026-03-12T14:30:00",
-      "neighborhoodId": 123,
-      "neighborhoodName": "龍泉里",
-      "city": "台北市",
-      "district": "大安區"
-    }
-  ],
-  "total": 50,
-  "unread": 3,
-  "page": 1,
-  "size": 20
-}</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method put">PUT</span>
-    <span class="path">/api/v1/notifications/{id}/read</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">標記單則通知已讀</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method put">PUT</span>
-    <span class="path">/api/v1/notifications/read-all</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">標記全部已讀</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/notifications/settings</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">取得推播設定</p>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "userId": 42,
-  "newPost": 1,
-  "newInfo": 1,
-  "chat": 1,
-  "privateMessage": 1
-}</code></pre>
-  <p><code>1</code> = 開啟，<code>0</code> = 關閉</p>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method put">PUT</span>
-    <span class="path">/api/v1/notifications/settings</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">更新推播設定</p>
-  <h4>Request Body</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>newPost</td><td>Integer</td><td><span class="optional">選填</span></td><td>新貼文通知 (0/1)</td></tr>
-    <tr><td>newInfo</td><td>Integer</td><td><span class="optional">選填</span></td><td>新資訊通知 (0/1)</td></tr>
-    <tr><td>chat</td><td>Integer</td><td><span class="optional">選填</span></td><td>聊天通知 (0/1)</td></tr>
-    <tr><td>privateMessage</td><td>Integer</td><td><span class="optional">選填</span></td><td>私訊通知 (0/1)</td></tr>
-  </table>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="search"><span class="page-icon">🔍</span> 17. 搜尋</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/neighborhoods?keyword={關鍵字}&page=1&size=20</span>
-    <span class="auth-badge public">公開</span>
-  </div>
-  <p class="desc">搜尋里（模糊匹配里名、區名、市名）</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>keyword</td><td>String</td><td><span class="optional">選填</span></td><td>模糊搜尋</td></tr>
-    <tr><td>cityCode</td><td>String</td><td><span class="optional">選填</span></td><td>精確匹配城市</td></tr>
-    <tr><td>districtCode</td><td>String</td><td><span class="optional">選填</span></td><td>精確匹配行政區</td></tr>
-    <tr><td>page</td><td>Integer</td><td><span class="optional">選填</span></td><td>頁碼（預設 1）</td></tr>
-    <tr><td>size</td><td>Integer</td><td><span class="optional">選填</span></td><td>每頁筆數（預設 20，最大 100）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "total": 85,
-  "records": [
-    { "id": 123, "liCode": "63000040011", "name": "龍泉里", "district": "大安區", "city": "台北市", "status": 1 }
-  ]
-}</code></pre>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="private-chat"><span class="page-icon">✉️</span> 18. 私人訊息</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/chat/private/rooms</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">取得所有私聊房間列表</p>
-  <h4>Response — data</h4>
-  <pre><code>[
-  {
-    "id": 50,
-    "type": "private",
-    "user1Id": 42,
-    "user2Id": 99,
-    "otherNickname": "小華",
-    "lastMessage": "明天見！",
-    "lastMessageNickname": "小華",
-    "lastMessageUserId": 99,
-    "lastMessageAt": "2026-03-12T18:00:00"
-  }
-]</code></pre>
-</div>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/chat/private/{targetUserId}</span>
-    <span class="auth-badge auth">需登入（非訪客）</span>
-  </div>
-  <p class="desc">建立或取得與某用戶的私聊房間</p>
-  <h4>Response</h4>
-  <p><code>ChatRoomResponse</code>（同上）</p>
-  <div class="warn">不可與自己私聊，會回傳 400。</div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="image-upload"><span class="page-icon">📷</span> 19. 圖片上傳</h2>
-
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/images/upload</span>
-    <span class="auth-badge auth">需登入</span>
-  </div>
-  <p class="desc">上傳圖片（用於貼文、店家等）</p>
-  <h4>Request</h4>
-  <p>Content-Type: <code>multipart/form-data</code></p>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>file</td><td>File</td><td><span class="required">必填</span></td><td>圖片檔案（JPEG/PNG/GIF/WebP，最大 10MB）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>"https://r2-public.example.com/uploads/2026/03/abc123.jpg"</code></pre>
-  <div class="note">上傳後取得 URL，再放入貼文的 <code>images</code> 陣列中。</div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="websocket"><span class="page-icon">⚡</span> 20. WebSocket 即時通訊</h2>
-
-<div class="card">
-  <p>聊天使用 <strong>STOMP over WebSocket</strong> 進行即時通訊。</p>
-
-  <h4>連線</h4>
-  <pre><code>WebSocket URL: wss://your-domain.com/ws?token={accessToken}
-
-// STOMP 連線
-const client = Stomp.over(new SockJS('/ws?token=eyJ...'));
-client.connect({}, onConnected, onError);</code></pre>
-
-  <h4>訂閱聊天室</h4>
-  <pre><code>// 訂閱特定聊天室的即時訊息
-client.subscribe('/topic/rooms/{roomId}', (message) => {
-  const msg = JSON.parse(message.body);
-  // msg = ChatMessageResponse
-});</code></pre>
-
-  <h4>發送訊息</h4>
-  <pre><code>// 透過 STOMP 發送（推薦，比 REST 更即時）
-client.send('/app/chat.send/{roomId}', {},
-  JSON.stringify({ content: '你好！' })
-);</code></pre>
 
-  <h4>收到的訊息格式 (ChatMessageResponse)</h4>
-  <pre><code>{
-  "id": 501,
-  "roomId": 10,
-  "userId": 42,
-  "nickname": "小明",
-  "content": "你好！",
-  "type": "text",
-  "createdAt": "2026-03-12T14:35:00"
+<div class="info">
+<strong>私訊通知合併</strong>：同一發送者的未讀私訊只保留一則，新訊息更新內容和時間。
+</div>
+
+<!-- ==================== 9-12 ==================== -->
+<h2 id="follow">9. 關注里管理</h2>
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/follows</code></td><td>我的關注里列表</td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/follows/{neighborhoodId}</code></td><td>關注里（最多 3 個）</td></tr>
+<tr><td><span class="badge del">DEL</span></td><td><code>/follows/{neighborhoodId}</code></td><td>取消關注</td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/follows/{neighborhoodId}/default</code></td><td>設為預設里</td></tr>
+<tr><td><span class="badge patch">PATCH</span></td><td><code>/follows/{neighborhoodId}/alias</code></td><td>設定別名 {alias}</td></tr>
+</table>
+
+<h2 id="bookmark">10. 收藏</h2>
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/bookmarks/{postId}</code></td><td>切換收藏 → {bookmarked}</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/bookmarks</code></td><td>收藏列表（PostResponse with liked/bookmarked）</td></tr>
+</table>
+
+<h2 id="place">11. 店家</h2>
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/places?neighborhoodId=&categoryId=&keyword=&sort=&page=&size=</code></td><td>店家列表</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/places/by-district?city=&district=&excludeNeighborhoodId=</code></td><td>區店家（排除指定里）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/places/{id}</code></td><td>店家詳情</td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/places/{id}/like</code></td><td>切換喜歡</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/places/{id}/comments?page=&size=</code></td><td>店家評論</td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/places/{id}/comments</code></td><td>新增評論 {content, rating}</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/categories</code></td><td>店家分類樹</td></tr>
+</table>
+
+<h2 id="image">12. 圖片上傳</h2>
+<p><span class="badge post">POST</span> <code>/images/upload</code> <span class="badge auth">需登入</span></p>
+<p>MultipartFile（max 10MB, JPEG/PNG/GIF/WebP）→ 回傳圖片 URL 字串</p>
+
+<h2 id="version">13. 版本更新</h2>
+<p><span class="badge get">GET</span> <code>/releases/latest?platform=ios</code> <span class="badge pub">公開</span></p>
+<pre><code>{
+  <span class="jk">"version"</span>: <span class="js">"1.2.0"</span>, <span class="jk">"title"</span>: <span class="js">"v1.2.0"</span>,
+  <span class="jk">"content"</span>: <span class="js">"更新說明..."</span>,
+  <span class="jk">"downloadUrl"</span>: <span class="js">"https://apps.apple.com/..."</span>,
+  <span class="jk">"isForce"</span>: <span class="jn">0</span>,  <span class="cm">// 1=強制更新</span>
+  <span class="jk">"isPublished"</span>: <span class="jn">1</span>
 }</code></pre>
 
-  <div class="warn">
-    WebSocket 連線斷開時，需要重連機制。建議使用指數退避重試（1s → 2s → 4s → 8s → max 30s）。
-  </div>
+<!-- ==================== 14. MGMT ==================== -->
+<h2 id="mgmt">14. 後台管理（ADMIN / SUPER_ADMIN）</h2>
+
+<table>
+<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/dashboard</code></td><td>儀表板（userCount, postCount, placeCount 等）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/users?id=&keyword=&provider=&page=&size=</code></td><td>用戶列表</td></tr>
+<tr><td><span class="badge patch">PATCH</span></td><td><code>/mgmt/users/{id}/admin?value=true</code></td><td>設定/取消管理員（SUPER_ADMIN only）</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/li-chiefs</code></td><td>里長列表</td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/mgmt/li-chiefs</code></td><td>指派里長 {userId, neighborhoodId}</td></tr>
+<tr><td><span class="badge del">DEL</span></td><td><code>/mgmt/li-chiefs/{userId}</code></td><td>撤銷里長</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/posts?keyword=&type=&status=&page=&size=</code></td><td>貼文管理</td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/mgmt/posts/{id}/status?value=1</code></td><td>切換貼文可見性</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/releases</code></td><td>版本列表</td></tr>
+<tr><td><span class="badge post">POST</span></td><td><code>/mgmt/releases</code></td><td>新增版本 {version, platform, title, content, downloadUrl, isForce}</td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/mgmt/releases/{id}</code></td><td>編輯版本</td></tr>
+<tr><td><span class="badge put">PUT</span></td><td><code>/mgmt/releases/{id}/publish?value=true</code></td><td>發佈/下架</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/analytics/user-growth?days=30</code></td><td>用戶增長趨勢</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/analytics/post-activity?days=30</code></td><td>貼文活動趨勢</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/analytics/user-providers</code></td><td>登入方式分佈</td></tr>
+<tr><td><span class="badge get">GET</span></td><td><code>/mgmt/analytics/post-types</code></td><td>貼文類型分佈</td></tr>
+</table>
+
+<!-- ==================== 15. ROLE ==================== -->
+<h2 id="role">15. 角色系統</h2>
+
+<table>
+<tr><th>角色</th><th>值</th><th>權限</th><th>特殊標記</th></tr>
+<tr><td>訪客</td><td><code>GUEST</code></td><td>僅瀏覽，不能發文/留言/聊天/追蹤</td><td>—</td></tr>
+<tr><td>用戶</td><td><code>USER</code></td><td>所有社群功能</td><td>—</td></tr>
+<tr><td>里長</td><td><code>LI_CHIEF</code></td><td>USER + 可發里資訊/廣播（限本里），不可發區資訊/guide</td><td><code>authorBadge: "XX里里長"</code>（綠色）</td></tr>
+<tr><td>管理員</td><td><code>ADMIN</code></td><td>所有類型資訊 + 後台管理</td><td>—</td></tr>
+<tr><td>超管</td><td><code>SUPER_ADMIN</code></td><td>ADMIN + 可設定管理員</td><td>—</td></tr>
+</table>
+
+<div class="info">
+<strong>里長 JWT</strong>：<code>cnb</code> claim = chiefNeighborhoodId，用於前端判斷里長可在哪個里發資訊。<br>
+<strong>authorBadge</strong>：在 PostResponse / ChatMessageResponse / ChatRoomResponse 中回傳，非里長為 null。
 </div>
 
-<!-- ═══════════════════════════════════════════════════════ -->
-<h2 id="admin"><span class="page-icon">⚙️</span> 21. 後台管理</h2>
+<!-- ==================== 16. WS ==================== -->
+<h2 id="ws">16. WebSocket（STOMP over SockJS）</h2>
 
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method get">GET</span>
-    <span class="path">/api/v1/mgmt/users?page=1&size=20</span>
-    <span class="auth-badge admin">管理員</span>
-  </div>
-  <p class="desc">用戶管理列表</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>id</td><td>Long</td><td><span class="optional">選填</span></td><td>精確匹配用戶 ID</td></tr>
-    <tr><td>keyword</td><td>String</td><td><span class="optional">選填</span></td><td>搜尋暱稱</td></tr>
-    <tr><td>provider</td><td>String</td><td><span class="optional">選填</span></td><td>篩選登入方式（GOOGLE/LINE/FACEBOOK/APPLE/GUEST）</td></tr>
-    <tr><td>page</td><td>Integer</td><td><span class="optional">選填</span></td><td>頁碼</td></tr>
-    <tr><td>size</td><td>Integer</td><td><span class="optional">選填</span></td><td>每頁筆數（最大 100）</td></tr>
-  </table>
-  <h4>Response — data</h4>
-  <pre><code>{
-  "total": 500,
-  "records": [
-    {
-      "id": 42,
-      "nickname": "小明",
-      "avatarUrl": "https://...",
-      "isGuest": false,
-      "isAdmin": false,
-      "isSuperAdmin": false,
-      "providers": ["GOOGLE", "LINE"],
-      "createdAt": "2026-01-15T10:00:00"
-    }
-  ]
-}</code></pre>
-</div>
+<p>端點：<code>wss://golocal.tw/ws</code></p>
+<p>連線時帶 <code>Authorization: Bearer {token}</code></p>
 
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method patch">PATCH</span>
-    <span class="path">/api/v1/mgmt/users/{id}/admin?value=true</span>
-    <span class="auth-badge admin">超級管理員</span>
-  </div>
-  <p class="desc">設定/取消管理員（僅 SUPER_ADMIN 可操作）</p>
-  <h4>Query Params</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>value</td><td>Boolean</td><td><span class="required">必填</span></td><td><code>true</code> = 設為管理員，<code>false</code> = 取消</td></tr>
-  </table>
-</div>
+<h4>Subscribe</h4>
+<table>
+<tr><th>Topic</th><th>說明</th><th>Payload</th></tr>
+<tr><td><code>/topic/rooms/{roomId}</code></td><td>聊天室即時訊息</td><td>ChatMessageResponse JSON</td></tr>
+<tr><td><code>/topic/user/{userId}</code></td><td>個人通知推送</td><td>{type, title, body, refType, refId}</td></tr>
+</table>
 
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method post">POST</span>
-    <span class="path">/api/v1/places</span>
-    <span class="auth-badge admin">管理員</span>
-  </div>
-  <p class="desc">新增店家</p>
-  <h4>Request Body (CreatePlaceRequest)</h4>
-  <table>
-    <tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
-    <tr><td>neighborhoodId</td><td>Long</td><td><span class="required">必填</span></td><td>里 ID</td></tr>
-    <tr><td>name</td><td>String</td><td><span class="required">必填</span></td><td>店名</td></tr>
-    <tr><td>categoryId</td><td>Long</td><td><span class="optional">選填</span></td><td>分類 ID</td></tr>
-    <tr><td>categoryName</td><td>String</td><td><span class="optional">選填</span></td><td>分類名稱</td></tr>
-    <tr><td>description</td><td>String</td><td><span class="optional">選填</span></td><td>描述</td></tr>
-    <tr><td>address</td><td>String</td><td><span class="optional">選填</span></td><td>地址</td></tr>
-    <tr><td>phone</td><td>String</td><td><span class="optional">選填</span></td><td>電話</td></tr>
-    <tr><td>website</td><td>String</td><td><span class="optional">選填</span></td><td>網站</td></tr>
-    <tr><td>hours</td><td>String</td><td><span class="optional">選填</span></td><td>營業時間</td></tr>
-    <tr><td>lat</td><td>BigDecimal</td><td><span class="optional">選填</span></td><td>緯度</td></tr>
-    <tr><td>lng</td><td>BigDecimal</td><td><span class="optional">選填</span></td><td>經度</td></tr>
-    <tr><td>coverImageUrl</td><td>String</td><td><span class="optional">選填</span></td><td>封面圖</td></tr>
-    <tr><td>images</td><td>String[]</td><td><span class="optional">選填</span></td><td>圖片陣列</td></tr>
-    <tr><td>tags</td><td>String[]</td><td><span class="optional">選填</span></td><td>標籤</td></tr>
-    <tr><td>hasHomeService</td><td>Boolean</td><td><span class="optional">選填</span></td><td>是否有到府服務</td></tr>
-    <tr><td>isPartner</td><td>Boolean</td><td><span class="optional">選填</span></td><td>是否為合作商家</td></tr>
-  </table>
-</div>
+<h4>Send</h4>
+<table>
+<tr><th>Destination</th><th>說明</th><th>Body</th></tr>
+<tr><td><code>/app/chat.send/{roomId}</code></td><td>發送聊天訊息</td><td><code>{ "content": "你好" }</code></td></tr>
+</table>
 
-<div class="card">
-  <div class="endpoint-row">
-    <span class="method patch">PATCH</span>
-    <span class="path">/api/v1/places/{id}</span>
-    <span class="auth-badge admin">管理員</span>
-  </div>
-  <p class="desc">編輯店家（欄位同上）</p>
-</div>
+<!-- ==================== 17. DELETED ==================== -->
+<h2 id="deleted">17. 刪除 & 編輯規則</h2>
 
-<!-- ═══════════════════════════════════════════════════════ -->
+<h3>貼文刪除</h3>
+<ul>
+<li>後端 <code>status=2</code>，原始資料保留，API 回傳時所有內容欄位為 null</li>
+<li><code>contentDeleted=true</code>：不可喜歡/留言/收藏/分享/編輯/刪除</li>
+<li>喜歡數和留言數仍顯示（只讀），有留言可展開查看</li>
+<li>0 留言 + 0 喜歡也要顯示（灰色不可點）</li>
+</ul>
 
-<hr style="margin: 3rem 0; border: none; border-top: 2px solid var(--primary);">
+<h3>留言刪除</h3>
+<ul>
+<li>後端 <code>content_deleted=1</code>，原始資料保留，API 回傳 content 為 null</li>
+<li><code>contentDeleted=true</code>：同貼文規則</li>
+<li>已刪除留言的子回覆仍保留可查看</li>
+</ul>
 
-<div style="text-align: center; color: var(--muted); font-size: 0.85rem; padding: 1rem;">
-  <p><strong>巷口 App API 串接文件</strong></p>
-  <p>產生時間：2026-03-13 &nbsp;|&nbsp; 後端版本：commit 527e08d</p>
-  <p>如有問題，請聯繫後端開發團隊</p>
-</div>
+<h3>編輯</h3>
+<ul>
+<li>貼文編輯：只有本人，自動設 <code>edited=1</code></li>
+<li>留言編輯：只有本人，自動設 <code>edited=1</code></li>
+<li><code>edited=true</code> 時顯示「已編輯」標記</li>
+</ul>
+
+<h3>刪除權限</h3>
+<ul>
+<li>本人可刪除自己的貼文/留言</li>
+<li>ADMIN 可刪除非管理員的貼文/留言</li>
+<li>SUPER_ADMIN 可刪除所有人的貼文/留言</li>
+</ul>
+
+<hr>
+<p style="text-align:center;color:#bbb;font-size:.8rem;margin-top:1rem">
+GoLocal — API Integration Guide v3 &nbsp;|&nbsp; 最後更新：2026-03-19
+</p>
 
 </div>
 </body>
