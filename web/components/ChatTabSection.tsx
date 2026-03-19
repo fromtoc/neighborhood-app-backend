@@ -159,7 +159,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
         window.history.replaceState({}, '', url.toString());
       }
     }
-    setTimeout(() => fetchUnread(), 300);
+    setTimeout(() => { fetchUnread(); fetchPublicRooms(); fetchPrivateRooms(); }, 300);
   };
 
   // District chat view
