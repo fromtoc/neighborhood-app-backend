@@ -13,6 +13,8 @@ interface ProfileData {
   avatarUrl: string | null;
   postCount: number;
   bookmarkCount: number;
+  followerCount?: number;
+  followingCount?: number;
 }
 
 const MENU_SECTIONS = [
@@ -220,8 +222,10 @@ export default function ProfilePage() {
         {/* Stats */}
         {!loading && profile && !isGuest && (
           <div style={{
-            display: 'flex', gap: '1.5rem', marginTop: '1rem',
-            paddingTop: '1rem', borderTop: '1px solid #f0f0f0',
+            display: 'grid',
+            gridTemplateColumns: `repeat(${profile.followerCount != null ? 4 : 2}, 1fr)`,
+            marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f0f0f0',
+            textAlign: 'center',
           }}>
             <button onClick={() => router.push('/profile/my-posts')} style={statBtnStyle}>
               <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.postCount}</span>
@@ -231,6 +235,18 @@ export default function ProfilePage() {
               <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.bookmarkCount}</span>
               <span style={{ fontSize: '0.75rem', color: '#999' }}>收藏</span>
             </button>
+            {profile.followerCount != null && (
+              <div style={statBtnStyle}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.followerCount}</span>
+                <span style={{ fontSize: '0.75rem', color: '#999' }}>粉絲</span>
+              </div>
+            )}
+            {profile.followingCount != null && (
+              <div style={statBtnStyle}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.followingCount}</span>
+                <span style={{ fontSize: '0.75rem', color: '#999' }}>追蹤中</span>
+              </div>
+            )}
           </div>
         )}
 

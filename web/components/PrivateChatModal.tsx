@@ -5,6 +5,7 @@ import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { dispatchAuthExpired } from '@/lib/auth-client';
 import { createStompClient } from '@/lib/stomp-client';
+import MentionText from './MentionText';
 
 interface ChatMessage {
   id: number;
@@ -33,8 +34,12 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const stompRef = useRef<import('@stomp/stompjs').Client | null>(null);
+  const initialScrollDone = useRef(false);
 
   const displayTarget = targetNickname || `用戶 #${targetUserId}`;
   const displaySelf = user?.role === 'GUEST'
@@ -60,21 +65,69 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
       .finally(() => setLoading(false));
   }, [token, targetUserId]);
 
-  // 取得訊息
+  // 載入最新訊息
   const fetchMessages = useCallback(async (rid: number) => {
-    const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${rid}/messages?limit=50`);
+    const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${rid}/messages?limit=20`);
     const json = await res.json();
-    if (json.code === 200) setMessages(json.data ?? []);
+    if (json.code === 200) {
+      const data: ChatMessage[] = json.data ?? [];
+      setMessages(data);
+      setHasMore(data.length >= 20);
+    }
   }, []);
+
+  // 載入更多歷史訊息
+  const loadMore = useCallback(async () => {
+    if (!roomId || loadingMore || !hasMore || messages.length === 0) return;
+    setLoadingMore(true);
+    const oldestId = messages[0].id;
+    const scrollEl = scrollRef.current;
+    const prevScrollHeight = scrollEl?.scrollHeight ?? 0;
+    try {
+      const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${roomId}/messages?limit=20&before=${oldestId}`);
+      const json = await res.json();
+      if (json.code === 200) {
+        const older: ChatMessage[] = json.data ?? [];
+        if (older.length < 20) setHasMore(false);
+        if (older.length > 0) {
+          setMessages(prev => [...older, ...prev]);
+          // 維持滾動位置
+          requestAnimationFrame(() => {
+            if (scrollEl) scrollEl.scrollTop = scrollEl.scrollHeight - prevScrollHeight;
+          });
+        }
+      }
+    } catch {} finally { setLoadingMore(false); }
+  }, [roomId, loadingMore, hasMore, messages]);
 
   useEffect(() => {
     if (roomId) fetchMessages(roomId);
   }, [roomId, fetchMessages]);
 
-  // 捲到底部
+  // 初次載入完成後捲到底部
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0 && !initialScrollDone.current) {
+      initialScrollDone.current = true;
+      bottomRef.current?.scrollIntoView();
+    }
   }, [messages]);
+
+  // 新訊息（WebSocket）進來時捲到底部
+  const prevMsgCount = useRef(0);
+  useEffect(() => {
+    if (messages.length > prevMsgCount.current && initialScrollDone.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+    prevMsgCount.current = messages.length;
+  }, [messages.length]);
+
+  // 往上滾到頂時載入更多
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (el && el.scrollTop < 50 && hasMore && !loadingMore) {
+      loadMore();
+    }
+  }
 
   // STOMP 即時訂閱
   useEffect(() => {
@@ -180,11 +233,14 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
         </div>
 
         {/* 訊息列表 */}
-        <div style={{
+        <div ref={scrollRef} onScroll={handleScroll} style={{
           flex: 1, overflowY: 'auto', padding: '0.5rem 0',
           display: 'flex', flexDirection: 'column', gap: '0.6rem',
           minHeight: 200,
         }}>
+          {loadingMore && (
+            <p style={{ textAlign: 'center', color: '#bbb', fontSize: '0.78rem', padding: '0.3rem' }}>載入更多...</p>
+          )}
           {loading ? (
             <p style={{ textAlign: 'center', color: '#bbb', fontSize: '0.9rem' }}>載入中...</p>
           ) : error && !roomId ? (
@@ -202,13 +258,16 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
                 display: 'flex', flexDirection: isSelf ? 'row-reverse' : 'row',
                 gap: '0.4rem', alignItems: 'flex-end',
               }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                  background: isSelf ? '#1c5373' : '#e6e6e6',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.7rem', fontWeight: 700,
-                  color: isSelf ? '#fff' : '#828282',
-                }}>
+                <div
+                  onClick={() => { if (!isSelf) window.location.href = `/users/${m.userId}`; }}
+                  style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                    background: isSelf ? '#1c5373' : '#e6e6e6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.7rem', fontWeight: 700,
+                    color: isSelf ? '#fff' : '#828282',
+                    cursor: isSelf ? 'default' : 'pointer',
+                  }}>
                   {name.charAt(0).toUpperCase()}
                 </div>
                 <div style={{ maxWidth: '72%' }}>
@@ -223,7 +282,7 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
                       borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                       fontSize: '0.88rem', lineHeight: 1.5, wordBreak: 'break-word',
                     }}>
-                      {m.content}
+                      <MentionText text={m.content} />
                     </div>
                     <span style={{ fontSize: '0.65rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
                   </div>

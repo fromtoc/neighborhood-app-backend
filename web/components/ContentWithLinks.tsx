@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import MentionText from './MentionText'
 
 const URL_REGEX = /https?:\/\/[^\s\u3000\uff00-\uffef]+/g
 
@@ -26,7 +27,7 @@ export default function ContentWithLinks({
 
   const nodes: React.ReactNode[] = []
   parts.forEach((part, i) => {
-    if (part) nodes.push(<span key={`t${i}`} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>)
+    if (part) nodes.push(<span key={`t${i}`} style={{ whiteSpace: 'pre-wrap' }}><MentionText text={part} /></span>)
     if (urls[i]) {
       nodes.push(
         <a

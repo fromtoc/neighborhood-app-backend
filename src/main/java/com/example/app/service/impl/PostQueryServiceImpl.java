@@ -410,6 +410,11 @@ public class PostQueryServiceImpl implements PostQueryService {
                     post.getId(), notifTitle, notifBody);
         }
 
+        // @ 提及通知
+        User author = userMapper.selectById(userId);
+        String authorName = author != null && author.getNickname() != null ? author.getNickname() : "用戶 #" + userId;
+        notificationService.onMention(post.getContent(), userId, authorName, "post", post.getId());
+
         return post;
     }
 }

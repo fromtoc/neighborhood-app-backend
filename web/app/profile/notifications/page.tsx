@@ -12,6 +12,7 @@ interface Settings {
   infoNormal: number;
   garbageTruck: number;
   newPost: number;
+  followPost: number;
   postReply: number;
   chat: number;
   privateMessage: number;
@@ -22,7 +23,8 @@ const FIELD_MAP: Record<string, keyof Settings> = {
   'alert-medium': 'infoMedium',
   'alert-normal': 'infoNormal',
   'garbage-truck': 'garbageTruck',
-  'follow-post': 'newPost',
+  'new-post': 'newPost',
+  'follow-post': 'followPost',
   'post-reply': 'postReply',
   'chat-mention': 'chat',
   'chat-private': 'privateMessage',
@@ -45,7 +47,8 @@ const ANNOUNCEMENT_LEVELS: ToggleItem[] = [
 ];
 
 const SOCIAL_ITEMS: ToggleItem[] = [
-  { id: 'follow-post', icon: '❤️', label: '收藏與追蹤對象發文', subtitle: '追蹤的用戶或收藏的店家有新貼文時通知' },
+  { id: 'new-post', icon: '📝', label: '社群貼文', subtitle: '關注的里有新貼文時通知' },
+  { id: 'follow-post', icon: '❤️', label: '追蹤對象發文', subtitle: '追蹤的用戶有新貼文時通知' },
   { id: 'post-reply', icon: '💬', label: '我的貼文有新回覆', subtitle: '有人回覆你的貼文或留言時通知' },
 ];
 
@@ -62,7 +65,7 @@ const TOGGLE_COLORS: Record<string, string> = {
 
 const DEFAULTS: Settings = {
   master: 1, infoMedium: 1, infoNormal: 1,
-  garbageTruck: 1, newPost: 1, postReply: 1, chat: 1, privateMessage: 1,
+  garbageTruck: 1, newPost: 1, followPost: 1, postReply: 1, chat: 1, privateMessage: 1,
 };
 
 export default function NotificationSettingsPage() {
@@ -85,6 +88,7 @@ export default function NotificationSettingsPage() {
           infoNormal: json.data.infoNormal ?? 1,
           garbageTruck: json.data.garbageTruck ?? 1,
           newPost: json.data.newPost ?? 1,
+          followPost: json.data.followPost ?? 1,
           postReply: json.data.postReply ?? 1,
           chat: json.data.chat ?? 1,
           privateMessage: json.data.privateMessage ?? 1,

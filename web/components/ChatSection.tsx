@@ -5,6 +5,8 @@ import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { dispatchAuthExpired } from '@/lib/auth-client';
 import { createStompClient } from '@/lib/stomp-client';
+import MentionInput, { applyMentions, type MentionMap } from './MentionInput';
+import MentionText from './MentionText';
 
 interface ChatMessage {
   id: number;
@@ -34,6 +36,7 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
   const [room, setRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [mentions, setMentions] = useState<MentionMap>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -102,7 +105,7 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
       if (stomp?.connected) {
         stomp.publish({
           destination: `/app/chat.send/${room.id}`,
-          body: JSON.stringify({ content: input.trim() }),
+          body: JSON.stringify({ content: applyMentions(input.trim(), mentions) }),
         });
         setInput('');
       } else {
@@ -110,7 +113,7 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
         const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: input.trim() }),
+          body: JSON.stringify({ content: applyMentions(input.trim(), mentions) }),
         });
         const json = await res.json();
         if (json.code === 200) {
@@ -180,16 +183,19 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
           {error && <p style={{ color: '#e53e3e', fontSize: '0.8rem', marginBottom: '0.4rem' }}>{error}</p>}
 
           <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
+            <MentionInput
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={setInput}
+              onMentionsChange={setMentions}
+              neighborhoodId={neighborhoodId}
+              scope="li"
               placeholder="說點什麼..."
               maxLength={500}
               disabled={sending}
+              onSubmit={() => handleSend(new Event('submit') as any)}
               style={{
-                flex: 1, padding: '0.6rem 0.75rem',
+                padding: '0.6rem 0.75rem',
                 border: '1px solid #e6e6e6', borderRadius: 8,
-                fontSize: '0.9rem', outline: 'none',
               }}
             />
             <button
@@ -236,12 +242,15 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
   return (
     <div style={{ display: 'flex', flexDirection: isSelf ? 'row-reverse' : 'row', gap: '0.5rem', alignItems: 'flex-end' }}>
       {/* 頭像 */}
-      <div style={{
-        width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-        background: isSelf ? '#1c5373' : '#e6e6e6',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '0.75rem', color: isSelf ? '#fff' : '#828282', fontWeight: 600,
-      }}>
+      <div
+        onClick={() => { if (!isSelf) window.location.href = `/users/${msg.userId}`; }}
+        style={{
+          width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+          background: isSelf ? '#1c5373' : '#e6e6e6',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '0.75rem', color: isSelf ? '#fff' : '#828282', fontWeight: 600,
+          cursor: isSelf ? 'default' : 'pointer',
+        }}>
         {senderName.charAt(0).toUpperCase()}
       </div>
 
@@ -269,7 +278,7 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
             borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
             fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word',
           }}>
-            {msg.content}
+            <MentionText text={msg.content} />
           </div>
           <span style={{ fontSize: '0.68rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
         </div>

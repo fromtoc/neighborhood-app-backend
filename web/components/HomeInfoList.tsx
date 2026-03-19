@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { CLIENT_BASE_URL } from '@/lib/api';
+import { stripMentionFormat } from './MentionText';
 
 interface Post {
   id: number;
@@ -119,7 +120,7 @@ export default function HomeInfoList({ neighborhoodId, liHref }: Props) {
                       overflow: 'hidden', display: '-webkit-box',
                       WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0,
                     }}>
-                      {post.title || post.content}
+                      {stripMentionFormat(post.title || post.content)}
                     </p>
                     {post.title && (
                       <p style={{
@@ -127,7 +128,7 @@ export default function HomeInfoList({ neighborhoodId, liHref }: Props) {
                         overflow: 'hidden', display: '-webkit-box',
                         WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0,
                       }}>
-                        {post.content}
+                        {stripMentionFormat(post.content)}
                       </p>
                     )}
                   </div>
@@ -151,7 +152,7 @@ export default function HomeInfoList({ neighborhoodId, liHref }: Props) {
                     overflow: 'hidden', display: '-webkit-box',
                     WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', margin: 0,
                   }}>
-                    {post.title || post.content}
+                    {stripMentionFormat(post.title || post.content)}
                   </p>
                   <p style={{ fontSize: '0.68rem', color: '#bbb', margin: 0 }}>
                     {post.authorName ?? `里民 #${post.userId}`} · {timeAgo(post.createdAt)}

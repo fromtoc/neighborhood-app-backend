@@ -17,6 +17,7 @@ public class UserNotificationSettings {
     private Integer infoNormal;
     private Integer garbageTruck;
     private Integer newPost;
+    private Integer followPost;
     private Integer postReply;
     private Integer chat;
     private Integer privateMessage;

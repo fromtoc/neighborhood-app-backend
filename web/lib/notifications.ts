@@ -2,7 +2,7 @@ import { CLIENT_BASE_URL } from './api';
 
 export interface NotificationItem {
   id: number;
-  type: 'new_post' | 'new_info' | 'chat' | 'private_message' | 'post_reply';
+  type: 'new_post' | 'new_info' | 'chat' | 'private_message' | 'post_reply' | 'mention' | 'follow_post';
   title: string;
   body: string | null;
   refType: string | null;
@@ -53,6 +53,7 @@ export function typeLabel(type: NotificationItem['type']) {
   const map: Record<string, string> = {
     new_post: '新貼文', new_info: '新資訊', chat: '聊聊',
     private_message: '私訊', post_reply: '回覆',
+    mention: '提及', follow_post: '追蹤',
   };
   return map[type] ?? type;
 }

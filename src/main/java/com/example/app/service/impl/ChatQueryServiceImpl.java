@@ -214,6 +214,9 @@ public class ChatQueryServiceImpl implements ChatQueryService {
             }
         }
 
+        // @ 提及通知
+        notificationService.onMention(content, userId, nickname, "chat_message", msg.getId());
+
         ChatMessageResponse resp = ChatMessageResponse.from(msg);
         Map<Long, String> badgeMap = buildBadgeMap(List.of(userId));
         resp.setAuthorBadge(badgeMap.get(userId));

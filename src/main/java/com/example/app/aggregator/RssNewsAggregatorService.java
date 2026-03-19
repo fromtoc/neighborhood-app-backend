@@ -143,7 +143,7 @@ public class RssNewsAggregatorService {
             String postContent = buildContent(body, link, src, pubDate);
 
             for (Long nhId : targets) {
-                Post post = support.buildPost(nhId, systemUserId, "district_info", postTitle, postContent, "normal");
+                Post post = support.buildPost(nhId, systemUserId, "district_info", postTitle, postContent, null);
                 if (imageUrl != null) post.setImagesJson("[\"" + imageUrl + "\"]");
                 postMapper.insert(post);
                 created++;

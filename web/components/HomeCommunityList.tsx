@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CLIENT_BASE_URL } from '@/lib/api';
+import { stripMentionFormat } from './MentionText';
 
 interface Post {
   id: number;
@@ -97,7 +98,7 @@ export default function HomeCommunityList({ neighborhoodId, liHref }: Props) {
                   overflow: 'hidden', display: '-webkit-box',
                   WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
                 }}>
-                  {post.content}
+                  {stripMentionFormat(post.content)}
                 </p>
 
                 {/* 圖片 */}

@@ -154,6 +154,9 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             notificationService.onPostReply(post.getUserId(), userId, postId, nickname, body);
         }
 
+        // @ 提及通知
+        notificationService.onMention(content, userId, nickname, "post", postId);
+
         return PostCommentResponse.from(comment);
     }
 

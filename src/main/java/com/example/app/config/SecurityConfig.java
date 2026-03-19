@@ -85,6 +85,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/mgmt/**").authenticated()
                         // GET posts / chat 公開，POST 需登入
                         .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/*/profile").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/*/posts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/chat/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/places/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/places").authenticated()

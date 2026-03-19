@@ -160,6 +160,7 @@ public class NotificationController {
             s.setInfoNormal(1);
             s.setGarbageTruck(1);
             s.setNewPost(1);
+            s.setFollowPost(1);
             s.setPostReply(1);
             s.setChat(1);
             s.setPrivateMessage(1);
@@ -191,6 +192,7 @@ public class NotificationController {
         s.setInfoNormal(req.infoNormal() != null ? req.infoNormal() : 1);
         s.setGarbageTruck(req.garbageTruck() != null ? req.garbageTruck() : 1);
         s.setNewPost(req.newPost() != null ? req.newPost() : 1);
+        s.setFollowPost(req.followPost() != null ? req.followPost() : 1);
         s.setPostReply(req.postReply() != null ? req.postReply() : 1);
         s.setChat(req.chat() != null ? req.chat() : 1);
         s.setPrivateMessage(req.privateMessage() != null ? req.privateMessage() : 1);
@@ -202,6 +204,7 @@ public class NotificationController {
         if (req.infoNormal()     != null) s.setInfoNormal(req.infoNormal());
         if (req.garbageTruck()   != null) s.setGarbageTruck(req.garbageTruck());
         if (req.newPost()        != null) s.setNewPost(req.newPost());
+        if (req.followPost()     != null) s.setFollowPost(req.followPost());
         if (req.postReply()      != null) s.setPostReply(req.postReply());
         if (req.chat()           != null) s.setChat(req.chat());
         if (req.privateMessage() != null) s.setPrivateMessage(req.privateMessage());
@@ -212,6 +215,6 @@ public class NotificationController {
     record TokenRequest(String token, String platform) {}
 
     record SettingsRequest(Integer master, Integer infoMedium, Integer infoNormal,
-                           Integer garbageTruck, Integer newPost, Integer postReply,
-                           Integer chat, Integer privateMessage) {}
+                           Integer garbageTruck, Integer newPost, Integer followPost,
+                           Integer postReply, Integer chat, Integer privateMessage) {}
 }

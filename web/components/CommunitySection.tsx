@@ -6,6 +6,7 @@ import ShareButton from './ShareButton';
 import CommentSection from './CommentSection';
 import CreatePostForm from './CreatePostForm';
 import PrivateChatModal from './PrivateChatModal';
+import MentionText from './MentionText';
 import { useAuth } from './AuthProvider';
 import type { AuthUser } from '@/lib/auth-client';
 import { dispatchAuthExpired } from '@/lib/auth-client';
@@ -368,6 +369,8 @@ export default function CommunitySection({ neighborhoodId, type, title, mode = '
               onUpdated={updated => setPosts(prev => prev.map(x => x.id === updated.id ? updated : x))}
               readOnly={readOnly}
               mode={mode}
+              neighborhoodId={neighborhoodId}
+              mentionScope={scope === 'district' || type === 'district_info' || type === 'district_community' ? 'district' : 'li'}
             />
           ))}
         </div>
@@ -400,6 +403,8 @@ interface PostCardProps {
   onUpdated: (post: PostItem) => void;
   readOnly?: boolean;
   mode?: Mode;
+  neighborhoodId?: number;
+  mentionScope?: 'li' | 'district';
 }
 
 const AVATAR_COLORS = ['#1c5373','#0d9488','#7c3aed','#b45309','#be185d','#065f46'];
@@ -424,7 +429,7 @@ function timeAgo(iso: string): string {
   return new Date(normalized).toLocaleDateString('zh-TW', { month: 'numeric', day: 'numeric' });
 }
 
-function PostCard({ post, currentUser, initialBookmarked = false, initialLiked = false, onPrivateChat, onShowLogin, onDeleted, onUpdated, readOnly = false, mode = 'community' }: PostCardProps) {
+function PostCard({ post, currentUser, initialBookmarked = false, initialLiked = false, onPrivateChat, onShowLogin, onDeleted, onUpdated, readOnly = false, mode = 'community', neighborhoodId, mentionScope }: PostCardProps) {
   const { token, showLoginModal } = useAuth();
   const [likeCount, setLikeCount] = useState(post.likeCount);
   const [liked, setLiked] = useState(initialLiked);
@@ -596,13 +601,13 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
           width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
           background: avatarColor(post.userId), color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.85rem', fontWeight: 700,
-        }}>
+          fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+        }} onClick={() => window.location.href = `/users/${post.userId}`}>
           {avatarLetter}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e1e1e' }}>{authorName}</span>
+            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e1e1e', cursor: 'pointer' }} onClick={() => window.location.href = `/users/${post.userId}`}>{authorName}</span>
             {badge && (
               <span style={{
                 fontSize: '0.65rem', background: badge.bg,
@@ -789,7 +794,7 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
             </p>
           )}
           <p style={{ fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
-            {post.content?.replace(/https?:\/\/\S+/g, '').replace(/📰[^\n]*/g, '').trim()}
+            <MentionText text={post.content?.replace(/https?:\/\/\S+/g, '').replace(/📰[^\n]*/g, '').trim() ?? ''} />
           </p>
           {post.edited && (
             <span style={{ fontSize: '0.7rem', color: '#bbb', fontStyle: 'italic' }}>（已編輯）</span>
@@ -875,6 +880,8 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
           onCommentAdded={() => setCommentCount(c => c + 1)}
           postSummary={{ title: post.title, content: post.content, authorName: post.authorName ?? null }}
           postDeleted={post.contentDeleted}
+          neighborhoodId={neighborhoodId}
+          mentionScope={mentionScope}
         />
       )}
     </div>

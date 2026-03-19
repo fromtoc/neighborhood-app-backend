@@ -5,6 +5,8 @@ import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { dispatchAuthExpired } from '@/lib/auth-client';
 import ShareButton from './ShareButton';
+import MentionInput, { applyMentions, type MentionMap } from './MentionInput';
+import MentionText from './MentionText';
 
 interface Comment {
   id: number;
@@ -34,6 +36,8 @@ interface Props {
   initialCommentId?: number;
   postDeleted?: boolean;
   postSummary?: PostSummary;
+  neighborhoodId?: number;
+  mentionScope?: 'li' | 'district';
 }
 
 const COLORS = ['#e53935','#8e24aa','#1e88e5','#43a047','#fb8c00','#00acc1','#6d4c41','#546e7a'];
@@ -172,7 +176,9 @@ function CommentCard({
     <div id={`comment-${comment.id}`} style={{ display: 'flex', gap: '0.65rem' }}>
       {/* 頭像欄 + thread 線 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-        <Avatar name={name} size={36} self={isSelf} />
+        <div onClick={() => { if (!isSelf) window.location.href = `/users/${comment.userId}`; }} style={{ cursor: isSelf ? 'default' : 'pointer' }}>
+          <Avatar name={name} size={36} self={isSelf} />
+        </div>
         {(showLine || hasReplies) && (
           <div style={{ width: 2, flex: 1, minHeight: 12, background: '#e6e6e6', marginTop: 4 }} />
         )}
@@ -235,7 +241,7 @@ function CommentCard({
                   fontSize: '0.9rem', color: '#2c2c2c', lineHeight: 1.6,
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word', marginBottom: 6,
                 }}>
-                  {comment.content}
+                  <MentionText text={comment.content ?? ''} />
                 </p>
                 {comment.edited && (
                   <span style={{ fontSize: '0.7rem', color: '#bbb', fontStyle: 'italic' }}>（已編輯）</span>
@@ -612,7 +618,7 @@ function ThreadPanel({
                     overflow: 'hidden', display: '-webkit-box',
                     WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
                   }}>
-                    {postSummary.content}
+                    <MentionText text={postSummary.content ?? ''} />
                   </p>
                 </div>
               )}
@@ -646,7 +652,7 @@ function ThreadPanel({
                       fontSize: '0.85rem', lineHeight: 1.5, color: '#666',
                       whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                     }}>
-                      {a.content}
+                      <MentionText text={a.content ?? ''} />
                     </p>
                   </div>
                 )}
@@ -678,7 +684,7 @@ function ThreadPanel({
                   whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   margin: '0.4rem 0 0.6rem',
                 }}>
-                  {localRoot.content}
+                  <MentionText text={localRoot.content ?? ''} />
                 </p>
                 <ThreadRootActions comment={localRoot} postId={postId} onStatusChange={(changes) => setLocalRoot(prev => ({ ...prev, ...changes } as Comment))} />
               </>
@@ -763,7 +769,7 @@ function ThreadPanel({
 
 /* ── 主元件 ─────────────────────────────────────────────── */
 
-export default function CommentSection({ postId, onCommentAdded, initialCommentId, postSummary, postDeleted }: Props) {
+export default function CommentSection({ postId, onCommentAdded, initialCommentId, postSummary, postDeleted, neighborhoodId, mentionScope }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const selfName = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`
@@ -775,6 +781,7 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
   const [initialChain, setInitialChain] = useState<number[]>([]);
   const [preloadedRepliesMap, setPreloadedRepliesMap] = useState<Record<number, Comment[]> | undefined>();
   const [input, setInput] = useState('');
+  const [commentMentions, setCommentMentions] = useState<MentionMap>([]);
   const [sending, setSending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const autoOpenDone = useRef(false);
@@ -833,7 +840,7 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
       const res = await fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ content: input.trim() }),
+        body: JSON.stringify({ content: applyMentions(input.trim(), commentMentions) }),
       });
       const json = await res.json();
       if (json.code === 401) { dispatchAuthExpired(); return; }
@@ -877,19 +884,37 @@ export default function CommentSection({ postId, onCommentAdded, initialCommentI
       {!postDeleted && user && user.role !== 'GUEST' ? (
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Avatar name={selfName ?? 'U'} size={28} self />
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder={`以 ${selfName} 留言...`}
-            maxLength={500}
-            disabled={sending}
-            style={{
-              flex: 1, padding: '0.45rem 0.75rem',
-              border: '1px solid #e6e6e6', borderRadius: 20,
-              fontSize: '0.85rem', outline: 'none', background: '#fafafa',
+          {neighborhoodId ? (
+            <MentionInput
+              value={input}
+              onChange={setInput}
+              onMentionsChange={setCommentMentions}
+              neighborhoodId={neighborhoodId}
+              scope={mentionScope}
+              placeholder={`以 ${selfName} 留言...`}
+              maxLength={500}
+              disabled={sending}
+              onSubmit={() => { if (input.trim()) handleSubmit(new Event('submit') as any); }}
+              style={{
+                padding: '0.45rem 0.75rem',
+                border: '1px solid #e6e6e6', borderRadius: 20,
+                fontSize: '0.85rem', background: '#fafafa',
             }}
           />
+          ) : (
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder={`以 ${selfName} 留言...`}
+              maxLength={500}
+              disabled={sending}
+              style={{
+                flex: 1, padding: '0.45rem 0.75rem',
+                border: '1px solid #e6e6e6', borderRadius: 20,
+                fontSize: '0.85rem', outline: 'none', background: '#fafafa',
+              }}
+            />
+          )}
           <button
             type="submit"
             disabled={!input.trim() || sending}

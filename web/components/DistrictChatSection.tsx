@@ -5,6 +5,8 @@ import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { dispatchAuthExpired } from '@/lib/auth-client';
 import { createStompClient } from '@/lib/stomp-client';
+import MentionInput, { applyMentions, type MentionMap } from './MentionInput';
+import MentionText from './MentionText';
 
 interface ChatMessage {
   id: number;
@@ -27,13 +29,15 @@ interface ChatRoom {
 interface Props {
   city: string;
   district: string;
+  neighborhoodId: number;
 }
 
-export default function DistrictChatSection({ city, district }: Props) {
+export default function DistrictChatSection({ city, district, neighborhoodId }: Props) {
   const { user, token, nickname, showLoginModal } = useAuth();
   const [room, setRoom] = useState<ChatRoom | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
+  const [mentions, setMentions] = useState<MentionMap>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -91,14 +95,14 @@ export default function DistrictChatSection({ city, district }: Props) {
       if (stomp?.connected) {
         stomp.publish({
           destination: `/app/chat.send/${room.id}`,
-          body: JSON.stringify({ content: input.trim() }),
+          body: JSON.stringify({ content: applyMentions(input.trim(), mentions) }),
         });
         setInput('');
       } else {
         const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: input.trim() }),
+          body: JSON.stringify({ content: applyMentions(input.trim(), mentions) }),
         });
         const json = await res.json();
         if (json.code === 200) {
@@ -155,9 +159,12 @@ export default function DistrictChatSection({ city, district }: Props) {
           </div>
           {error && <p style={{ color: '#e53e3e', fontSize: '0.8rem', marginBottom: '0.4rem' }}>{error}</p>}
           <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem' }}>
-            <input value={input} onChange={e => setInput(e.target.value)}
+            <MentionInput value={input} onChange={setInput}
+              onMentionsChange={setMentions}
+              neighborhoodId={neighborhoodId} scope="district"
               placeholder="說點什麼..." maxLength={500} disabled={sending}
-              style={{ flex: 1, padding: '0.6rem 0.75rem', border: '1px solid #e6e6e6', borderRadius: 8, fontSize: '0.9rem', outline: 'none' }} />
+              onSubmit={() => handleSend(new Event('submit') as any)}
+              style={{ padding: '0.6rem 0.75rem', border: '1px solid #e6e6e6', borderRadius: 8 }} />
             <button type="submit" disabled={!input.trim() || sending}
               style={{ background: input.trim() ? '#1c5373' : '#e6e6e6', color: input.trim() ? '#fff' : '#bbb',
                 border: 'none', borderRadius: 8, padding: '0 1rem', fontSize: '0.9rem', cursor: input.trim() ? 'pointer' : 'default' }}>
@@ -183,9 +190,10 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
   const senderName = isSelf ? selfName : (msg.nickname || `用戶 #${msg.userId}`);
   return (
     <div style={{ display: 'flex', flexDirection: isSelf ? 'row-reverse' : 'row', gap: '0.5rem', alignItems: 'flex-end' }}>
-      <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+      <div onClick={() => { if (!isSelf) window.location.href = `/users/${msg.userId}`; }}
+        style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
         background: isSelf ? '#1c5373' : '#e6e6e6', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '0.75rem', color: isSelf ? '#fff' : '#828282', fontWeight: 600 }}>
+        fontSize: '0.75rem', color: isSelf ? '#fff' : '#828282', fontWeight: 600, cursor: isSelf ? 'default' : 'pointer' }}>
         {senderName.charAt(0).toUpperCase()}
       </div>
       <div style={{ maxWidth: '70%' }}>
@@ -198,7 +206,7 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.4rem', flexDirection: isSelf ? 'row-reverse' : 'row' }}>
           <div style={{ background: isSelf ? '#A6D785' : '#f0f4f7', color: '#1a1a1a',
             padding: '0.5rem 0.75rem', borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-            fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}>{msg.content}</div>
+            fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}><MentionText text={msg.content} /></div>
           <span style={{ fontSize: '0.68rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
         </div>
       </div>

@@ -6,6 +6,7 @@ import DistrictChatSection from './DistrictChatSection';
 import PrivateChatModal from './PrivateChatModal';
 import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
+import { stripMentionFormat } from './MentionText';
 
 interface Props {
   neighborhoodId: number;
@@ -139,7 +140,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
         <button onClick={() => handleBackFromChat(districtRoomId)} style={backBtnStyle}>
           ← 返回
         </button>
-        <DistrictChatSection city={city} district={district} />
+        <DistrictChatSection city={city} district={district} neighborhoodId={neighborhoodId} />
       </div>
     );
   }
@@ -177,7 +178,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
             <div style={chatNameStyle}>{district} 來聊聊</div>
             <div style={chatPreviewStyle}>
               {districtRoom?.lastMessage
-                ? `${districtRoom.lastMessageNickname ?? ''}：${districtRoom.lastMessage}`
+                ? `${districtRoom.lastMessageNickname ?? ''}：${stripMentionFormat(districtRoom.lastMessage)}`
                 : '還沒有訊息'}
             </div>
           </div>
@@ -203,7 +204,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
             <div style={chatNameStyle}>{neighborhoodName} 來聊聊</div>
             <div style={chatPreviewStyle}>
               {liRoom?.lastMessage
-                ? `${liRoom.lastMessageNickname ?? ''}：${liRoom.lastMessage}`
+                ? `${liRoom.lastMessageNickname ?? ''}：${stripMentionFormat(liRoom.lastMessage)}`
                 : '還沒有訊息'}
             </div>
           </div>
@@ -274,7 +275,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
                       )}
                     </div>
                     <div style={chatPreviewStyle}>
-                      {room.lastMessage ?? '開始對話吧！'}
+                      {room.lastMessage ? stripMentionFormat(room.lastMessage) : '開始對話吧！'}
                     </div>
                   </div>
                   <div style={chatRightStyle}>

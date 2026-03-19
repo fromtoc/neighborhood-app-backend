@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.app.entity.Neighborhood;
 import com.example.app.entity.Notification;
 import com.example.app.entity.UserDeviceToken;
+import com.example.app.entity.UserFollow;
 import com.example.app.entity.UserNotificationSettings;
 import com.example.app.mapper.*;
 import com.google.firebase.messaging.BatchResponse;
@@ -36,6 +37,7 @@ public class NotificationService {
     private final UserNotificationSettingsMapper  settingsMapper;
     private final UserDeviceTokenMapper           deviceTokenMapper;
     private final NeighborhoodMapper              neighborhoodMapper;
+    private final UserFollowMapper                userFollowMapper;
     private final SimpMessagingTemplate           ws;
 
     @Autowired(required = false)
@@ -43,12 +45,30 @@ public class NotificationService {
 
     // ── 公開方法 ─────────────────────────────────────────────────────────
 
-    /** 新貼文（非系統）— 通知關注該里的使用者（排除發文者） */
+    /** 新貼文（非系統）— 通知關注該里的使用者 + 追蹤該作者的用戶（排除發文者） */
     @Async
     public void onNewPost(Long neighborhoodId, Long authorId, Long postId,
                           String title, String body) {
+        // 1. 通知關注該里的使用者
         fanOut(neighborhoodId, "new_post", "new_post",
                 title, body, "post", postId, authorId);
+        // 2. 通知追蹤該作者的用戶（排除已在里通知中的）
+        notifyFollowers(authorId, postId, title, body);
+    }
+
+    /** 通知追蹤該作者的用戶有新貼文 */
+    private void notifyFollowers(Long authorId, Long postId, String title, String body) {
+        List<UserFollow> followers = userFollowMapper.selectList(
+                new LambdaQueryWrapper<UserFollow>().eq(UserFollow::getTargetId, authorId));
+        for (UserFollow f : followers) {
+            if (!isEnabled(f.getFollowerId(), "follow_post")) continue;
+            insertNotification(f.getFollowerId(), "follow_post", title, body, "post", postId, null);
+            pushWs(f.getFollowerId(), "follow_post", title, body, "post", postId);
+        }
+        List<Long> followerIds = followers.stream()
+                .filter(f -> isEnabled(f.getFollowerId(), "follow_post"))
+                .map(UserFollow::getFollowerId).toList();
+        pushFcm(followerIds, title, body, "follow_post", "post", postId);
     }
 
     /** 新資訊（系統爬蟲）— 通知關注該里/區使用者 */
@@ -124,6 +144,35 @@ public class NotificationService {
         sendFcm(tokens, title, body, "private_message", "user", senderId);
     }
 
+    /**
+     * 解析內容中的 @[暱稱](userId) 並通知被提及的用戶。
+     * @param content     含 mention 的文字
+     * @param authorId    發文/發訊者（排除自己）
+     * @param authorName  發文/發訊者暱稱
+     * @param refType     "post" / "chat_message"
+     * @param refId       貼文 ID / 訊息 ID
+     */
+    @Async
+    public void onMention(String content, Long authorId, String authorName,
+                          String refType, Long refId) {
+        if (content == null) return;
+        // 解析 @[暱稱](userId)
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("@\\[([^\\]]+)\\]\\((\\d+)\\)").matcher(content);
+        java.util.Set<Long> notified = new java.util.HashSet<>();
+        while (matcher.find()) {
+            Long mentionedUserId = Long.parseLong(matcher.group(2));
+            if (mentionedUserId.equals(authorId)) continue;
+            if (notified.contains(mentionedUserId)) continue;
+            notified.add(mentionedUserId);
+            String title = authorName + " 提及了你";
+            String body = content.length() > 80 ? content.substring(0, 80) + "…" : content;
+            // 用 stripMentionFormat 清理 body
+            body = body.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1");
+            notifyUser(mentionedUserId, "mention", title, body, refType, refId);
+        }
+    }
+
     // ── 內部邏輯 ─────────────────────────────────────────────────────────
 
     private void fanOut(Long neighborhoodId, String notifType, String settingColumn,
@@ -188,8 +237,9 @@ public class NotificationService {
         Notification n = new Notification();
         n.setUserId(userId);
         n.setType(type);
-        n.setTitle(title);
-        n.setBody(body != null && body.length() > 500 ? body.substring(0, 500) : body);
+        n.setTitle(title != null ? title.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : null);
+        String cleanBody = body != null ? body.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : null;
+        n.setBody(cleanBody != null && cleanBody.length() > 500 ? cleanBody.substring(0, 500) : cleanBody);
         n.setRefType(refType);
         n.setRefId(refId);
         n.setNeighborhoodId(neighborhoodId);
@@ -220,13 +270,14 @@ public class NotificationService {
     private void sendFcm(List<String> tokens, String title, String body,
                          String notifType, String refType, Long refId) {
         if (fcm == null || tokens.isEmpty()) return;
-        String shortBody = body != null && body.length() > 100 ? body.substring(0, 100) + "…" : body;
+        String cleanBody = body != null ? body.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : null;
+        String shortBody = cleanBody != null && cleanBody.length() > 100 ? cleanBody.substring(0, 100) + "…" : cleanBody;
         try {
             for (int i = 0; i < tokens.size(); i += 500) {
                 List<String> batch = tokens.subList(i, Math.min(i + 500, tokens.size()));
                 var builder = MulticastMessage.builder()
                         .setNotification(com.google.firebase.messaging.Notification.builder()
-                                .setTitle(title)
+                                .setTitle(title != null ? title.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : title)
                                 .setBody(shortBody)
                                 .build())
                         .addAllTokens(batch);
@@ -264,9 +315,11 @@ public class NotificationService {
         if (s.getMaster() != null && s.getMaster() == 0) return false;
         return switch (type) {
             case "new_post"        -> s.getNewPost()        != 0;
+            case "follow_post"     -> s.getFollowPost()     != null ? s.getFollowPost() != 0 : true;
             case "chat"            -> s.getChat()           != 0;
             case "private_message" -> s.getPrivateMessage() != 0;
             case "post_reply"      -> s.getPostReply()      != 0;
+            case "mention"         -> true;
             default                -> true;
         };
     }

@@ -113,7 +113,8 @@
       "Bash(docker run:*)",
       "Bash(docker port:*)",
       "Bash(docker stop:*)",
-      "Bash(docker rm:*)"
+      "Bash(docker rm:*)",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -name *UserNotificationSettings*)"
     ]
   }
 }

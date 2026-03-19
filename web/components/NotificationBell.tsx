@@ -229,6 +229,7 @@ function typeColor(type: NotificationItem['type']) {
   const map: Record<string, string> = {
     new_post: '#1c5373', new_info: '#e07b00', chat: '#059669',
     private_message: '#7c3aed', post_reply: '#d97706',
+    mention: '#2563eb', follow_post: '#e53e3e',
   };
   return map[type] ?? '#888';
 }

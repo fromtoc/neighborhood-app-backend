@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { dispatchAuthExpired } from '@/lib/auth-client';
+import MentionInput, { applyMentions, type MentionMap } from './MentionInput';
 
 type Mode = 'info' | 'community';
 
@@ -125,6 +126,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
   const [error, setError] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [mentions, setMentions] = useState<MentionMap>([]);
 
   // 切換 type 時重設 extra
   function handleTypeChange(newType: string) {
@@ -216,7 +218,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
         body: JSON.stringify({
           neighborhoodId,
           title: title || undefined,
-          content,
+          content: applyMentions(content, mentions),
           type: submitType,
           scope: scope || undefined,
           urgency: submitUrgency,
@@ -324,9 +326,15 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
       <input value={title} onChange={e => setTitle(e.target.value)} placeholder="標題（選填）" maxLength={255}
         style={{ width: '100%', border: 'none', borderBottom: '1px solid #f0f0f0', padding: '0.4rem 0', marginBottom: '0.5rem', fontSize: '0.9rem', outline: 'none', background: 'transparent', boxSizing: 'border-box' }} />
 
-      <textarea value={content} onChange={e => setContent(e.target.value)} placeholder={placeholder}
-        required maxLength={5000} rows={3} autoFocus
-        style={{ width: '100%', border: 'none', resize: 'vertical', fontSize: '0.9rem', outline: 'none', background: 'transparent', lineHeight: 1.6, color: '#1e1e1e' }} />
+      <MentionInput
+        value={content} onChange={setContent}
+        onMentionsChange={setMentions}
+        neighborhoodId={neighborhoodId}
+        scope={scope === 'district' || defaultPostType === 'district_info' ? 'district' : 'li'}
+        placeholder={placeholder}
+        maxLength={5000} multiline rows={3}
+        style={{ lineHeight: 1.6 }}
+      />
 
       {/* 分類專屬欄位 */}
       {extraFields.length > 0 && (
