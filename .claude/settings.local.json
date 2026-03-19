@@ -114,7 +114,9 @@
       "Bash(docker port:*)",
       "Bash(docker stop:*)",
       "Bash(docker rm:*)",
-      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -name *UserNotificationSettings*)"
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -name *UserNotificationSettings*)",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/web -name *Provider* -o -name *provider*)",
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/web -name SiteNav* -o -name layout*)"
     ]
   }
 }

@@ -163,6 +163,7 @@ public class NotificationController {
             s.setFollowPost(1);
             s.setPostReply(1);
             s.setChat(1);
+            s.setMention(1);
             s.setPrivateMessage(1);
         }
         return ApiResponse.success(s);
@@ -195,6 +196,7 @@ public class NotificationController {
         s.setFollowPost(req.followPost() != null ? req.followPost() : 1);
         s.setPostReply(req.postReply() != null ? req.postReply() : 1);
         s.setChat(req.chat() != null ? req.chat() : 1);
+        s.setMention(req.mention() != null ? req.mention() : 1);
         s.setPrivateMessage(req.privateMessage() != null ? req.privateMessage() : 1);
     }
 
@@ -207,6 +209,7 @@ public class NotificationController {
         if (req.followPost()     != null) s.setFollowPost(req.followPost());
         if (req.postReply()      != null) s.setPostReply(req.postReply());
         if (req.chat()           != null) s.setChat(req.chat());
+        if (req.mention()        != null) s.setMention(req.mention());
         if (req.privateMessage() != null) s.setPrivateMessage(req.privateMessage());
     }
 
@@ -216,5 +219,6 @@ public class NotificationController {
 
     record SettingsRequest(Integer master, Integer infoMedium, Integer infoNormal,
                            Integer garbageTruck, Integer newPost, Integer followPost,
-                           Integer postReply, Integer chat, Integer privateMessage) {}
+                           Integer postReply, Integer chat, Integer mention,
+                           Integer privateMessage) {}
 }

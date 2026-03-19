@@ -207,8 +207,40 @@ public class ChatQueryServiceImpl implements ChatQueryService {
                 // 私訊：通知對方
                 Long recipientId = userId.equals(room.getUser1Id()) ? room.getUser2Id() : room.getUser1Id();
                 notificationService.onPrivateMessage(recipientId, userId, nickname, shortContent);
+            } else if ("district".equals(room.getType())) {
+                // 區聊聊：從 room name 解析 city+district，找代表里通知
+                String roomName = room.getName(); // e.g. "基隆市七堵區 聊聊"
+                if (roomName != null) {
+                    String cd = roomName.replace(" 聊聊", "");
+                    for (String[] aliases : com.example.app.aggregator.AggregatorSupport.COUNTY_ALIASES) {
+                        for (String alias : aliases) {
+                            if (cd.startsWith(alias)) {
+                                String dist = cd.substring(alias.length());
+                                Neighborhood repNh = neighborhoodMapper.selectOne(
+                                        new LambdaQueryWrapper<Neighborhood>()
+                                                .eq(Neighborhood::getCity, aliases[0])
+                                                .eq(Neighborhood::getDistrict, dist)
+                                                .eq(Neighborhood::getStatus, 1)
+                                                .last("LIMIT 1"));
+                                if (repNh == null && !alias.equals(aliases[0])) {
+                                    repNh = neighborhoodMapper.selectOne(
+                                            new LambdaQueryWrapper<Neighborhood>()
+                                                    .eq(Neighborhood::getCity, alias)
+                                                    .eq(Neighborhood::getDistrict, dist)
+                                                    .eq(Neighborhood::getStatus, 1)
+                                                    .last("LIMIT 1"));
+                                }
+                                if (repNh != null) {
+                                    notificationService.onDistrictChatMessage(repNh.getId(), userId,
+                                            msg.getId(), nickname, shortContent);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                }
             } else if (room.getNeighborhoodId() != null) {
-                // 聊聊：通知里內其他使用者
+                // 里聊聊：通知里內其他使用者
                 notificationService.onChatMessage(room.getNeighborhoodId(), userId,
                         msg.getId(), nickname, shortContent);
             }

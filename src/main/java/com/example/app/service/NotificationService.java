@@ -106,13 +106,24 @@ public class NotificationService {
         notifyUser(postAuthorId, "post_reply", title, commentBody, "post", postId);
     }
 
-    /** 聊聊訊息（公開聊天室）— 通知關注該里的使用者（排除發訊者） */
+    /** 里聊聊訊息 — 通知關注該里的使用者（排除發訊者），同一聊天室合併 */
     @Async
     public void onChatMessage(Long neighborhoodId, Long senderId, Long messageId,
                               String senderName, String body) {
-        String title = senderName + " 在聊聊發了訊息";
-        fanOut(neighborhoodId, "chat", "chat",
-                title, body, "chat_message", messageId, senderId);
+        Neighborhood nh = neighborhoodMapper.selectById(neighborhoodId);
+        String roomLabel = nh != null ? nh.getName() + "聊聊" : "里聊聊";
+        String title = senderName + " 在" + roomLabel + "發了訊息";
+        fanOutChatMerged(neighborhoodId, senderId, title, body, "chat_li", messageId, false);
+    }
+
+    /** 區聊聊訊息 — 通知關注該區所有里的使用者（排除發訊者），同一聊天室合併 */
+    @Async
+    public void onDistrictChatMessage(Long representativeNhId, Long senderId, Long messageId,
+                                      String senderName, String body) {
+        Neighborhood nh = neighborhoodMapper.selectById(representativeNhId);
+        String roomLabel = nh != null ? nh.getDistrict() + "聊聊" : "區聊聊";
+        String title = senderName + " 在" + roomLabel + "發了訊息";
+        fanOutChatMerged(representativeNhId, senderId, title, body, "chat_district", messageId, true);
     }
 
     /** 私訊 — 只通知接收方。同一發送者的未讀通知會合併（更新內容），不重複建立 */
@@ -171,6 +182,68 @@ public class NotificationService {
             body = body.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1");
             notifyUser(mentionedUserId, "mention", title, body, refType, refId);
         }
+    }
+
+    /**
+     * 群聊通知合併：同一聊天室（同 neighborhoodId）的未讀通知只保留一則，更新內容。
+     */
+    private void fanOutChatMerged(Long neighborhoodId, Long senderId,
+                                   String title, String body, String refType, Long refId,
+                                   boolean isDistrict) {
+        List<UserFollowPair> pairs;
+        if (isDistrict) {
+            Neighborhood nh = neighborhoodMapper.selectById(neighborhoodId);
+            if (nh == null) return;
+            List<Long> districtNhIds = neighborhoodMapper.selectList(
+                    new LambdaQueryWrapper<Neighborhood>()
+                            .eq(Neighborhood::getCity, nh.getCity())
+                            .eq(Neighborhood::getDistrict, nh.getDistrict())
+                            .eq(Neighborhood::getStatus, 1)
+                            .select(Neighborhood::getId)
+            ).stream().map(Neighborhood::getId).toList();
+            pairs = settingsMapper.findEnabledUsersByNeighborhoods(districtNhIds, "chat");
+        } else {
+            pairs = settingsMapper.findEnabledUsersByNeighborhood(neighborhoodId, "chat");
+        }
+        if (senderId != null) pairs = pairs.stream()
+                .filter(p -> !p.getUserId().equals(senderId)).toList();
+
+        String cleanBody = body != null ? body.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : null;
+        String cleanTitle = title != null ? title.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : null;
+        String shortBody = cleanBody != null && cleanBody.length() > 500 ? cleanBody.substring(0, 500) : cleanBody;
+
+        java.util.Set<Long> processed = new java.util.HashSet<>();
+        for (UserFollowPair pair : pairs) {
+            if (!processed.add(pair.getUserId())) continue; // 同一用戶只處理一次
+            Notification existing = notificationMapper.selectOne(
+                    new LambdaQueryWrapper<Notification>()
+                            .eq(Notification::getUserId, pair.getUserId())
+                            .eq(Notification::getType, "chat")
+                            .eq(Notification::getRefType, refType)
+                            .eq(Notification::getIsRead, 0)
+                            .last("LIMIT 1"));
+            if (existing != null) {
+                existing.setTitle(cleanTitle);
+                existing.setBody(shortBody);
+                existing.setRefId(refId);
+                existing.setCreatedAt(java.time.LocalDateTime.now());
+                notificationMapper.updateById(existing);
+            } else {
+                Notification n = new Notification();
+                n.setUserId(pair.getUserId());
+                n.setType("chat");
+                n.setTitle(cleanTitle);
+                n.setBody(shortBody);
+                n.setRefType(refType);
+                n.setRefId(refId);
+                n.setNeighborhoodId(pair.getNeighborhoodId());
+                n.setIsRead(0);
+                notificationMapper.insert(n);
+            }
+            pushWs(pair.getUserId(), "chat", cleanTitle != null ? cleanTitle : title, body, refType, refId);
+        }
+        pushFcm(new java.util.ArrayList<>(processed),
+                cleanTitle != null ? cleanTitle : title, body, "chat", refType, refId);
     }
 
     // ── 內部邏輯 ─────────────────────────────────────────────────────────
@@ -319,7 +392,7 @@ public class NotificationService {
             case "chat"            -> s.getChat()           != 0;
             case "private_message" -> s.getPrivateMessage() != 0;
             case "post_reply"      -> s.getPostReply()      != 0;
-            case "mention"         -> true;
+            case "mention"         -> s.getMention() != null ? s.getMention() != 0 : true;
             default                -> true;
         };
     }

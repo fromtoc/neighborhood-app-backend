@@ -62,7 +62,16 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
   }, [fetchRoom]);
 
   useEffect(() => {
-    if (room) fetchMessages(room.id);
+    if (room) {
+      fetchMessages(room.id);
+      // 進入聊天室時標記已讀
+      if (token) {
+        fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/read`, {
+          method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+        setTimeout(() => window.dispatchEvent(new CustomEvent('chat-update')), 500);
+      }
+    }
   }, [room, fetchMessages]);
 
   // 捲到底部（只捲聊天框內部，不影響頁面捲動）
@@ -84,6 +93,12 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
             if (prev.some(m => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
+          // 正在看聊天室，自動標記已讀
+          if (token) {
+            fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/read`, {
+              method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+            }).catch(() => {});
+          }
         } catch { /* ignore parse errors */ }
       });
     };

@@ -123,9 +123,22 @@ public class UserProfileController {
 
     // ── 個人資料 ──────────────────────────────────────────────
 
+    record MyProfileResponse(
+            String nickname,
+            String bio,
+            Boolean useAvatar,
+            String avatarUrl,
+            String role,
+            String badge,
+            Long postCount,
+            Long bookmarkCount,
+            Long followerCount,
+            Long followingCount
+    ) {}
+
     @GetMapping("/me")
-    @Operation(summary = "取得自己的資料（含 follower/following）", security = @SecurityRequirement(name = "bearerAuth"))
-    public ApiResponse<Map<String, Object>> getMe(@AuthenticationPrincipal JwtClaims claims) {
+    @Operation(summary = "取得自己的資料", security = @SecurityRequirement(name = "bearerAuth"))
+    public ApiResponse<MyProfileResponse> getMe(@AuthenticationPrincipal JwtClaims claims) {
         if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
         User user = userMapper.selectById(claims.getUserId());
         if (user == null) throw new BusinessException(ResultCode.NOT_FOUND, "用戶不存在");
@@ -139,31 +152,30 @@ public class UserProfileController {
         Long followingCount = userFollowMapper.selectCount(
                 new LambdaQueryWrapper<UserFollow>().eq(UserFollow::getFollowerId, claims.getUserId()));
 
-        Map<String, Object> data = new HashMap<>();
-        data.put("nickname", user.getNickname());
-        data.put("bio", user.getBio());
-        data.put("useAvatar", Integer.valueOf(1).equals(user.getUseAvatar()));
-        data.put("avatarUrl", user.getAvatarUrl());
-        data.put("postCount", postCount);
-        data.put("bookmarkCount", bookmarkCount);
-        data.put("followerCount", followerCount);
-        data.put("followingCount", followingCount);
-        return ApiResponse.success(data);
+        return ApiResponse.success(new MyProfileResponse(
+                user.getNickname(), user.getBio(),
+                Integer.valueOf(1).equals(user.getUseAvatar()),
+                user.getAvatarUrl(),
+                resolveRole(user), resolveBadge(claims.getUserId()),
+                postCount, bookmarkCount, followerCount, followingCount
+        ));
     }
+
+    record UpdateProfileRequest(String nickname, String bio, Boolean useAvatar) {}
 
     @PutMapping("/me/profile")
     @Operation(summary = "更新自己的資料", security = @SecurityRequirement(name = "bearerAuth"))
     public ApiResponse<Void> updateMe(
             @AuthenticationPrincipal JwtClaims claims,
-            @RequestBody Map<String, Object> body
+            @RequestBody UpdateProfileRequest body
     ) {
         if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
         User user = userMapper.selectById(claims.getUserId());
         if (user == null) throw new BusinessException(ResultCode.NOT_FOUND, "用戶不存在");
 
-        if (body.containsKey("nickname")) user.setNickname((String) body.get("nickname"));
-        if (body.containsKey("bio")) user.setBio((String) body.get("bio"));
-        if (body.containsKey("useAvatar")) user.setUseAvatar(Boolean.TRUE.equals(body.get("useAvatar")) ? 1 : 0);
+        if (body.nickname() != null) user.setNickname(body.nickname());
+        if (body.bio() != null) user.setBio(body.bio());
+        if (body.useAvatar() != null) user.setUseAvatar(Boolean.TRUE.equals(body.useAvatar()) ? 1 : 0);
         userMapper.updateById(user);
         return ApiResponse.success(null);
     }

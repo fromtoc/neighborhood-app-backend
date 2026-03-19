@@ -103,6 +103,7 @@ export default function NotificationBell() {
               setOpen(false);
               setPrivateChat({ userId, nickname });
             }}
+            refresh={refresh}
           />
         </div>
       )}
@@ -119,18 +120,27 @@ export default function NotificationBell() {
 }
 
 function NotificationList({
-  items, loading, onMark, onClose, onOpenPrivateChat,
+  items, loading, onMark, onClose, onOpenPrivateChat, refresh,
 }: {
   items: NotificationItem[];
   loading: boolean;
   onMark: (id: number) => void;
   onClose: () => void;
   onOpenPrivateChat: (userId: number, nickname: string) => void;
+  refresh: () => void;
 }) {
   const router = useRouter();
 
   function handleClick(n: NotificationItem) {
     if (!n.isRead) onMark(n.id);
+
+    // 點擊後延遲刷新通知 + 聊聊未讀數
+    const refreshAll = () => {
+      refresh();
+      window.dispatchEvent(new CustomEvent('chat-update'));
+    };
+    setTimeout(refreshAll, 500);
+    setTimeout(refreshAll, 1500);
 
     // 私訊：開啟對話框
     if (n.type === 'private_message' && n.refType === 'user' && n.refId) {
@@ -206,13 +216,15 @@ function NotificationList({
 
 /** 根據通知類型建立導頁 URL */
 function buildNavUrl(n: NotificationItem): string | null {
-  // 有 refType + refId 時直接跳到具體頁面
+  // 貼文相關 → 貼文詳情
   if (n.refType === 'post' && n.refId) {
     return `/posts/${n.refId}`;
   }
-  if (n.refType === 'chat_message' && n.city && n.district && n.neighborhoodName) {
+  // 聊天相關 → 聊聊 tab（區分里聊/區聊，直接進入聊天室）
+  if ((n.refType === 'chat_li' || n.refType === 'chat_district' || n.refType === 'chat_message') && n.city && n.district && n.neighborhoodName) {
     const base = `/${encodeURIComponent(n.city)}/${encodeURIComponent(n.district)}/${encodeURIComponent(n.neighborhoodName)}`;
-    return `${base}?tab=chat`;
+    const chatView = n.refType === 'chat_district' ? 'district' : 'li';
+    return `${base}?tab=chat&chatView=${chatView}`;
   }
   // private_message 由 handleClick 處理（開對話框），不走 URL
   // fallback：導到里頁面

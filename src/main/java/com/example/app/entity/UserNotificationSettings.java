@@ -20,6 +20,7 @@ public class UserNotificationSettings {
     private Integer followPost;
     private Integer postReply;
     private Integer chat;
+    private Integer mention;
     private Integer privateMessage;
 
     @TableField(fill = FieldFill.INSERT_UPDATE)

@@ -87,7 +87,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             window.dispatchEvent(new CustomEvent('chat-update'));
           }
 
-          // 私訊：合併同一發送者的未讀通知，unread 只在新增時 +1
+          // 私訊/聊聊：合併 + 延遲 refresh 取正確 unread
           if (notif.type === 'private_message' && notif.refType === 'user' && notif.refId) {
             setItems(prev => {
               const existIdx = prev.findIndex(
@@ -95,14 +95,11 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                   && n.refId === notif.refId && n.isRead === 0
               );
               if (existIdx >= 0) {
-                // 合併：更新內容，移到最前面，不增加 unread
                 const updated = [...prev];
                 updated[existIdx] = { ...updated[existIdx], body: notif.body || null, createdAt: new Date().toISOString() };
                 const [item] = updated.splice(existIdx, 1);
                 return [item, ...updated];
               }
-              // 新增：unread +1
-              setUnread(n => n + 1);
               return [{
                 id: Date.now(), type: 'private_message' as const,
                 title: notif.title, body: notif.body || null,
@@ -111,8 +108,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
                 neighborhoodId: null, neighborhoodName: null, city: null, district: null,
               }, ...prev.slice(0, 49)];
             });
+            setTimeout(() => refresh(), 300);
+          } else if (notif.type === 'chat') {
+            // 聊聊：合併同一 refType 的未讀通知
+            setItems(prev => {
+              const existIdx = prev.findIndex(
+                n => n.type === 'chat' && n.refType === notif.refType && n.isRead === 0
+              );
+              if (existIdx >= 0) {
+                const updated = [...prev];
+                updated[existIdx] = { ...updated[existIdx], title: notif.title, body: notif.body || null, createdAt: new Date().toISOString() };
+                const [item] = updated.splice(existIdx, 1);
+                return [item, ...updated];
+              }
+              return [{
+                id: Date.now(), type: 'chat' as const,
+                title: notif.title, body: notif.body || null,
+                refType: notif.refType || null, refId: notif.refId || null,
+                isRead: 0, createdAt: new Date().toISOString(),
+                neighborhoodId: null, neighborhoodName: null, city: null, district: null,
+              }, ...prev.slice(0, 49)];
+            });
+            setTimeout(() => refresh(), 300);
           } else {
-            // 非私訊：直接加入
+            // 其他：直接加入
             setItems(prev => [{
               id: Date.now(),
               type: notif.type as NotificationItem['type'],

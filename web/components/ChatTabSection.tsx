@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import ChatSection from './ChatSection';
 import DistrictChatSection from './DistrictChatSection';
 import PrivateChatModal from './PrivateChatModal';
@@ -50,7 +51,16 @@ function timeLabel(at: string | null): string {
 
 export default function ChatTabSection({ neighborhoodId, neighborhoodName, city, district }: Props) {
   const { user, token, showLoginModal } = useAuth();
+  const searchParams = useSearchParams();
+  const chatViewParam = searchParams.get('chatView');
   const [view, setView] = useState<View>('list');
+
+  // 從 URL 讀取 chatView 參數（通知導航用）
+  useEffect(() => {
+    if (chatViewParam === 'district' || chatViewParam === 'li') {
+      setView(chatViewParam);
+    }
+  }, [chatViewParam]);
   const [privateRooms, setPrivateRooms] = useState<PrivateRoom[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
@@ -62,7 +72,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
   const liRoomId = liRoom?.id ?? null;
 
   // Fetch district & li rooms
-  useEffect(() => {
+  const fetchPublicRooms = useCallback(() => {
     fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/district?city=${encodeURIComponent(city)}&district=${encodeURIComponent(district)}`)
       .then(r => r.json())
       .then(json => {
@@ -78,6 +88,8 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
       })
       .catch(() => {});
   }, [city, district, neighborhoodId]);
+
+  useEffect(() => { fetchPublicRooms(); }, [fetchPublicRooms]);
 
   // Fetch private rooms
   const fetchPrivateRooms = useCallback(() => {
@@ -105,7 +117,15 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(json => { if (json.code === 200) setUnreadCounts(json.data ?? {}); })
+      .then(json => {
+        if (json.code === 200) {
+          const counts: Record<number, number> = json.data ?? {};
+          setUnreadCounts(counts);
+          // 通知 SiteNav 更新聊聊 tab 未讀數
+          const total = Object.values(counts).reduce((s, n) => s + n, 0);
+          window.dispatchEvent(new CustomEvent('chat-unread-total', { detail: total }));
+        }
+      })
       .catch(() => {});
   }, [token, districtRoomId, liRoomId, privateRooms]);
 
@@ -114,11 +134,11 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
   // Refresh on interval + WebSocket event
   useEffect(() => {
     if (!token) return;
-    const interval = setInterval(() => { fetchUnread(); fetchPrivateRooms(); }, 30000);
-    const onChatUpdate = () => { fetchUnread(); fetchPrivateRooms(); };
+    const interval = setInterval(() => { fetchUnread(); fetchPrivateRooms(); fetchPublicRooms(); }, 30000);
+    const onChatUpdate = () => { fetchUnread(); fetchPrivateRooms(); fetchPublicRooms(); };
     window.addEventListener('chat-update', onChatUpdate);
     return () => { clearInterval(interval); window.removeEventListener('chat-update', onChatUpdate); };
-  }, [fetchUnread, fetchPrivateRooms, token]);
+  }, [fetchUnread, fetchPrivateRooms, fetchPublicRooms, token]);
 
   // Mark read + return to list
   const handleBackFromChat = (roomId: number | null) => {
@@ -131,6 +151,15 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
       }).catch(() => {});
     }
     setView('list');
+    // 移除 URL 的 chatView 參數
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('chatView')) {
+        url.searchParams.delete('chatView');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+    setTimeout(() => fetchUnread(), 300);
   };
 
   // District chat view
@@ -172,6 +201,15 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
         <button onClick={() => {
           if (!user || !token || user.role === 'GUEST') { showLoginModal(neighborhoodId); return; }
           setView('district');
+          // URL 加上 chatView 方便分享/刷新
+          const url = new URL(window.location.href);
+          url.searchParams.set('chatView', 'district');
+          window.history.replaceState({}, '', url.toString());
+          if (districtRoomId && token) {
+            setUnreadCounts(prev => ({ ...prev, [districtRoomId]: 0 }));
+            fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${districtRoomId}/read`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+            setTimeout(() => fetchUnread(), 500);
+          }
         }} style={chatItemStyle}>
           <div style={{ ...groupAvatarStyle, background: '#C8A951' }}>🌐</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -198,6 +236,14 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
         <button onClick={() => {
           if (!user || !token || user.role === 'GUEST') { showLoginModal(neighborhoodId); return; }
           setView('li');
+          const url = new URL(window.location.href);
+          url.searchParams.set('chatView', 'li');
+          window.history.replaceState({}, '', url.toString());
+          if (liRoomId && token) {
+            setUnreadCounts(prev => ({ ...prev, [liRoomId]: 0 }));
+            fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${liRoomId}/read`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+            setTimeout(() => fetchUnread(), 500);
+          }
         }} style={chatItemStyle}>
           <div style={{ ...groupAvatarStyle, background: '#1c5373' }}>👥</div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -263,7 +309,14 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
               const otherName = room.otherNickname || `用戶 #${otherId}`;
               const unread = unreadCounts[room.id] ?? 0;
               return (
-                <button key={room.id} onClick={() => setOpenPrivateTargetId(otherId)} style={chatItemStyle}>
+                <button key={room.id} onClick={() => {
+                  setOpenPrivateTargetId(otherId);
+                  if (token) {
+                    setUnreadCounts(prev => ({ ...prev, [room.id]: 0 }));
+                    fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/read`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } }).catch(() => {});
+                    setTimeout(() => fetchUnread(), 500);
+                  }
+                }} style={chatItemStyle}>
                   <div style={privateAvatarStyle}>
                     {otherName.charAt(0).toUpperCase()}
                   </div>

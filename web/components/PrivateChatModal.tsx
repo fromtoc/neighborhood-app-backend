@@ -101,8 +101,17 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
   }, [roomId, loadingMore, hasMore, messages]);
 
   useEffect(() => {
-    if (roomId) fetchMessages(roomId);
-  }, [roomId, fetchMessages]);
+    if (roomId) {
+      fetchMessages(roomId);
+      if (token) {
+        fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${roomId}/read`, {
+          method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+        // 刷新聊聊未讀數
+        setTimeout(() => window.dispatchEvent(new CustomEvent('chat-update')), 500);
+      }
+    }
+  }, [roomId, fetchMessages, token]);
 
   // 初次載入完成後捲到底部
   useEffect(() => {
@@ -142,6 +151,11 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
             if (prev.some(m => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
+          if (token) {
+            fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${roomId}/read`, {
+              method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+            }).catch(() => {});
+          }
         } catch { /* ignore */ }
       });
     };

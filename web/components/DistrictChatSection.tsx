@@ -59,7 +59,16 @@ export default function DistrictChatSection({ city, district, neighborhoodId }: 
   }, []);
 
   useEffect(() => { fetchRoom().finally(() => setLoading(false)); }, [fetchRoom]);
-  useEffect(() => { if (room) fetchMessages(room.id); }, [room, fetchMessages]);
+  useEffect(() => {
+    if (room) {
+      fetchMessages(room.id);
+      if (token) {
+        fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/read`, {
+          method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+      }
+    }
+  }, [room, fetchMessages, token]);
   useEffect(() => {
     const el = messagesRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -77,6 +86,11 @@ export default function DistrictChatSection({ city, district, neighborhoodId }: 
             if (prev.some(m => m.id === msg.id)) return prev;
             return [...prev, msg];
           });
+          if (token) {
+            fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/read`, {
+              method: 'PUT', headers: { Authorization: `Bearer ${token}` },
+            }).catch(() => {});
+          }
         } catch { /* ignore */ }
       });
     };
