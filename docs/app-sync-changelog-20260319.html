@@ -3,156 +3,107 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GoLocal App 對接同步文件 — 2026-03-19 更新</title>
+<title>GoLocal App 對接同步 — 2026-03-19 聊聊未讀/通知修正</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e1e1e;background:#f8f9fa;line-height:1.7}
-.container{max-width:920px;margin:0 auto;padding:2rem 1.5rem}
-h1{font-size:1.6rem;font-weight:800;color:#1c5373;margin-bottom:.3rem}
+.container{max-width:880px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.5rem;font-weight:800;color:#1c5373;margin-bottom:.3rem}
 h1 small{font-size:.82rem;font-weight:400;color:#999;display:block;margin-top:.2rem}
-h2{font-size:1.2rem;font-weight:700;color:#1c5373;margin:2rem 0 .8rem;padding-bottom:.3rem;border-bottom:2px solid #e8e8e8}
-h3{font-size:1rem;font-weight:700;color:#333;margin:1.2rem 0 .5rem}
-h4{font-size:.92rem;font-weight:700;color:#555;margin:1rem 0 .3rem}
+h2{font-size:1.15rem;font-weight:700;color:#1c5373;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid #e8e8e8}
+h3{font-size:.95rem;font-weight:700;color:#333;margin:1rem 0 .4rem}
 p,li{font-size:.9rem;color:#444}
-ul,ol{padding-left:1.5rem;margin:.4rem 0}
+ul{padding-left:1.5rem;margin:.4rem 0}
 li{margin-bottom:.25rem}
-table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.84rem}
-th,td{border:1px solid #e0e0e0;padding:.45rem .6rem;text-align:left}
+table{width:100%;border-collapse:collapse;margin:.7rem 0;font-size:.84rem}
+th,td{border:1px solid #e0e0e0;padding:.4rem .6rem;text-align:left}
 th{background:#f0f7ff;color:#1c5373;font-weight:600;white-space:nowrap}
 td{background:#fff}
-code{background:#f0f0f0;padding:1px 5px;border-radius:3px;font-size:.82rem;font-family:'SF Mono',Consolas,monospace;color:#c7254e}
-pre{background:#1e1e2e;color:#cdd6f4;padding:.8rem 1rem;border-radius:8px;overflow-x:auto;margin:.6rem 0;font-size:.78rem;line-height:1.6}
+code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:.82rem;font-family:'SF Mono',Consolas,monospace;color:#c7254e}
+pre{background:#1e1e2e;color:#cdd6f4;padding:.8rem 1rem;border-radius:8px;overflow-x:auto;margin:.5rem 0;font-size:.78rem;line-height:1.5}
 pre code{background:none;color:inherit;padding:0}
 .badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.7rem;font-weight:600}
 .new{background:#e6fcf5;color:#047857}.changed{background:#fef3c7;color:#d97706}.breaking{background:#fee2e2;color:#ef4444}
 .jk{color:#89b4fa}.js{color:#a6e3a1}.jn{color:#fab387}.cm{color:#6c7086}
-.note{background:#fffbeb;border-left:3px solid #f59e0b;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.8rem 0;font-size:.84rem;color:#92400e}
-.info{background:#eff6ff;border-left:3px solid #3b82f6;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.8rem 0;font-size:.84rem;color:#1e40af}
+.note{background:#fffbeb;border-left:3px solid #f59e0b;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.7rem 0;font-size:.84rem;color:#92400e}
 hr{border:none;border-top:1px solid #e8e8e8;margin:1.5rem 0}
 </style>
 </head>
 <body>
 <div class="container">
 
-<h1>GoLocal App 對接同步文件
-<small>2026-03-18 ~ 2026-03-19 更新內容 — App (React Native) 需同步調整的項目</small>
+<h1>GoLocal App 對接同步
+<small>commit: acb05b2 — 聊聊未讀/通知完整修正 + 即時刷新</small>
 </h1>
 
 <!-- ========== 1 ========== -->
-<h2>1. 新增功能：里長角色 <span class="badge new">新增</span></h2>
+<h2>1. 聊聊通知 refType 變更 <span class="badge breaking">Breaking</span></h2>
 
-<h3>1.1 JWT 變更</h3>
+<p>群聊通知的 <code>refType</code> 改為區分里/區：</p>
+<table>
+<tr><th>場景</th><th>舊 refType</th><th>新 refType</th></tr>
+<tr><td>里聊天</td><td><code>chat_message</code></td><td><code>chat_li</code></td></tr>
+<tr><td>區聊天</td><td>—（之前不發通知）</td><td><code>chat_district</code></td></tr>
+</table>
+
+<p>App 導頁邏輯需更新：</p>
 <ul>
-<li><code>role</code> claim 新增 <code>"LI_CHIEF"</code> 值</li>
-<li>新增 <code>cnb</code> claim = 里長管理的 neighborhoodId（非里長為 null）</li>
-</ul>
-
-<h3>1.2 Auth Response 變更</h3>
-<pre><code>{
-  <span class="jk">"user"</span>: {
-    <span class="jk">"role"</span>: <span class="js">"LI_CHIEF"</span>,           <span class="cm">// 新增值</span>
-    <span class="jk">"chiefNeighborhoodId"</span>: <span class="jn">7742</span>  <span class="cm">// 新增欄位，里長才有</span>
-  }
-}</code></pre>
-
-<h3>1.3 authorBadge 欄位</h3>
-<p>PostResponse / ChatMessageResponse / ChatRoomResponse 新增 <code>authorBadge</code>（如 <code>"堵南里里長"</code>），非里長為 null。App 需在作者名稱旁顯示綠色 badge。</p>
-
-<h3>1.4 里長發文限制</h3>
-<ul>
-<li>里長可發 <code>li_info</code> / <code>broadcast</code>（限本里，neighborhoodId 需等於 chiefNeighborhoodId）</li>
-<li>不可發 <code>district_info</code> / <code>guide</code></li>
+<li><code>refType === "chat_li"</code> → 進入里聊天室</li>
+<li><code>refType === "chat_district"</code> → 進入區聊天室</li>
+<li><code>refType === "user"</code> → 私訊對話（不變）</li>
 </ul>
 
 <!-- ========== 2 ========== -->
-<h2>2. 新增功能：貼文/留言 編輯 & 刪除 <span class="badge changed">變更</span></h2>
+<h2>2. 聊聊通知標題區分里/區 <span class="badge changed">變更</span></h2>
 
-<h3>2.1 PostResponse 新增欄位</h3>
-<table>
-<tr><th>欄位</th><th>型別</th><th>說明</th></tr>
-<tr><td><code>contentDeleted</code></td><td>Boolean | null</td><td>true = 已刪除（title/content/images/extra/urgency 全為 null）</td></tr>
-<tr><td><code>edited</code></td><td>Boolean | null</td><td>true = 已編輯</td></tr>
-<tr><td><code>authorBadge</code></td><td>String | null</td><td>里長徽章（如「堵南里里長」）</td></tr>
-</table>
-
-<h3>2.2 PostCommentResponse 新增欄位</h3>
-<table>
-<tr><th>欄位</th><th>型別</th><th>說明</th></tr>
-<tr><td><code>contentDeleted</code></td><td>Boolean | null</td><td>true = 已刪除（content 為 null）</td></tr>
-<tr><td><code>edited</code></td><td>Boolean | null</td><td>true = 已編輯</td></tr>
-</table>
-
-<h3>2.3 新增 API</h3>
-<table>
-<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
-<tr><td>PATCH</td><td><code>/posts/{postId}/comments/{commentId}</code></td><td>編輯留言 {content}（本人）</td></tr>
-<tr><td>DELETE</td><td><code>/posts/{postId}/comments/{commentId}</code></td><td>刪除留言（本人/管理員）</td></tr>
-</table>
-
-<h3>2.4 刪除後的 UI 規則</h3>
+<p>之前統一「XX 在聊聊發了訊息」，現在改為：</p>
 <ul>
-<li>顯示灰底 🗑️「此內容已被刪除」</li>
-<li>不可喜歡/留言/收藏/分享/編輯/刪除</li>
-<li>喜歡數和留言數仍顯示（只讀），有留言可展開查看</li>
-<li>0 喜歡 + 0 留言也顯示（灰色不可點）</li>
+<li>里聊天：<code>「張里長 在堵南里聊聊發了訊息」</code></li>
+<li>區聊天：<code>「張里長 在七堵區聊聊發了訊息」</code></li>
 </ul>
 
 <!-- ========== 3 ========== -->
-<h2>3. 新增功能：@ Mention（標記）<span class="badge new">新增</span></h2>
+<h2>3. 群聊通知合併 <span class="badge changed">變更</span></h2>
 
-<h3>3.1 搜尋候選人 API</h3>
-<pre><code>GET /api/v1/users/mention-candidates?keyword=張&neighborhoodId=7742&scope=li
-<span class="cm">// scope: "li" | "district"</span>
-
-<span class="cm">// Response:</span>
-[{ <span class="jk">"id"</span>: <span class="jn">13</span>, <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>, <span class="jk">"avatarUrl"</span>: <span class="jn">null</span>, <span class="jk">"badge"</span>: <span class="js">"堵南里里長"</span> }]</code></pre>
-
-<h3>3.2 存儲格式</h3>
 <ul>
-<li><strong>輸入框</strong>：顯示 <code>@張里長</code></li>
-<li><strong>提交時</strong>：替換為 <code>@[張里長](13)</code> 格式送到後端</li>
-<li><strong>顯示時</strong>：正則 <code>/@\[([^\]]+)\]\((\d+)\)/g</code> 解析，渲染為藍色可點擊連結 → <code>/users/{userId}</code></li>
-<li><strong>純文字場景</strong>（通知等）：<code>text.replace(/@\[([^\]]+)\]\(\d+\)/g, '@$1')</code></li>
+<li>同一聊天室（同 <code>refType</code>）的未讀通知只保留一則</li>
+<li>新消息會更新 title、body、createdAt</li>
+<li>里聊天和區聊天分別合併（不會混在一起）</li>
+<li>後端同一用戶只推送一次 WebSocket / FCM（去重）</li>
 </ul>
 
-<h3>3.3 scope 判斷</h3>
-<table>
-<tr><th>頁面</th><th>scope</th></tr>
-<tr><td>區資訊 / 區社群 / 區聊聊</td><td><code>district</code></td></tr>
-<tr><td>里資訊 / 里社群 / 里聊聊</td><td><code>li</code></td></tr>
-</table>
-
-<div class="note">
-<strong>中文輸入法</strong>：需監聽 <code>compositionstart</code> / <code>compositionend</code>，組字中不攔截 Enter。
-</div>
-
 <!-- ========== 4 ========== -->
-<h2>4. 新增功能：他人頁面 & 追蹤 <span class="badge new">新增</span></h2>
+<h2>4. 區聊天新增通知 <span class="badge new">新增</span></h2>
 
-<h3>4.1 新增 API</h3>
-<table>
-<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
-<tr><td>GET</td><td><code>/users/{id}/profile</code></td><td>他人公開資料（公開，帶 token 回傳 isFollowed）</td></tr>
-<tr><td>GET</td><td><code>/users/{id}/posts</code></td><td>他人貼文列表</td></tr>
-<tr><td>POST</td><td><code>/users/{id}/follow</code></td><td>追蹤/取消追蹤 → {followed, followerCount}</td></tr>
-</table>
-
-<h3>4.2 UserProfileResponse</h3>
-<pre><code>{
-  <span class="jk">"id"</span>: <span class="jn">13</span>, <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>, <span class="jk">"avatarUrl"</span>: <span class="jn">null</span>,
-  <span class="jk">"bio"</span>: <span class="js">"為社區服務"</span>, <span class="jk">"role"</span>: <span class="js">"LI_CHIEF"</span>, <span class="jk">"badge"</span>: <span class="js">"堵南里里長"</span>,
-  <span class="jk">"postCount"</span>: <span class="jn">14</span>, <span class="jk">"followerCount"</span>: <span class="jn">3</span>, <span class="jk">"followingCount"</span>: <span class="jn">1</span>,
-  <span class="jk">"isFollowed"</span>: <span class="jn">true</span>,
-  <span class="jk">"createdAt"</span>: <span class="js">"2026-01-15T10:00:00"</span>
-}</code></pre>
-
-<h3>4.3 頭像可點擊</h3>
-<p>貼文、留言、群聊、私聊中的頭像和名稱，點擊後導航到 <code>/users/{userId}</code>。</p>
+<p>之前區聊天室發消息不會觸發通知，現在會通知該區所有里的關注用戶。</p>
 
 <!-- ========== 5 ========== -->
-<h2>5. 變更：/users/me API <span class="badge changed">變更</span></h2>
+<h2>5. 通知設定新增 <code>mention</code> 欄位 <span class="badge new">新增</span></h2>
 
-<h3>5.1 Response 結構（改為 record DTO）</h3>
+<h3>DB Migration V43</h3>
+<pre><code>ALTER TABLE user_notification_settings
+    ADD COLUMN mention TINYINT(1) NOT NULL DEFAULT 1;</code></pre>
+
+<h3>GET / PUT /notifications/settings</h3>
+<pre><code>{
+  <span class="cm">// ...existing fields...</span>
+  <span class="jk">"chat"</span>: <span class="jn">1</span>,             <span class="cm">// 聊聊新訊息</span>
+  <span class="jk">"mention"</span>: <span class="jn">1</span>,          <span class="cm">// 被 @ 提及（新增）</span>
+  <span class="jk">"privateMessage"</span>: <span class="jn">1</span>    <span class="cm">// 私訊</span>
+}</code></pre>
+
+<p>通知設定頁面的「聊天訊息」區塊應有三項：</p>
+<table>
+<tr><th>設定</th><th>欄位</th><th>說明</th></tr>
+<tr><td>💬 聊聊新訊息</td><td><code>chat</code></td><td>里/區聊天室有新訊息</td></tr>
+<tr><td>＠ 被 @ 提及</td><td><code>mention</code></td><td>貼文、留言或聊天中被 @ 你</td></tr>
+<tr><td>✉️ 私訊通知</td><td><code>privateMessage</code></td><td>收到私人訊息</td></tr>
+</table>
+
+<!-- ========== 6 ========== -->
+<h2>6. /users/me Response 改為 record DTO <span class="badge changed">變更</span></h2>
+
+<p>之前回傳 <code>Map&lt;String, Object&gt;</code>（Swagger 無法顯示結構），現在改為 record：</p>
 <pre><code>{
   <span class="jk">"nickname"</span>: <span class="js">"超管"</span>,
   <span class="jk">"bio"</span>: <span class="js">"自我介紹"</span>,
@@ -162,171 +113,46 @@ hr{border:none;border-top:1px solid #e8e8e8;margin:1.5rem 0}
   <span class="jk">"badge"</span>: <span class="jn">null</span>,              <span class="cm">// 新增（里長才有值）</span>
   <span class="jk">"postCount"</span>: <span class="jn">14</span>,
   <span class="jk">"bookmarkCount"</span>: <span class="jn">6</span>,
-  <span class="jk">"followerCount"</span>: <span class="jn">0</span>,         <span class="cm">// 新增</span>
-  <span class="jk">"followingCount"</span>: <span class="jn">0</span>         <span class="cm">// 新增</span>
+  <span class="jk">"followerCount"</span>: <span class="jn">0</span>,
+  <span class="jk">"followingCount"</span>: <span class="jn">0</span>
 }</code></pre>
 
-<!-- ========== 6 ========== -->
-<h2>6. 變更：通知系統 <span class="badge changed">變更</span></h2>
-
-<h3>6.1 新增通知類型</h3>
-<table>
-<tr><th>type</th><th>中文</th><th>refType</th><th>觸發</th></tr>
-<tr><td><code>follow_post</code></td><td>追蹤</td><td>post</td><td>追蹤的用戶發了新貼文</td></tr>
-<tr><td><code>mention</code></td><td>提及</td><td>post / chat_li / chat_district</td><td>貼文/留言/聊天中被 @ 提及</td></tr>
-</table>
-
-<h3>6.2 聊聊通知 refType 變更 <span class="badge breaking">Breaking</span></h3>
-<table>
-<tr><th>場景</th><th>舊 refType</th><th>新 refType</th></tr>
-<tr><td>里聊天</td><td><code>chat_message</code></td><td><code>chat_li</code></td></tr>
-<tr><td>區聊天</td><td>—（之前不發通知）</td><td><code>chat_district</code></td></tr>
-</table>
-
-<h3>6.3 聊聊通知合併</h3>
-<ul>
-<li>同一聊天室（同 refType）的未讀通知只保留一則，新消息更新內容和時間</li>
-<li>標題區分：「XX 在堵南里聊聊發了訊息」vs「XX 在七堵區聊聊發了訊息」</li>
-</ul>
-
-<h3>6.4 通知導頁規則更新</h3>
-<table>
-<tr><th>refType</th><th>導頁</th></tr>
-<tr><td><code>post</code></td><td>貼文詳情頁</td></tr>
-<tr><td><code>chat_li</code></td><td>聊聊 tab → 里聊天室</td></tr>
-<tr><td><code>chat_district</code></td><td>聊聊 tab → 區聊天室</td></tr>
-<tr><td><code>user</code></td><td>私訊對話</td></tr>
-</table>
-
-<h3>6.5 通知設定新增欄位</h3>
-<table>
-<tr><th>欄位</th><th>說明</th></tr>
-<tr><td><code>followPost</code></td><td>追蹤對象發文（新增）</td></tr>
-<tr><td><code>mention</code></td><td>被 @ 提及（新增）</td></tr>
-</table>
-<p>完整設定：<code>master</code>, <code>infoMedium</code>, <code>infoNormal</code>, <code>garbageTruck</code>, <code>newPost</code>, <code>followPost</code>, <code>postReply</code>, <code>chat</code>, <code>mention</code>, <code>privateMessage</code></p>
-
-<h3>6.6 通知 body/title 清理</h3>
-<p>後端自動清理 mention 格式：<code>@[暱稱](id)</code> → <code>@暱稱</code>，App 不需要額外處理。</p>
+<p><code>PUT /users/me/profile</code> 的 Request Body 也改為 record：</p>
+<pre><code>{ <span class="jk">"nickname"</span>: <span class="js">"新暱稱"</span>, <span class="jk">"bio"</span>: <span class="js">"新介紹"</span>, <span class="jk">"useAvatar"</span>: <span class="jn">true</span> }</code></pre>
 
 <!-- ========== 7 ========== -->
-<h2>7. 新增功能：巷口說明書 <span class="badge new">新增</span></h2>
+<h2>7. 聊天已讀邏輯統一 <span class="badge changed">變更</span></h2>
 
-<ul>
-<li>type = <code>guide</code>，全域可見（不限里）</li>
-<li>只有管理員可發布，無 urgency</li>
-<li>首頁不顯示，在資訊 tab 的「巷口說明書」子頁籤中</li>
-<li>功能同一般貼文（喜歡、留言、收藏、分享、編輯、刪除）</li>
-</ul>
+<p>App 需在以下時機呼叫 <code>PUT /chat/rooms/{roomId}/read</code>：</p>
+<table>
+<tr><th>時機</th><th>說明</th></tr>
+<tr><td>進入聊天室</td><td>mount 時立即呼叫</td></tr>
+<tr><td>收到 WebSocket 新消息</td><td>正在看的聊天室收到消息時自動呼叫</td></tr>
+<tr><td>離開聊天室</td><td>返回列表或關閉彈窗時呼叫</td></tr>
+</table>
+
+<p>標記已讀後，應刷新聊聊 tab 的未讀 badge（重新呼叫 <code>GET /chat/unread-counts</code>）。</p>
 
 <!-- ========== 8 ========== -->
-<h2>8. 變更：聊天未讀/已讀邏輯 <span class="badge changed">變更</span></h2>
+<h2>8. 聊聊 tab 未讀 badge <span class="badge changed">變更</span></h2>
 
-<h3>8.1 自動標記已讀時機</h3>
-<table>
-<tr><th>場景</th><th>API 呼叫</th></tr>
-<tr><td>進入任何聊天室</td><td><code>PUT /chat/rooms/{roomId}/read</code></td></tr>
-<tr><td>聊天中收到 WebSocket 新消息</td><td><code>PUT /chat/rooms/{roomId}/read</code></td></tr>
-<tr><td>離開聊天室返回列表</td><td><code>PUT /chat/rooms/{roomId}/read</code></td></tr>
-<tr><td>關閉私聊彈窗</td><td><code>PUT /chat/rooms/{roomId}/read</code></td></tr>
-</table>
-
-<h3>8.2 聊天 tab badge</h3>
-<p>App 需在聊聊 tab 上顯示總未讀數 = 區聊天 + 里聊天 + 所有私聊的 unread count 總和。</p>
-<p>計算方式：呼叫 <code>GET /chat/unread-counts?roomIds=...</code>，加總所有值。</p>
-
-<h3>8.3 WebSocket 即時刷新</h3>
-<p>訂閱 <code>/topic/user/{userId}</code>，收到 <code>type: "chat"</code> 或 <code>type: "private_message"</code> 時刷新未讀數。</p>
-
-<!-- ========== 9 ========== -->
-<h2>9. 變更：ChatMessageResponse <span class="badge changed">變更</span></h2>
-
-<pre><code>{
-  <span class="jk">"id"</span>: <span class="jn">100</span>,
-  <span class="jk">"roomId"</span>: <span class="jn">1</span>,
-  <span class="jk">"userId"</span>: <span class="jn">13</span>,
-  <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>,
-  <span class="jk">"authorBadge"</span>: <span class="js">"堵南里里長"</span>,  <span class="cm">// 新增</span>
-  <span class="jk">"content"</span>: <span class="js">"@[超管](7) 你好"</span>,  <span class="cm">// 含 mention 格式</span>
-  <span class="jk">"type"</span>: <span class="js">"text"</span>,
-  <span class="jk">"createdAt"</span>: <span class="js">"2026-03-19T12:00:00"</span>
-}</code></pre>
-
-<!-- ========== 10 ========== -->
-<h2>10. 變更：ChatRoomResponse（私聊）<span class="badge changed">變更</span></h2>
-
-<pre><code>{
-  <span class="jk">"id"</span>: <span class="jn">5</span>,
-  <span class="jk">"type"</span>: <span class="js">"private"</span>,
-  <span class="jk">"otherNickname"</span>: <span class="js">"張里長"</span>,
-  <span class="jk">"otherBadge"</span>: <span class="js">"堵南里里長"</span>,  <span class="cm">// 新增</span>
-  <span class="jk">"lastMessage"</span>: <span class="js">"你好"</span>,     <span class="cm">// 可能含 mention 格式，需清理顯示</span>
-  <span class="jk">"lastMessageAt"</span>: <span class="js">"..."</span>
-}</code></pre>
-
-<!-- ========== 11 ========== -->
-<h2>11. 變更：私聊訊息分頁載入 <span class="badge changed">變更</span></h2>
-
-<p>私聊不再一次載入全部，改為 cursor-based 分頁：</p>
+<p>聊聊 tab 需顯示總未讀數 = 區聊天 + 里聊天 + 所有私聊的 unread count。</p>
+<p>刷新時機：</p>
 <ul>
-<li>初始載入：<code>GET /chat/rooms/{roomId}/messages?limit=20</code></li>
-<li>往上滑加載更多：<code>GET /chat/rooms/{roomId}/messages?limit=20&before={oldestMsgId}</code></li>
-<li>載入完畢判斷：回傳筆數 < limit 表示沒有更多</li>
+<li>App 啟動時</li>
+<li>WebSocket 收到 <code>type: "chat"</code> 或 <code>"private_message"</code> 通知時</li>
+<li>進入/離開聊天室時</li>
+<li>定期輪詢（建議 30 秒）</li>
 </ul>
 
-<!-- ========== 12 ========== -->
-<h2>12. 新增：里長管理 API <span class="badge new">新增</span></h2>
+<!-- ========== 9 ========== -->
+<h2>9. RSS 新聞 urgency 改 null <span class="badge changed">變更</span></h2>
 
-<table>
-<tr><th>方法</th><th>路徑</th><th>說明</th><th>權限</th></tr>
-<tr><td>GET</td><td><code>/mgmt/li-chiefs</code></td><td>里長列表</td><td>ADMIN+</td></tr>
-<tr><td>PUT</td><td><code>/mgmt/li-chiefs</code></td><td>指派里長 {userId, neighborhoodId}</td><td>ADMIN+</td></tr>
-<tr><td>DELETE</td><td><code>/mgmt/li-chiefs/{userId}</code></td><td>撤銷里長</td><td>ADMIN+</td></tr>
-</table>
-
-<!-- ========== 13 ========== -->
-<h2>13. 新增：用戶追蹤 API <span class="badge new">新增</span></h2>
-
-<table>
-<tr><th>方法</th><th>路徑</th><th>說明</th></tr>
-<tr><td>GET</td><td><code>/users/{id}/profile</code></td><td>他人資料（含 isFollowed）</td></tr>
-<tr><td>GET</td><td><code>/users/{id}/posts</code></td><td>他人貼文列表</td></tr>
-<tr><td>POST</td><td><code>/users/{id}/follow</code></td><td>追蹤/取消追蹤</td></tr>
-</table>
-
-<!-- ========== 14 ========== -->
-<h2>14. 已移除的 API <span class="badge breaking">Breaking</span></h2>
-
-<table>
-<tr><th>已移除</th><th>替代</th></tr>
-<tr><td><code>GET /posts/likes/check-batch</code></td><td>列表 API 直接回傳 <code>liked</code></td></tr>
-<tr><td><code>GET /bookmarks/check-batch</code></td><td>列表 API 直接回傳 <code>bookmarked</code></td></tr>
-<tr><td><code>GET /bookmarks/check</code></td><td>詳情 API 直接回傳 <code>bookmarked</code></td></tr>
-</table>
-
-<!-- ========== 15 ========== -->
-<h2>15. DB Migration 清單</h2>
-
-<table>
-<tr><th>版本</th><th>說明</th></tr>
-<tr><td>V38</td><td><code>li_chief</code> 表（里長指派）</td></tr>
-<tr><td>V39</td><td><code>post.edited</code> + <code>post_comment.edited</code> 欄位</td></tr>
-<tr><td>V40</td><td><code>post_comment.content_deleted</code> 欄位</td></tr>
-<tr><td>V41</td><td><code>user_follow</code> 表（用戶追蹤）</td></tr>
-<tr><td>V42</td><td><code>user_notification_settings.follow_post</code> 欄位</td></tr>
-<tr><td>V43</td><td><code>user_notification_settings.mention</code> 欄位</td></tr>
-</table>
-
-<!-- ========== 16 ========== -->
-<h2>16. 時間格式提醒</h2>
-
-<div class="note">
-後端回傳的時間無時區（台北時間），App 端解析時需補上 <code>+08:00</code>，否則會被當 UTC 解析導致時間偏差。
-</div>
+<p>RSS 新聞爬蟲的貼文 <code>urgency</code> 從 <code>"normal"</code> 改為 <code>null</code>（貼文類型，不是廣播）。App 顯示時不需要顯示緊急程度標籤。</p>
 
 <hr>
-<p style="text-align:center;color:#bbb;font-size:.78rem;margin-top:1rem">
-GoLocal — App Sync Changelog 2026-03-19 &nbsp;|&nbsp; 完整 API 參考請見 <code>docs/api-integration-guide.html</code>
+<p style="text-align:center;color:#bbb;font-size:.78rem">
+GoLocal — Sync Changelog for commit acb05b2 &nbsp;|&nbsp; 2026-03-19
 </p>
 
 </div>
