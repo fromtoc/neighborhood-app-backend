@@ -126,6 +126,7 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
   const [nhName, setNhName] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
   const [geojsonStr, setGeojsonStr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
 
   const geojsonData = useMemo(() => {
@@ -149,6 +150,8 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
         setLastUpdate(json.data.lastUpdate || '');
       }
     } catch {
+    } finally {
+      setLoading(false);
     }
   }, [neighborhoodId]);
 
@@ -172,6 +175,14 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [fetchTrucks, fetchBoundary]);
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem', color: '#999' }}>
+        載入中...
+      </div>
+    );
+  }
 
   const mapCenter = center || [24.9936, 121.3010];
 
