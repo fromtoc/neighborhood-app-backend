@@ -232,7 +232,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
                                 }
                                 if (repNh != null) {
                                     notificationService.onDistrictChatMessage(repNh.getId(), userId,
-                                            msg.getId(), nickname, shortContent);
+                                            msg.getId(), roomId, nickname, shortContent);
                                 }
                                 break;
                             }
@@ -242,7 +242,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
             } else if (room.getNeighborhoodId() != null) {
                 // 里聊聊：通知里內其他使用者
                 notificationService.onChatMessage(room.getNeighborhoodId(), userId,
-                        msg.getId(), nickname, shortContent);
+                        msg.getId(), roomId, nickname, shortContent);
             }
         }
 

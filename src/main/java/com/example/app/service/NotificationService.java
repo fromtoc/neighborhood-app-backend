@@ -109,21 +109,21 @@ public class NotificationService {
     /** 里聊聊訊息 — 通知關注該里的使用者（排除發訊者），同一聊天室合併 */
     @Async
     public void onChatMessage(Long neighborhoodId, Long senderId, Long messageId,
-                              String senderName, String body) {
+                              Long roomId, String senderName, String body) {
         Neighborhood nh = neighborhoodMapper.selectById(neighborhoodId);
         String roomLabel = nh != null ? nh.getName() + "聊聊" : "里聊聊";
         String title = senderName + " 在" + roomLabel + "發了訊息";
-        fanOutChatMerged(neighborhoodId, senderId, title, body, "chat_li", messageId, false);
+        fanOutChatMerged(neighborhoodId, senderId, title, body, "chat_li", messageId, roomId, false);
     }
 
     /** 區聊聊訊息 — 通知關注該區所有里的使用者（排除發訊者），同一聊天室合併 */
     @Async
     public void onDistrictChatMessage(Long representativeNhId, Long senderId, Long messageId,
-                                      String senderName, String body) {
+                                      Long roomId, String senderName, String body) {
         Neighborhood nh = neighborhoodMapper.selectById(representativeNhId);
         String roomLabel = nh != null ? nh.getDistrict() + "聊聊" : "區聊聊";
         String title = senderName + " 在" + roomLabel + "發了訊息";
-        fanOutChatMerged(representativeNhId, senderId, title, body, "chat_district", messageId, true);
+        fanOutChatMerged(representativeNhId, senderId, title, body, "chat_district", messageId, roomId, true);
     }
 
     /** 私訊 — 只通知接收方。同一發送者的未讀通知會合併（更新內容），不重複建立 */
@@ -189,7 +189,7 @@ public class NotificationService {
      */
     private void fanOutChatMerged(Long neighborhoodId, Long senderId,
                                    String title, String body, String refType, Long refId,
-                                   boolean isDistrict) {
+                                   Long roomId, boolean isDistrict) {
         List<UserFollowPair> pairs;
         if (isDistrict) {
             Neighborhood nh = neighborhoodMapper.selectById(neighborhoodId);
@@ -240,10 +240,22 @@ public class NotificationService {
                 n.setIsRead(0);
                 notificationMapper.insert(n);
             }
-            pushWs(pair.getUserId(), "chat", cleanTitle != null ? cleanTitle : title, body, refType, refId);
+            log.info("Chat notify: userId={} type={} refType={} roomId={}", pair.getUserId(), "chat", refType, roomId);
+            var wsData = new java.util.HashMap<>(Map.of(
+                    "type", (Object) "chat", "title", (Object) (cleanTitle != null ? cleanTitle : title),
+                    "body", (Object) (body != null ? body : ""),
+                    "refType", (Object) (refType != null ? refType : ""),
+                    "refId", (Object) (refId != null ? refId : 0)));
+            if (roomId != null) wsData.put("roomId", roomId);
+            try {
+                ws.convertAndSend("/topic/user/" + pair.getUserId(), wsData);
+            } catch (Exception e) {
+                log.debug("WS push failed for userId={}", pair.getUserId(), e);
+            }
         }
-        pushFcm(new java.util.ArrayList<>(processed),
-                cleanTitle != null ? cleanTitle : title, body, "chat", refType, refId);
+        Map<String, String> extra = roomId != null ? Map.of("roomId", String.valueOf(roomId)) : null;
+        List<String> tokens = deviceTokenMapper.findTokensByUserIds(new java.util.ArrayList<>(processed));
+        sendFcm(tokens, cleanTitle != null ? cleanTitle : title, body, "chat", refType, refId, extra);
     }
 
     // ── 內部邏輯 ─────────────────────────────────────────────────────────
@@ -342,6 +354,12 @@ public class NotificationService {
 
     private void sendFcm(List<String> tokens, String title, String body,
                          String notifType, String refType, Long refId) {
+        sendFcm(tokens, title, body, notifType, refType, refId, null);
+    }
+
+    private void sendFcm(List<String> tokens, String title, String body,
+                         String notifType, String refType, Long refId,
+                         Map<String, String> extraData) {
         if (fcm == null || tokens.isEmpty()) return;
         String cleanBody = body != null ? body.replaceAll("@\\[([^\\]]+)\\]\\(\\d+\\)", "@$1") : null;
         String shortBody = cleanBody != null && cleanBody.length() > 100 ? cleanBody.substring(0, 100) + "…" : cleanBody;
@@ -358,6 +376,7 @@ public class NotificationService {
                 if (notifType != null) builder.putData("notifType", notifType);
                 if (refType   != null) builder.putData("refType", refType);
                 if (refId     != null) builder.putData("refId", String.valueOf(refId));
+                if (extraData != null) extraData.forEach(builder::putData);
                 BatchResponse resp = fcm.sendEachForMulticast(builder.build());
                 log.debug("FCM: {} ok, {} fail", resp.getSuccessCount(), resp.getFailureCount());
                 cleanInvalidTokens(batch, resp);

@@ -20,6 +20,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -35,6 +36,7 @@ import java.util.Map;
 public class ChatController {
 
     private final ChatQueryService chatQueryService;
+    private final SimpMessagingTemplate messagingTemplate;
     private final GeoQueryService  geoQueryService;
 
     @GetMapping("/rooms/{neighborhoodId}")
@@ -109,7 +111,10 @@ public class ChatController {
         String content = body.get("content");
         if (content == null || content.isBlank())
             throw new BusinessException(ResultCode.BAD_REQUEST, "訊息內容不得為空");
-        return ApiResponse.success(chatQueryService.sendMessage(roomId, claims.getUserId(), content));
+        ChatMessageResponse msg = chatQueryService.sendMessage(roomId, claims.getUserId(), content);
+        // 廣播給所有訂閱此房間的客戶端（與 WebSocket 發送一致）
+        messagingTemplate.convertAndSend("/topic/rooms/" + roomId, msg);
+        return ApiResponse.success(msg);
     }
 
     @GetMapping("/unread-counts")
