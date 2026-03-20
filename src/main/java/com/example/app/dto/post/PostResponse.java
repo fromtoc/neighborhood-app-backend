@@ -64,6 +64,8 @@ public class PostResponse {
                 .likeCount(p.getLikeCount())
                 .commentCount(p.getCommentCount())
                 .contentDeleted(deleted ? true : null)
+                .liked(false)
+                .bookmarked(false)
                 .createdAt(p.getCreatedAt())
                 .build();
     }

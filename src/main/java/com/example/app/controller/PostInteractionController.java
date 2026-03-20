@@ -58,9 +58,11 @@ public class PostInteractionController {
     @Operation(summary = "取得完整討論串（祖先鏈 + 每層回覆），供分享連結一次載入")
     public ApiResponse<CommentThreadResponse> getCommentThread(
             @PathVariable Long postId,
-            @PathVariable Long commentId
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal JwtClaims claims
     ) {
-        CommentThreadResponse res = interactionService.getCommentThread(postId, commentId);
+        Long currentUserId = claims != null ? claims.getUserId() : null;
+        CommentThreadResponse res = interactionService.getCommentThread(postId, commentId, currentUserId);
         if (res == null) throw new BusinessException(ResultCode.NOT_FOUND, "留言不存在");
         return ApiResponse.success(res);
     }

@@ -212,7 +212,15 @@ public class PostInteractionServiceImpl implements PostInteractionService {
     }
 
     @Override
+    public CommentThreadResponse getCommentThread(Long postId, Long commentId, Long currentUserId) {
+        return getCommentThreadInternal(postId, commentId, currentUserId);
+    }
+
     public CommentThreadResponse getCommentThread(Long postId, Long commentId) {
+        return getCommentThreadInternal(postId, commentId, null);
+    }
+
+    private CommentThreadResponse getCommentThreadInternal(Long postId, Long commentId, Long currentUserId) {
         // 1. 從目標往上爬，建立祖先鏈 [root, ..., target]
         List<PostComment> chain = new ArrayList<>();
         Long cur = commentId;
@@ -262,13 +270,21 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         grandchildren.forEach(c -> allUserIds.add(c.getUserId()));
         Map<Long, String> nicknameMap = buildNicknameMap(new ArrayList<>(allUserIds));
 
+        // 4.5 批次查 liked 狀態
+        List<Long> allCommentIds = new ArrayList<>();
+        chain.forEach(c -> allCommentIds.add(c.getId()));
+        allReplies.forEach(c -> allCommentIds.add(c.getId()));
+        grandchildren.forEach(c -> allCommentIds.add(c.getId()));
+        Set<Long> likedCommentIds = batchCheckCommentLiked(allCommentIds, currentUserId);
+
         // 5. 組裝鏈（每個鏈節點的 replyCount 來自 repliesByParentRaw）
         List<PostCommentResponse> chainResp = chain.stream().map(c -> {
             List<PostComment> children = repliesByParentRaw.getOrDefault(c.getId(), List.of());
             int count = children.size();
             List<String> top = children.stream().limit(3)
                     .map(r -> nicknameMap.getOrDefault(r.getUserId(), "用戶")).toList();
-            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, top);
+            Boolean liked = currentUserId != null ? likedCommentIds.contains(c.getId()) : false;
+            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, top, liked);
         }).toList();
 
         // 6. 組裝每層回覆（每個回覆的 replyCount 來自 grandchildren）
@@ -278,7 +294,8 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 int cnt = grandReplyCount.getOrDefault(r.getId(), 0);
                 List<String> top = grandTopUserIds.getOrDefault(r.getId(), List.of())
                         .stream().map(uid -> nicknameMap.getOrDefault(uid, "用戶")).toList();
-                return PostCommentResponse.from(r, nicknameMap.get(r.getUserId()), cnt, top);
+                Boolean liked = currentUserId != null ? likedCommentIds.contains(r.getId()) : false;
+                return PostCommentResponse.from(r, nicknameMap.get(r.getUserId()), cnt, top, liked);
             }).toList();
             repliesByParent.put(entry.getKey(), rList);
         }

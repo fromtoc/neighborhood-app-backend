@@ -39,7 +39,7 @@ public class PostCommentResponse {
 
     public static PostCommentResponse from(PostComment c, String nickname,
                                            int replyCount, List<String> topRepliers) {
-        return from(c, nickname, replyCount, topRepliers, null);
+        return from(c, nickname, replyCount, topRepliers, false);
     }
 
     public static PostCommentResponse from(PostComment c, String nickname,
