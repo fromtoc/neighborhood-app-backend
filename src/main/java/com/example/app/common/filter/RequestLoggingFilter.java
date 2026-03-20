@@ -19,14 +19,13 @@ import java.nio.charset.StandardCharsets;
 @Order(1)
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
-    private static final int MAX_BODY_LOG = 2048;
+    private static final int MAX_BODY_LOG = 500;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
 
-        // Skip actuator / health check endpoints
         String uri = request.getRequestURI();
         if (uri.startsWith("/actuator")) {
             chain.doFilter(request, response);
@@ -41,22 +40,22 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             chain.doFilter(req, resp);
         } finally {
             long ms = System.currentTimeMillis() - start;
-
             String ip = getClientIp(request);
             String query = request.getQueryString() != null ? "?" + request.getQueryString() : "";
-            String reqBody  = toStr(req.getContentAsByteArray(),  request.getContentType());
-            String respBody = toStr(resp.getContentAsByteArray(), resp.getContentType());
+            int status = resp.getStatus();
 
-            log.info("→ {} {}{} ip={}", request.getMethod(), uri, query, ip);
-            if (!reqBody.isEmpty()) {
-                log.debug("  req  body: {}", reqBody);
-            }
-            log.info("← {} {}ms", resp.getStatus(), ms);
-            if (!respBody.isEmpty()) {
-                log.debug("  resp body: {}", respBody);
+            // 一行搞定：方法 路徑 → 狀態碼 耗時 IP
+            log.info("[API] {} {}{} → {} ({}ms) ip={}",
+                    request.getMethod(), uri, query, status, ms, ip);
+
+            // body 只在 DEBUG 時印出（開發用）
+            if (log.isDebugEnabled()) {
+                String reqBody  = toStr(req.getContentAsByteArray(),  request.getContentType());
+                String respBody = toStr(resp.getContentAsByteArray(), resp.getContentType());
+                if (!reqBody.isEmpty()) log.debug("  ↑ req: {}", reqBody);
+                if (!respBody.isEmpty()) log.debug("  ↓ res: {}", respBody);
             }
 
-            // Must copy response body back to original response
             resp.copyBodyToResponse();
         }
     }
@@ -64,7 +63,6 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     private String toStr(byte[] bytes, String contentType) {
         if (bytes == null || bytes.length == 0) return "";
         if (contentType == null) return "";
-        // Only log text-based content
         if (!contentType.contains("json") && !contentType.contains("text") &&
             !contentType.contains("xml") && !contentType.contains("form")) return "";
         String body = new String(bytes, StandardCharsets.UTF_8);

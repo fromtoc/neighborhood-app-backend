@@ -130,7 +130,8 @@ public class NotificationService {
     @Async
     public void onPrivateMessage(Long recipientId, Long senderId,
                                  String senderName, String body) {
-        if (!isEnabled(recipientId, "private_message")) return;
+        log.info("[通知] 私訊：{} (userId={}) 發訊給 userId={}", senderName, senderId, recipientId);
+        if (!isEnabled(recipientId, "private_message")) { log.info("[通知] → 跳過：userId={} 私訊通知已關閉", recipientId); return; }
         String title = senderName + " 傳給你私訊";
         String shortBody = body != null && body.length() > 500 ? body.substring(0, 500) : body;
 
@@ -240,7 +241,7 @@ public class NotificationService {
                 n.setIsRead(0);
                 notificationMapper.insert(n);
             }
-            log.info("Chat notify: userId={} type={} refType={} roomId={}", pair.getUserId(), "chat", refType, roomId);
+            log.info("[通知] 群聊 → userId={} | refType={} roomId={} | 合併={}", pair.getUserId(), refType, roomId, existing != null ? "更新" : "新增");
             var wsData = new java.util.HashMap<>(Map.of(
                     "type", (Object) "chat", "title", (Object) (cleanTitle != null ? cleanTitle : title),
                     "body", (Object) (body != null ? body : ""),
@@ -249,8 +250,9 @@ public class NotificationService {
             if (roomId != null) wsData.put("roomId", roomId);
             try {
                 ws.convertAndSend("/topic/user/" + pair.getUserId(), wsData);
+                log.info("[推播] WS → userId={} | type=chat refType={} roomId={}", pair.getUserId(), refType, roomId);
             } catch (Exception e) {
-                log.debug("WS push failed for userId={}", pair.getUserId(), e);
+                log.warn("[推播] WS 失敗 → userId={} | {}", pair.getUserId(), e.getMessage());
             }
         }
         Map<String, String> extra = roomId != null ? Map.of("roomId", String.valueOf(roomId)) : null;
@@ -264,11 +266,9 @@ public class NotificationService {
                         String title, String body, String refType, Long refId, Long excludeUserId) {
         List<UserFollowPair> pairs = settingsMapper.findEnabledUsersByNeighborhood(
                 neighborhoodId, settingColumn);
-        log.debug("fanOut type={} nhId={} exclude={} found={} pairs={}",
-                notifType, neighborhoodId, excludeUserId, pairs.size(), pairs);
         if (excludeUserId != null) pairs = pairs.stream()
                 .filter(p -> !p.getUserId().equals(excludeUserId)).toList();
-        log.debug("fanOut after exclude: {} recipients", pairs.size());
+        log.info("[通知] fanOut | type={} nhId={} | 推播 {} 人（排除 userId={}）", notifType, neighborhoodId, pairs.size(), excludeUserId);
 
         for (UserFollowPair pair : pairs) {
             insertNotification(pair.getUserId(), notifType, title, body,
@@ -340,8 +340,9 @@ public class NotificationService {
                            "body", body != null ? body : "",
                            "refType", refType != null ? refType : "",
                            "refId",   refId   != null ? refId   : 0));
+            log.info("[推播] WS → userId={} | type={} refType={} | title={}", userId, type, refType, title);
         } catch (Exception e) {
-            log.debug("WS push failed for userId={}", userId, e);
+            log.warn("[推播] WS 失敗 → userId={} | {}", userId, e.getMessage());
         }
     }
 
@@ -378,11 +379,11 @@ public class NotificationService {
                 if (refId     != null) builder.putData("refId", String.valueOf(refId));
                 if (extraData != null) extraData.forEach(builder::putData);
                 BatchResponse resp = fcm.sendEachForMulticast(builder.build());
-                log.debug("FCM: {} ok, {} fail", resp.getSuccessCount(), resp.getFailureCount());
+                log.info("[推播] FCM → {} 成功 {} 失敗 | notifType={} refType={} | tokens={}", resp.getSuccessCount(), resp.getFailureCount(), notifType, refType, batch.size());
                 cleanInvalidTokens(batch, resp);
             }
         } catch (Exception e) {
-            log.warn("FCM send failed", e);
+            log.warn("[推播] FCM 失敗 | {}", e.getMessage());
         }
     }
 
