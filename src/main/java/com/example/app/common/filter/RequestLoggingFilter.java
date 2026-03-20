@@ -13,6 +13,8 @@ import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 @Slf4j
 @Component
@@ -20,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 public class RequestLoggingFilter extends OncePerRequestFilter {
 
     private static final int MAX_BODY_LOG = 500;
+    private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -27,7 +30,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
 
         String uri = request.getRequestURI();
-        if (uri.startsWith("/actuator")) {
+        if (uri.startsWith("/actuator") || uri.startsWith("/ws")) {
             chain.doFilter(request, response);
             return;
         }
@@ -35,25 +38,38 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         ContentCachingRequestWrapper  req  = new ContentCachingRequestWrapper(request);
         ContentCachingResponseWrapper resp = new ContentCachingResponseWrapper(response);
 
+        LocalDateTime requestTime = LocalDateTime.now();
         long start = System.currentTimeMillis();
+
         try {
             chain.doFilter(req, resp);
         } finally {
             long ms = System.currentTimeMillis() - start;
-            String ip = getClientIp(request);
-            String query = request.getQueryString() != null ? "?" + request.getQueryString() : "";
             int status = resp.getStatus();
+            String ip = getClientIp(request);
+            String method = request.getMethod();
+            String query = request.getQueryString() != null ? "?" + request.getQueryString() : "";
 
-            // 一行搞定：方法 路徑 → 狀態碼 耗時 IP
-            log.info("[API] {} {}{} → {} ({}ms) ip={}",
-                    request.getMethod(), uri, query, status, ms, ip);
+            // 一行完整記錄：時間 + 方法 + 路徑 + 狀態碼 + 耗時 + IP
+            StringBuilder sb = new StringBuilder();
+            sb.append("[API] ").append(requestTime.format(FMT));
+            sb.append(" | ").append(method).append(" ").append(uri).append(query);
+            sb.append(" → ").append(status);
+            sb.append(" (").append(ms).append("ms)");
+            sb.append(" | ip=").append(ip);
 
-            // body 只在 DEBUG 時印出（開發用）
-            if (log.isDebugEnabled()) {
-                String reqBody  = toStr(req.getContentAsByteArray(),  request.getContentType());
-                String respBody = toStr(resp.getContentAsByteArray(), resp.getContentType());
-                if (!reqBody.isEmpty()) log.debug("  ↑ req: {}", reqBody);
-                if (!respBody.isEmpty()) log.debug("  ↓ res: {}", respBody);
+            // body 摘要（只在有內容時附加）
+            String reqBody  = toStr(req.getContentAsByteArray(), request.getContentType());
+            String respBody = toStr(resp.getContentAsByteArray(), resp.getContentType());
+            if (!reqBody.isEmpty()) sb.append(" | req=").append(reqBody);
+            if (!respBody.isEmpty() && log.isDebugEnabled()) sb.append(" | res=").append(respBody);
+
+            if (status >= 400) {
+                // 錯誤請求用 WARN，附帶 response body
+                if (!respBody.isEmpty()) sb.append(" | res=").append(respBody);
+                log.warn(sb.toString());
+            } else {
+                log.info(sb.toString());
             }
 
             resp.copyBodyToResponse();
