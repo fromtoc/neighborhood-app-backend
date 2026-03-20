@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoLocal App 對接 — 聊天廣播 & FCM roomId 更新</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e1e1e;background:#f8f9fa;line-height:1.7}
+.container{max-width:880px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.5rem;font-weight:800;color:#1c5373;margin-bottom:.3rem}
+h1 small{font-size:.82rem;font-weight:400;color:#999;display:block;margin-top:.2rem}
+h2{font-size:1.15rem;font-weight:700;color:#1c5373;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid #e8e8e8}
+h3{font-size:.95rem;font-weight:700;color:#333;margin:1rem 0 .4rem}
+p,li{font-size:.9rem;color:#444}
+ul{padding-left:1.5rem;margin:.4rem 0}
+li{margin-bottom:.25rem}
+table{width:100%;border-collapse:collapse;margin:.7rem 0;font-size:.84rem}
+th,td{border:1px solid #e0e0e0;padding:.4rem .6rem;text-align:left}
+th{background:#f0f7ff;color:#1c5373;font-weight:600;white-space:nowrap}
+td{background:#fff}
+code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:.82rem;font-family:'SF Mono',Consolas,monospace;color:#c7254e}
+pre{background:#1e1e2e;color:#cdd6f4;padding:.8rem 1rem;border-radius:8px;overflow-x:auto;margin:.5rem 0;font-size:.78rem;line-height:1.5}
+pre code{background:none;color:inherit;padding:0}
+.jk{color:#89b4fa}.js{color:#a6e3a1}.jn{color:#fab387}.cm{color:#6c7086}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.7rem;font-weight:600}
+.new{background:#e6fcf5;color:#047857}.changed{background:#fef3c7;color:#d97706}
+.note{background:#fffbeb;border-left:3px solid #f59e0b;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.7rem 0;font-size:.84rem;color:#92400e}
+.info{background:#eff6ff;border-left:3px solid #3b82f6;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.7rem 0;font-size:.84rem;color:#1e40af}
+.flow{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:1.2rem;margin:.8rem 0;font-family:'SF Mono',Consolas,monospace;font-size:.78rem;line-height:1.8;white-space:pre;overflow-x:auto;color:#444}
+hr{border:none;border-top:1px solid #e8e8e8;margin:1.5rem 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>GoLocal App 對接 — 聊天廣播 & FCM roomId
+<small>commit: 6bf4845 — 2026-03-20</small>
+</h1>
+
+<!-- ========== Q1 ========== -->
+<h2>Q1: FCM data payload 有帶 roomId 嗎？</h2>
+
+<p><strong>有了。</strong>聊天通知的 FCM payload 現在包含 <code>roomId</code>：</p>
+
+<pre><code>{
+  <span class="jk">"notification"</span>: {
+    <span class="jk">"title"</span>: <span class="js">"張里長 在堵南里聊聊發了訊息"</span>,
+    <span class="jk">"body"</span>: <span class="js">"123"</span>
+  },
+  <span class="jk">"data"</span>: {
+    <span class="jk">"notifType"</span>: <span class="js">"chat"</span>,
+    <span class="jk">"refType"</span>: <span class="js">"chat_li"</span>,     <span class="cm">// "chat_li" | "chat_district"</span>
+    <span class="jk">"refId"</span>: <span class="js">"100"</span>,           <span class="cm">// 最新訊息 ID</span>
+    <span class="jk">"roomId"</span>: <span class="js">"5"</span>             <span class="cm">// ← 新增：聊天室 ID</span>
+  }
+}
+</code></pre>
+
+<p>App 端收到 FCM 後可直接用 <code>roomId</code> 導航到對應聊天室，不需要用 refId 反查。</p>
+
+<h3>各通知類型的 data payload</h3>
+<table>
+<tr><th>notifType</th><th>refType</th><th>refId</th><th>roomId</th><th>導頁</th></tr>
+<tr><td><code>chat</code></td><td><code>chat_li</code></td><td>訊息ID</td><td><strong>聊天室ID</strong></td><td>里聊天室</td></tr>
+<tr><td><code>chat</code></td><td><code>chat_district</code></td><td>訊息ID</td><td><strong>聊天室ID</strong></td><td>區聊天室</td></tr>
+<tr><td><code>private_message</code></td><td><code>user</code></td><td>發送者userId</td><td>—</td><td>私訊對話</td></tr>
+<tr><td><code>new_post</code></td><td><code>post</code></td><td>貼文ID</td><td>—</td><td>貼文詳情</td></tr>
+<tr><td><code>mention</code></td><td><code>post</code> / <code>chat_li</code> / <code>chat_district</code></td><td>貼文/訊息ID</td><td>—</td><td>貼文/聊天</td></tr>
+<tr><td><code>post_reply</code></td><td><code>post</code></td><td>貼文ID</td><td>—</td><td>貼文詳情</td></tr>
+<tr><td><code>follow_post</code></td><td><code>post</code></td><td>貼文ID</td><td>—</td><td>貼文詳情</td></tr>
+<tr><td><code>new_info</code></td><td><code>post</code></td><td>貼文ID</td><td>—</td><td>貼文詳情</td></tr>
+</table>
+
+<!-- ========== Q2 ========== -->
+<h2>Q2: WebSocket 通知也有 roomId 嗎？</h2>
+
+<p><strong>有了。</strong>訂閱 <code>/topic/user/{userId}</code> 收到的聊天通知：</p>
+
+<pre><code>{
+  <span class="jk">"type"</span>: <span class="js">"chat"</span>,
+  <span class="jk">"title"</span>: <span class="js">"張里長 在堵南里聊聊發了訊息"</span>,
+  <span class="jk">"body"</span>: <span class="js">"123"</span>,
+  <span class="jk">"refType"</span>: <span class="js">"chat_li"</span>,
+  <span class="jk">"refId"</span>: <span class="jn">100</span>,
+  <span class="jk">"roomId"</span>: <span class="jn">5</span>              <span class="cm">// ← 新增</span>
+}
+</code></pre>
+
+<!-- ========== Q3 ========== -->
+<h2>Q3: REST 發送訊息後會廣播到聊天室 topic 嗎？</h2>
+
+<p><strong>現在會了。</strong>不管從 HTTP POST 還是 STOMP 發送，都會廣播：</p>
+
+<div class="flow">
+App 發送訊息（兩種方式皆可）
+  ├── STOMP: /app/chat.send/{roomId}     ← 已有廣播
+  └── REST:  POST /chat/rooms/{roomId}/messages  ← 本次新增廣播
+
+兩者都會：
+  1. 存入 DB（chat_message 表）
+  2. 更新 chat_room.last_message
+  3. 廣播到 /topic/rooms/{roomId}     ← 所有訂閱者即時收到
+  4. 觸發通知（里聊/區聊/私聊）
+  5. 觸發 @ mention 通知
+</div>
+
+<h3>App 端建議架構</h3>
+<div class="flow">
+發送訊息：
+  優先用 STOMP /app/chat.send/{roomId}
+  STOMP 斷線時 fallback 用 REST POST /chat/rooms/{roomId}/messages
+
+接收訊息：
+  訂閱 STOMP /topic/rooms/{roomId}
+  收到新訊息 → 更新聊天畫面 + 呼叫 PUT /chat/rooms/{roomId}/read
+
+通知更新：
+  訂閱 STOMP /topic/user/{userId}
+  收到 type="chat" → 用 roomId 判斷是否當前聊天室
+    是 → 自動已讀，不顯示通知
+    否 → 顯示通知 badge，刷新未讀數
+</div>
+
+<!-- ========== Q4 ========== -->
+<h2>Q4: 群聊有查詢成員名單的 API 嗎？</h2>
+
+<p><strong>沒有。</strong>群聊不維護成員名單。通知是透過「關注里」機制推播：</p>
+
+<table>
+<tr><th>聊天類型</th><th>通知對象</th><th>機制</th></tr>
+<tr><td>里聊天</td><td>關注該里的所有用戶</td><td><code>user_neighborhood_follow</code> 表 + <code>user_notification_settings.chat=1</code></td></tr>
+<tr><td>區聊天</td><td>關注該區任一里的所有用戶</td><td>查該區所有里 → 同上</td></tr>
+<tr><td>私聊</td><td>對方一個人</td><td>直接推播</td></tr>
+</table>
+
+<p>App 端不需要查成員名單，只需要：</p>
+<ol>
+<li>訂閱 <code>/topic/rooms/{roomId}</code> 即時收訊息</li>
+<li>後端自動推播 FCM + WebSocket 通知給所有關注的用戶</li>
+</ol>
+
+<!-- ========== LOG ========== -->
+<h2>後端 Log 位置</h2>
+
+<table>
+<tr><th>場景</th><th>Log Level</th><th>內容</th></tr>
+<tr><td>聊天通知推送</td><td><code>INFO</code></td><td><code>Chat notify: userId={} type={} refType={} roomId={}</code></td></tr>
+<tr><td>FCM 推送結果</td><td><code>DEBUG</code></td><td><code>FCM: {} ok, {} fail</code></td></tr>
+<tr><td>FCM 推送失敗</td><td><code>WARN</code></td><td><code>FCM send failed</code> + stack trace</td></tr>
+<tr><td>WS 推送失敗</td><td><code>DEBUG</code></td><td><code>WS push failed for userId={}</code></td></tr>
+<tr><td>fanOut 廣播</td><td><code>DEBUG</code></td><td><code>fanOut type={} nhId={} found={} pairs={}</code></td></tr>
+</table>
+
+<div class="note">
+測試環境 log level 設定為 <code>com.example.app: DEBUG</code>，所有 log 都可在 Docker 容器日誌中看到：<br>
+<code>docker logs -f app-backend</code>
+</div>
+
+<!-- ========== 完整 WS 架構 ========== -->
+<h2>WebSocket 完整架構</h2>
+
+<h3>連線</h3>
+<pre><code>端點: wss://golocal.tw/ws（SockJS）
+認證: connectHeaders: { Authorization: "Bearer {token}" }</code></pre>
+
+<h3>Subscribe（訂閱）</h3>
+<table>
+<tr><th>Topic</th><th>說明</th><th>Payload</th></tr>
+<tr><td><code>/topic/rooms/{roomId}</code></td><td>聊天室即時訊息</td><td>ChatMessageResponse JSON</td></tr>
+<tr><td><code>/topic/user/{userId}</code></td><td>個人通知（新貼文/回覆/提及/聊聊/私訊）</td><td>{type, title, body, refType, refId, roomId?}</td></tr>
+</table>
+
+<h3>Send（發送）</h3>
+<table>
+<tr><th>Destination</th><th>Body</th><th>說明</th></tr>
+<tr><td><code>/app/chat.send/{roomId}</code></td><td><code>{"content": "你好"}</code></td><td>發送聊天訊息（自動廣播到 /topic/rooms/{roomId}）</td></tr>
+</table>
+
+<h3>ChatMessageResponse（收到的訊息格式）</h3>
+<pre><code>{
+  <span class="jk">"id"</span>: <span class="jn">100</span>,
+  <span class="jk">"roomId"</span>: <span class="jn">5</span>,
+  <span class="jk">"userId"</span>: <span class="jn">13</span>,
+  <span class="jk">"nickname"</span>: <span class="js">"張里長"</span>,
+  <span class="jk">"authorBadge"</span>: <span class="js">"堵南里里長"</span>,  <span class="cm">// 里長才有，null 則不顯示</span>
+  <span class="jk">"content"</span>: <span class="js">"@[超管](7) 你好"</span>,  <span class="cm">// 含 mention 格式</span>
+  <span class="jk">"type"</span>: <span class="js">"text"</span>,
+  <span class="jk">"createdAt"</span>: <span class="js">"2026-03-20T10:00:00"</span>  <span class="cm">// 無時區，台北時間</span>
+}</code></pre>
+
+<div class="info">
+<strong>content 中的 mention</strong>：<code>@[暱稱](userId)</code> 格式需解析渲染為藍色可點擊連結。<br>
+正則：<code>/@\[([^\]]+)\]\((\d+)\)/g</code> → group(1)=暱稱, group(2)=userId
+</div>
+
+<hr>
+<p style="text-align:center;color:#bbb;font-size:.78rem">
+GoLocal — Chat Broadcast & FCM roomId Update &nbsp;|&nbsp; 2026-03-20
+</p>
+
+</div>
+</body>
+</html>
