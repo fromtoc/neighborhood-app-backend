@@ -388,6 +388,10 @@ function ThreadRootActions({ comment, postId, onStatusChange }: { comment: Comme
   const [pending, setPending] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(comment.content || '');
+
+  // 同步 comment prop 變化（異步查詢更新 liked/likeCount）
+  useEffect(() => { setLiked(comment.liked === true); }, [comment.liked]);
+  useEffect(() => { setLikeCount(comment.likeCount ?? 0); }, [comment.likeCount]);
   const [editLoading, setEditLoading] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isSelf = user?.userId === comment.userId;
