@@ -97,4 +97,12 @@
             )
     </select>
 
+    <select id="selectBoundaryAsGeoJson" resultType="map">
+        SELECT ST_AsGeoJSON(boundary) AS geojson
+        FROM neighborhood
+        WHERE id = #{id}
+          AND deleted = 0
+          AND boundary IS NOT NULL
+    </select>
+
 </mapper>

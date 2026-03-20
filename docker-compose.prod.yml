@@ -1,14 +1,16 @@
 version: '3.9'
 
-# Production docker-compose — tuned for Linode 2GB (2GB RAM, 1 vCPU).
+# Production docker-compose — tuned for Linode 4GB (4GB RAM, 2 vCPU).
 # Memory budget:
-#   mysql:    512 MB
-#   redis:    128 MB
-#   rabbitmq: 300 MB
-#   app:      512 MB
-#   OS+nginx: ~350 MB  (overhead)
-#   ──────────────────
-#   total:  ~1802 MB  ✓
+#   mysql:        512 MB
+#   redis:        128 MB
+#   rabbitmq:     300 MB
+#   app:          512 MB
+#   web:          300 MB
+#   gc-crawler:   350 MB  (Puppeteer + Chromium)
+#   OS+nginx:     ~400 MB (overhead)
+#   ──────────────────────
+#   total:      ~2502 MB  ✓
 #
 # All secrets are read from a .env file (never commit .env to git).
 # Run: docker compose -f docker-compose.prod.yml up -d
@@ -150,6 +152,8 @@ services:
       WEB_BASE_URL: http://web:3000
       REVALIDATE_SECRET: ${REVALIDATE_SECRET:-}
       AGGREGATOR_NCDR_ENABLED: ${AGGREGATOR_NCDR_ENABLED:-true}
+      # 垃圾車爬蟲
+      GARBAGE_TRUCK_CRAWLER_URL: http://gc-crawler:5501
       # Image uploads — Cloudflare R2 (preferred) or local fallback
       R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
       R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
@@ -167,6 +171,31 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+
+  # ── Garbage Truck Crawler ──────────────────────────────────────
+
+  gc-crawler:
+    build:
+      context: ./infra/garbage-truck-crawler
+      dockerfile: Dockerfile
+    image: gc-crawler:latest
+    container_name: app-gc-crawler
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 350m
+    expose:
+      - "5501"
+    environment:
+      # 綁定 0.0.0.0 讓 Docker 內部通訊可達
+      HOST: "0.0.0.0"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5501/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ── Frontend (Next.js) ─────────────────────────────────────────
 

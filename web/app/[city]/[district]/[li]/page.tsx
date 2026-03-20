@@ -132,6 +132,7 @@ export default async function LiPage({ params, searchParams }: Props) {
       {tab === 'info' && (
         <InfoSection
           neighborhoodId={liDetail.id}
+          city={city}
           district={district}
           liName={liName}
         />

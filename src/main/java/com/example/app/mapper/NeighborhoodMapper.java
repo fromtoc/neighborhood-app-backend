@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface NeighborhoodMapper extends BaseMapper<Neighborhood> {
@@ -33,4 +34,7 @@ public interface NeighborhoodMapper extends BaseMapper<Neighborhood> {
             @Param("circleWkt") String circleWkt,
             @Param("lng") double lng,
             @Param("lat") double lat);
+
+    /** 取得里的邊界 GeoJSON */
+    List<Map<String, Object>> selectBoundaryAsGeoJson(@Param("id") Long id);
 }

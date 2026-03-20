@@ -84,6 +84,7 @@ public class SecurityConfig {
                         // 後台管理需登入（ADMIN / SUPER_ADMIN 在 controller 層驗）
                         .requestMatchers("/api/v1/mgmt/**").authenticated()
                         // GET posts / chat 公開，POST 需登入
+                        .requestMatchers(HttpMethod.GET, "/api/v1/garbage-trucks/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/profile").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/users/*/posts").permitAll()

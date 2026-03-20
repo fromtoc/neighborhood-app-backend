@@ -2,17 +2,21 @@
 
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import CommunitySection from './CommunitySection';
+
+const GarbageTruckMap = dynamic(() => import('./GarbageTruckMap'), { ssr: false });
 
 interface Props {
   neighborhoodId: number;
+  city: string;
   district: string;
   liName: string;
 }
 
 type SubTab = 'district' | 'li' | 'garbage' | 'guide';
 
-export default function InfoSection({ neighborhoodId, district, liName }: Props) {
+export default function InfoSection({ neighborhoodId, city, district, liName }: Props) {
   const searchParams = useSearchParams();
   const subParam = searchParams.get('sub');
   const initialSub: SubTab = subParam === 'li' ? 'li' : subParam === 'garbage' ? 'garbage' : subParam === 'guide' ? 'guide' : 'district';
@@ -71,14 +75,7 @@ export default function InfoSection({ neighborhoodId, district, liName }: Props)
       )}
 
       {subTab === 'garbage' && (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          justifyContent: 'center', padding: '3rem 1rem', color: '#999',
-        }}>
-          <span style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>🚛</span>
-          <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>里垃圾車即將上線</p>
-          <p style={{ fontSize: '0.82rem', color: '#bbb' }}>垃圾車路線與時間資訊敬請期待</p>
-        </div>
+        <GarbageTruckMap neighborhoodId={neighborhoodId} city={city} />
       )}
 
       {subTab === 'guide' && (

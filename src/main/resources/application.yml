@@ -167,6 +167,9 @@ aggregator:
     interval-ms: ${AGGREGATOR_TAIPEI_EVENT_INTERVAL_MS:21600000}
     initial-delay-ms: ${AGGREGATOR_TAIPEI_EVENT_INITIAL_DELAY_MS:150000}
 
+garbage-truck:
+  crawler-url: ${GARBAGE_TRUCK_CRAWLER_URL:http://127.0.0.1:5501}
+
 logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} -- %msg%n"
