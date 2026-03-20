@@ -27,6 +27,7 @@ import java.util.Map;
 public class PostInteractionController {
 
     private final PostInteractionService interactionService;
+    private final com.example.app.mapper.PostCommentLikeMapper postCommentLikeMapper;
 
     /* ── 按讚 ─────────────────────────────────────────── */
 
@@ -71,9 +72,24 @@ public class PostInteractionController {
     @Operation(summary = "取得單則留言")
     public ApiResponse<PostCommentResponse> getComment(
             @PathVariable Long postId,
-            @PathVariable Long commentId
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal JwtClaims claims
     ) {
         PostCommentResponse res = interactionService.getComment(postId, commentId);
+        // 補上 liked 狀態
+        if (res != null && claims != null) {
+            boolean liked = postCommentLikeMapper.selectCount(
+                    new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.example.app.entity.PostCommentLike>()
+                            .eq(com.example.app.entity.PostCommentLike::getCommentId, commentId)
+                            .eq(com.example.app.entity.PostCommentLike::getUserId, claims.getUserId())) > 0;
+            // PostCommentResponse 沒有 setter，需要重建
+            res = com.example.app.dto.post.PostCommentResponse.builder()
+                    .id(res.getId()).postId(res.getPostId()).parentId(res.getParentId())
+                    .userId(res.getUserId()).nickname(res.getNickname()).content(res.getContent())
+                    .createdAt(res.getCreatedAt()).likeCount(res.getLikeCount()).liked(liked)
+                    .replyCount(res.getReplyCount()).topRepliers(res.getTopRepliers())
+                    .contentDeleted(res.getContentDeleted()).edited(res.getEdited()).build();
+        }
         if (res == null) throw new BusinessException(ResultCode.NOT_FOUND, "留言不存在");
         return ApiResponse.success(res);
     }

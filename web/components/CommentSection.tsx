@@ -550,6 +550,21 @@ function ThreadPanel({
 
   useEffect(() => { fetchReplies(); }, [fetchReplies]);
 
+  // 重新查詢 rootComment 的最新狀態（含 liked）
+  useEffect(() => {
+    if (!rootComment.id || !postId) return;
+    const headers: Record<string, string> = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    fetch(`${CLIENT_BASE_URL}/api/v1/posts/${postId}/comments/${rootComment.id}`, { headers })
+      .then(r => r.json())
+      .then(json => {
+        if (json.code === 200 && json.data) {
+          setLocalRoot(prev => ({ ...prev, ...json.data }));
+        }
+      })
+      .catch(() => {});
+  }, [rootComment.id, postId, token]);
+
   function handleClose() { onClose(); }
 
   return (
