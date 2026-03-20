@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoLocal App 對接 — liked/bookmarked null 修正</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e1e1e;background:#f8f9fa;line-height:1.7}
+.container{max-width:880px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.5rem;font-weight:800;color:#1c5373;margin-bottom:.3rem}
+h1 small{font-size:.82rem;font-weight:400;color:#999;display:block;margin-top:.2rem}
+h2{font-size:1.15rem;font-weight:700;color:#1c5373;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid #e8e8e8}
+h3{font-size:.95rem;font-weight:700;color:#333;margin:1rem 0 .4rem}
+p,li{font-size:.9rem;color:#444}
+ul{padding-left:1.5rem;margin:.4rem 0}
+li{margin-bottom:.25rem}
+table{width:100%;border-collapse:collapse;margin:.7rem 0;font-size:.84rem}
+th,td{border:1px solid #e0e0e0;padding:.4rem .6rem;text-align:left}
+th{background:#f0f7ff;color:#1c5373;font-weight:600;white-space:nowrap}
+td{background:#fff}
+code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:.82rem;font-family:'SF Mono',Consolas,monospace;color:#c7254e}
+pre{background:#1e1e2e;color:#cdd6f4;padding:.8rem 1rem;border-radius:8px;overflow-x:auto;margin:.5rem 0;font-size:.78rem;line-height:1.5}
+pre code{background:none;color:inherit;padding:0}
+.jk{color:#89b4fa}.js{color:#a6e3a1}.jn{color:#fab387}.cm{color:#6c7086}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.7rem;font-weight:600}
+.changed{background:#fef3c7;color:#d97706}
+.note{background:#fffbeb;border-left:3px solid #f59e0b;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.7rem 0;font-size:.84rem;color:#92400e}
+hr{border:none;border-top:1px solid #e8e8e8;margin:1.5rem 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>GoLocal App 對接 — liked/bookmarked null 修正
+<small>commit: 57dd650 — 2026-03-20</small>
+</h1>
+
+<!-- ========== 1 ========== -->
+<h2>1. PostResponse — liked / bookmarked 不再回傳 null <span class="badge changed">變更</span></h2>
+
+<h3>之前</h3>
+<pre><code>{
+  <span class="jk">"liked"</span>: <span class="jn">null</span>,       <span class="cm">// 未登入或未查詢時為 null</span>
+  <span class="jk">"bookmarked"</span>: <span class="jn">null</span>  <span class="cm">// 未登入或未查詢時為 null</span>
+}</code></pre>
+
+<h3>現在</h3>
+<pre><code>{
+  <span class="jk">"liked"</span>: <span class="jn">false</span>,      <span class="cm">// 預設 false，登入且有按讚時為 true</span>
+  <span class="jk">"bookmarked"</span>: <span class="jn">false</span> <span class="cm">// 預設 false，登入且有收藏時為 true</span>
+}</code></pre>
+
+<div class="note">
+App 端不再需要做 null 判斷，<code>liked</code> 和 <code>bookmarked</code> 保證為 <code>true</code> 或 <code>false</code>。
+</div>
+
+<h3>影響的 API</h3>
+<table>
+<tr><th>API</th><th>欄位</th></tr>
+<tr><td><code>GET /posts?neighborhoodId=...</code></td><td>liked, bookmarked</td></tr>
+<tr><td><code>GET /posts/{id}</code></td><td>liked, bookmarked</td></tr>
+<tr><td><code>GET /posts/mine</code></td><td>liked, bookmarked</td></tr>
+<tr><td><code>GET /bookmarks</code></td><td>liked, bookmarked</td></tr>
+<tr><td><code>GET /users/{id}/posts</code></td><td>liked, bookmarked</td></tr>
+</table>
+
+<!-- ========== 2 ========== -->
+<h2>2. PostCommentResponse — liked 不再回傳 null <span class="badge changed">變更</span></h2>
+
+<h3>之前</h3>
+<pre><code>{
+  <span class="jk">"liked"</span>: <span class="jn">null</span>  <span class="cm">// thread API 和 getComment 一律 null</span>
+}</code></pre>
+
+<h3>現在</h3>
+<pre><code>{
+  <span class="jk">"liked"</span>: <span class="jn">false</span>  <span class="cm">// 預設 false，登入且有按讚時為 true</span>
+}</code></pre>
+
+<h3>影響的 API</h3>
+<table>
+<tr><th>API</th><th>說明</th></tr>
+<tr><td><code>GET /posts/{postId}/comments</code></td><td>留言列表（帶 token 回傳實際 liked 狀態）</td></tr>
+<tr><td><code>GET /posts/{postId}/comments/{commentId}</code></td><td>單則留言（預設 false）</td></tr>
+<tr><td><code>GET /posts/{postId}/comments/{commentId}/thread</code></td><td><strong>本次修正重點</strong>：現在帶 token 會回傳每則留言的實際 liked 狀態</td></tr>
+</table>
+
+<!-- ========== 3 ========== -->
+<h2>3. /thread API 新增 liked 支援 <span class="badge changed">變更</span></h2>
+
+<p><code>GET /posts/{postId}/comments/{commentId}/thread</code></p>
+
+<h3>之前</h3>
+<p>所有留言的 <code>liked</code> 一律為 <code>null</code>，不管有沒有帶 token。</p>
+
+<h3>現在</h3>
+<p>帶 <code>Authorization: Bearer {token}</code> 時，chain 和 repliesByParent 裡每則留言的 <code>liked</code> 會回傳實際狀態（<code>true</code> 或 <code>false</code>）。未帶 token 時預設 <code>false</code>。</p>
+
+<pre><code><span class="cm">// Response 結構不變，liked 值變了</span>
+{
+  <span class="jk">"chain"</span>: [
+    {
+      <span class="jk">"id"</span>: <span class="jn">45</span>,
+      <span class="jk">"content"</span>: <span class="js">"留言內容"</span>,
+      <span class="jk">"liked"</span>: <span class="jn">true</span>,        <span class="cm">// ← 之前是 null</span>
+      <span class="jk">"likeCount"</span>: <span class="jn">3</span>,
+      <span class="jk">"replyCount"</span>: <span class="jn">1</span>
+    }
+  ],
+  <span class="jk">"repliesByParent"</span>: {
+    <span class="jk">"45"</span>: [
+      {
+        <span class="jk">"id"</span>: <span class="jn">46</span>,
+        <span class="jk">"liked"</span>: <span class="jn">false</span>,     <span class="cm">// ← 之前是 null</span>
+        <span class="jk">"likeCount"</span>: <span class="jn">0</span>
+      }
+    ]
+  }
+}</code></pre>
+
+<!-- ========== 總結 ========== -->
+<h2>App 端需調整</h2>
+
+<ul>
+<li><strong>移除 null 判斷</strong>：<code>liked</code> 和 <code>bookmarked</code> 保證為 Boolean，不再需要 <code>liked ?? false</code> 或 <code>liked != null && liked</code></li>
+<li><strong>/thread API</strong>：帶 token 呼叫即可取得正確的 liked 狀態，用於討論串中每個留言的「已按讚」顯示</li>
+</ul>
+
+<hr>
+<p style="text-align:center;color:#bbb;font-size:.78rem">
+GoLocal — liked/bookmarked null fix &nbsp;|&nbsp; 2026-03-20
+</p>
+
+</div>
+</body>
+</html>
