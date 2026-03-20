@@ -91,7 +91,7 @@ function FitAndRestrict({ geojsonData }: { geojsonData: any }) {
         // 先用 fitBounds 取得最佳整數 zoom
         map.fitBounds(bounds, { padding: [10, 10] });
         // 再用 fractional zoom 多放大 0.5 級填滿留白
-        const idealZoom = map.getBoundsZoom(bounds, false, [10, 10]);
+        const idealZoom = map.getBoundsZoom(bounds, false, L.point(10, 10));
         map.setZoom(idealZoom + 0.3, { animate: false });
         map.setMaxBounds(bounds.pad(0.15));
         map.setMinZoom(idealZoom - 1);
