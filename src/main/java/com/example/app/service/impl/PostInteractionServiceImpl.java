@@ -82,9 +82,10 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         List<PostComment> comments = postCommentMapper.selectList(wrapper);
         if (comments.isEmpty()) return List.of();
 
-        // 2. 批次取暱稱
+        // 2. 批次取暱稱 + 頭像
         List<Long> userIds = comments.stream().map(PostComment::getUserId).distinct().toList();
         Map<Long, String> nicknameMap = buildNicknameMap(userIds);
+        Map<Long, String> avatarMap = buildAvatarMap(userIds);
 
         // 3. 批次取直接回覆（用來算數量 + 前 3 位回覆者）
         List<Long> commentIds = comments.stream().map(PostComment::getId).toList();
@@ -122,7 +123,9 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             List<String> topRepliers = topReplierUserIds.getOrDefault(c.getId(), List.of())
                     .stream().map(uid -> replierNicknames.getOrDefault(uid, "用戶")).toList();
             Boolean liked = currentUserId != null ? likedCommentIds.contains(c.getId()) : null;
-            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, topRepliers, liked);
+            PostCommentResponse resp = PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, topRepliers, liked);
+            resp.setAvatarUrl(avatarMap.get(c.getUserId()));
+            return resp;
         }).toList();
     }
 
@@ -269,6 +272,7 @@ public class PostInteractionServiceImpl implements PostInteractionService {
         allReplies.forEach(c -> allUserIds.add(c.getUserId()));
         grandchildren.forEach(c -> allUserIds.add(c.getUserId()));
         Map<Long, String> nicknameMap = buildNicknameMap(new ArrayList<>(allUserIds));
+        Map<Long, String> avatarMap2 = buildAvatarMap(new ArrayList<>(allUserIds));
 
         // 4.5 批次查 liked 狀態
         List<Long> allCommentIds = new ArrayList<>();
@@ -284,7 +288,9 @@ public class PostInteractionServiceImpl implements PostInteractionService {
             List<String> top = children.stream().limit(3)
                     .map(r -> nicknameMap.getOrDefault(r.getUserId(), "用戶")).toList();
             Boolean liked = currentUserId != null ? likedCommentIds.contains(c.getId()) : false;
-            return PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, top, liked);
+            PostCommentResponse resp = PostCommentResponse.from(c, nicknameMap.get(c.getUserId()), count, top, liked);
+            resp.setAvatarUrl(avatarMap2.get(c.getUserId()));
+            return resp;
         }).toList();
 
         // 6. 組裝每層回覆（每個回覆的 replyCount 來自 grandchildren）
@@ -295,7 +301,9 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                 List<String> top = grandTopUserIds.getOrDefault(r.getId(), List.of())
                         .stream().map(uid -> nicknameMap.getOrDefault(uid, "用戶")).toList();
                 Boolean liked = currentUserId != null ? likedCommentIds.contains(r.getId()) : false;
-                return PostCommentResponse.from(r, nicknameMap.get(r.getUserId()), cnt, top, liked);
+                PostCommentResponse resp = PostCommentResponse.from(r, nicknameMap.get(r.getUserId()), cnt, top, liked);
+                resp.setAvatarUrl(avatarMap2.get(r.getUserId()));
+                return resp;
             }).toList();
             repliesByParent.put(entry.getKey(), rList);
         }
@@ -331,6 +339,16 @@ public class PostInteractionServiceImpl implements PostInteractionService {
                     return "用戶 #" + u.getId();
                 }
         ));
+    }
+
+    private Map<Long, String> buildAvatarMap(List<Long> userIds) {
+        if (userIds.isEmpty()) return Map.of();
+        Map<Long, String> map = new HashMap<>();
+        for (User u : userMapper.selectBatchIds(userIds)) {
+            String url = u.getEffectiveAvatarUrl();
+            if (url != null) map.put(u.getId(), url);
+        }
+        return map;
     }
 
     @Override

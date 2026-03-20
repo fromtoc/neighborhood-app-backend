@@ -77,6 +77,7 @@ interface PostItem {
   authorName?: string;
   authorRole?: string;
   authorBadge?: string | null;
+  authorAvatarUrl?: string | null;
   contentDeleted?: boolean;
   edited?: boolean;
   likeCount: number;
@@ -599,11 +600,14 @@ function PostCard({ post, currentUser, initialBookmarked = false, initialLiked =
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
         <div style={{
           width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-          background: avatarColor(post.userId), color: '#fff',
+          background: post.authorAvatarUrl ? undefined : avatarColor(post.userId),
+          backgroundImage: post.authorAvatarUrl ? `url(${post.authorAvatarUrl})` : undefined,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
         }} onClick={() => window.location.href = `/users/${post.userId}`}>
-          {avatarLetter}
+          {!post.authorAvatarUrl && avatarLetter}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>

@@ -268,6 +268,7 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
     ? `訪客 #${user.userId}`
     : (nickname || `用戶 #${user?.userId}`);
   const avatarLetter = selfName.charAt(0).toUpperCase();
+  const selfAvatarUrl = user?.useAvatar !== false ? user?.photoURL : null;
   const extraFields = EXTRA_FIELDS[type] ?? [];
 
   // 收合狀態
@@ -279,10 +280,14 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
         display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'text',
       }}>
         <div style={{
-          width: 32, height: 32, borderRadius: '50%', background: '#1c5373', color: '#fff',
+          width: 32, height: 32, borderRadius: '50%',
+          background: selfAvatarUrl ? undefined : '#1c5373',
+          backgroundImage: selfAvatarUrl ? `url(${selfAvatarUrl})` : undefined,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
-        }}>{avatarLetter}</div>
+        }}>{!selfAvatarUrl && avatarLetter}</div>
         <span style={{ fontSize: '0.9rem', color: '#bbb', flex: 1 }}>{placeholder}</span>
       </div>
     );
@@ -297,10 +302,14 @@ export default function CreatePostForm({ neighborhoodId, mode = 'community', sco
       {/* Header row */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{
-          width: 32, height: 32, borderRadius: '50%', background: '#1c5373', color: '#fff',
+          width: 32, height: 32, borderRadius: '50%',
+          background: selfAvatarUrl ? undefined : '#1c5373',
+          backgroundImage: selfAvatarUrl ? `url(${selfAvatarUrl})` : undefined,
+          backgroundSize: 'cover', backgroundPosition: 'center',
+          color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
-        }}>{avatarLetter}</div>
+        }}>{!selfAvatarUrl && avatarLetter}</div>
         {mode === 'info' && defaultPostType !== 'guide' ? (
           <select value={infoUnified} onChange={e => setInfoUnified(e.target.value)}
             style={{ border: '1px solid #e6e6e6', borderRadius: 6, padding: '0.25rem 0.5rem', fontSize: '0.8rem',

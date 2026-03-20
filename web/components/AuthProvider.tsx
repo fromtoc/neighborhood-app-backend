@@ -154,6 +154,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       saveNickname(u.nickname);
       setNicknameState(u.nickname);
     }
+    // 拉 useAvatar 設定
+    try {
+      const meRes = await fetch(`${CLIENT_BASE_URL}/api/v1/users/me`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const meJson = await meRes.json();
+      if (meJson.code === 200 && meJson.data) {
+        authUser.useAvatar = meJson.data.useAvatar ?? true;
+        saveAuth(accessToken, authUser);
+        setUser({ ...authUser });
+      }
+    } catch {}
   }, []);
 
   // ── Firebase Popup（Google / Facebook / Apple）────────────────

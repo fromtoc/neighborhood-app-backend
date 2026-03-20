@@ -3,6 +3,7 @@ package com.example.app.dto.post;
 import com.example.app.entity.PostComment;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,6 +17,7 @@ public class PostCommentResponse {
     private Long parentId;
     private Long userId;
     private String nickname;
+    @Setter private String avatarUrl;
     private String content;
     private LocalDateTime createdAt;
 

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Script from 'next/script';
 import { notFound } from 'next/navigation';
 import { apiFetch } from '@/lib/api';
-import ShareButton from '@/components/ShareButton';
+import PostLikeBar from '@/components/PostLikeBar';
 import PostDetailComments from '@/components/PostDetailComments'
 import ContentWithLinks from '@/components/ContentWithLinks';
 import BackButton from '@/components/BackButton';
@@ -15,6 +15,7 @@ interface Post {
   neighborhoodId: number;
   userId: number;
   authorName: string | null;
+  authorAvatarUrl?: string | null;
   title: string | null;
   content: string;
   images: string[];
@@ -205,8 +206,17 @@ export default async function PostDetailPage({ params }: Props) {
               {post.title}
             </h1>
           )}
-          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: '#bbb', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-            <span>👤 {post.authorName ?? `用戶 #${post.userId}`}</span>
+          <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.78rem', color: '#bbb', marginTop: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{
+                width: 20, height: 20, borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                background: post.authorAvatarUrl ? undefined : '#1c5373',
+                backgroundImage: post.authorAvatarUrl ? `url(${post.authorAvatarUrl})` : undefined,
+                backgroundSize: 'cover', backgroundPosition: 'center',
+                fontSize: '0.55rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+              }}>{!post.authorAvatarUrl && (post.authorName?.[0]?.toUpperCase() ?? '?')}</span>
+              {post.authorName ?? `用戶 #${post.userId}`}
+            </span>
             <span>{timeLabel}</span>
             {nb && <span>📍 {nb.city}{nb.district}{isDistrictLevel ? '' : nb.name}</span>}
           </div>
@@ -248,11 +258,12 @@ export default async function PostDetailPage({ params }: Props) {
         )}
 
         {/* Stats + Share */}
-        <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid #f0f0f0', fontSize: '0.85rem', color: '#828282', alignItems: 'center' }}>
-          <span>❤️ {post.likeCount} 個讚</span>
-          <span>💬 {post.commentCount} 則留言</span>
-          <ShareButton title={post.title ?? post.content.slice(0, 40)} path={`/posts/${post.id}`} style={{ marginLeft: 'auto' }} />
-        </div>
+        <PostLikeBar
+          postId={post.id}
+          initialLikeCount={post.likeCount}
+          initialCommentCount={post.commentCount}
+          shareTitle={post.title ?? post.content.slice(0, 40)}
+        />
 
         {/* 留言區 */}
         <PostDetailComments

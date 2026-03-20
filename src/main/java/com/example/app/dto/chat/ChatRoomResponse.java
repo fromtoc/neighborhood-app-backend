@@ -19,6 +19,7 @@ public class ChatRoomResponse {
     private Long user2Id;
     private String otherNickname;
     @Setter private String otherBadge;
+    @Setter private String otherAvatarUrl;
     private String lastMessage;
     private String lastMessageNickname;
     private Long lastMessageUserId;

@@ -130,6 +130,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     User u = userMap.get(p.getUserId());
                     PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u, chiefMap));
                     resp.setAuthorBadge(buildBadge(u, chiefMap));
+                    if (u != null) resp.setAuthorAvatarUrl(u.getEffectiveAvatarUrl());
                     if (Integer.valueOf(1).equals(p.getEdited()) && !Integer.valueOf(2).equals(p.getStatus())) resp.setEdited(true);
                     fillInteractionStatus(resp, p.getId(), likedIds, bookmarkedIds, currentUserId);
                     return resp;
@@ -182,6 +183,7 @@ public class PostQueryServiceImpl implements PostQueryService {
                     User u = userMap.get(p.getUserId());
                     PostResponse resp = PostResponse.from(p, buildName(u), buildRole(u, chiefMap));
                     resp.setAuthorBadge(buildBadge(u, chiefMap));
+                    if (u != null) resp.setAuthorAvatarUrl(u.getEffectiveAvatarUrl());
                     if (Integer.valueOf(1).equals(p.getEdited()) && !Integer.valueOf(2).equals(p.getStatus())) resp.setEdited(true);
                     fillInteractionStatus(resp, p.getId(), likedIds, bookmarkedIds, currentUserId);
                     return resp;
@@ -203,6 +205,7 @@ public class PostQueryServiceImpl implements PostQueryService {
         Map<Long, LiChief> chiefMap = batchLoadChiefs(List.of(post.getUserId()));
         PostResponse resp = PostResponse.from(post, buildName(u), buildRole(u, chiefMap));
         resp.setAuthorBadge(buildBadge(u, chiefMap));
+        if (u != null) resp.setAuthorAvatarUrl(u.getEffectiveAvatarUrl());
         if (Integer.valueOf(1).equals(post.getEdited()) && !Integer.valueOf(2).equals(post.getStatus())) resp.setEdited(true);
         Set<Long> likedIds = batchCheckLiked(List.of(id), currentUserId);
         Set<Long> bookmarkedIds = batchCheckBookmarked(List.of(id), currentUserId);

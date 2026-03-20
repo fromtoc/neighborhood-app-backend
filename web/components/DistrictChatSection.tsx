@@ -14,6 +14,7 @@ interface ChatMessage {
   userId: number;
   nickname: string | null;
   authorBadge?: string | null;
+  avatarUrl?: string | null;
   content: string;
   type: string;
   createdAt: string;
@@ -206,9 +207,12 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
     <div style={{ display: 'flex', flexDirection: isSelf ? 'row-reverse' : 'row', gap: '0.5rem', alignItems: 'flex-end' }}>
       <div onClick={() => { if (!isSelf) window.location.href = `/users/${msg.userId}`; }}
         style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-        background: isSelf ? '#1c5373' : '#e6e6e6', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: msg.avatarUrl ? undefined : (isSelf ? '#1c5373' : '#e6e6e6'),
+        backgroundImage: msg.avatarUrl ? `url(${msg.avatarUrl})` : undefined,
+        backgroundSize: 'cover', backgroundPosition: 'center',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '0.75rem', color: isSelf ? '#fff' : '#828282', fontWeight: 600, cursor: isSelf ? 'default' : 'pointer' }}>
-        {senderName.charAt(0).toUpperCase()}
+        {!msg.avatarUrl && senderName.charAt(0).toUpperCase()}
       </div>
       <div style={{ maxWidth: '70%' }}>
         <p style={{ fontSize: '0.72rem', color: '#828282', marginBottom: '0.2rem', textAlign: isSelf ? 'right' : 'left', display: 'flex', alignItems: 'center', gap: '0.3rem', justifyContent: isSelf ? 'flex-end' : 'flex-start' }}>

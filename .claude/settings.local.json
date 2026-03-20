@@ -116,7 +116,14 @@
       "Bash(docker rm:*)",
       "Bash(find /Users/gaojingmin/project/neighborhood-app-backend -name *UserNotificationSettings*)",
       "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/web -name *Provider* -o -name *provider*)",
-      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/web -name SiteNav* -o -name layout*)"
+      "Bash(find /Users/gaojingmin/project/neighborhood-app-backend/web -name SiteNav* -o -name layout*)",
+      "Bash(npm ls:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(xargs kill:*)",
+      "Bash(ssh app@172.233.93.221 \"docker logs app-gc-crawler --tail 10 2>&1; echo ''---''; docker compose -f ~/app/docker-compose.prod.yml ps gc-crawler 2>&1 | tail -3\")",
+      "Bash(for i:*)",
+      "Bash(do curl:*)",
+      "Bash(done)"
     ]
   }
 }

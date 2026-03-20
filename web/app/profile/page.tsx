@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { getToken, getNickname, saveNickname, clearAuth, dispatchAuthExpired } from '@/lib/auth-client';
+import { getToken, getUser, getNickname, saveNickname, saveAuth, clearAuth, dispatchAuthExpired } from '@/lib/auth-client';
 import { CLIENT_BASE_URL } from '@/lib/api';
 
 interface ProfileData {
@@ -127,8 +127,15 @@ export default function ProfilePage() {
       const json = await res.json();
       if (json.code === 401) { dispatchAuthExpired(); return; }
       if (json.code === 200) {
-        setProfile(json.data);
-        saveNickname(json.data.nickname || nicknameInput.trim());
+        if (json.data) setProfile(json.data);
+        saveNickname(json.data?.nickname || nicknameInput.trim());
+        // 同步 useAvatar 到 localStorage，讓 Header 下次讀取時更新
+        const t = getToken();
+        const u = getUser();
+        if (t && u) {
+          u.useAvatar = useAvatarInput;
+          saveAuth(t, u);
+        }
         setEditing(false);
       }
     } finally {

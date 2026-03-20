@@ -13,6 +13,7 @@ interface ChatMessage {
   userId: number;
   nickname: string | null;
   authorBadge?: string | null;
+  avatarUrl?: string | null;
   content: string;
   type: string;
   createdAt: string;
@@ -22,10 +23,11 @@ interface Props {
   targetUserId: number;
   targetNickname?: string | null;
   targetBadge?: string | null;
+  targetAvatarUrl?: string | null;
   onClose: () => void;
 }
 
-export default function PrivateChatModal({ targetUserId, targetNickname, targetBadge: initialBadge, onClose }: Props) {
+export default function PrivateChatModal({ targetUserId, targetNickname, targetBadge: initialBadge, targetAvatarUrl, onClose }: Props) {
   const { user, token, nickname } = useAuth();
   const [roomId, setRoomId] = useState<number | null>(null);
   const [badge, setBadge] = useState<string | null | undefined>(initialBadge);
@@ -41,10 +43,22 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
   const stompRef = useRef<import('@stomp/stompjs').Client | null>(null);
   const initialScrollDone = useRef(false);
 
+  const [fetchedAvatarUrl, setFetchedAvatarUrl] = useState<string | null>(null);
+  const effectiveTargetAvatar = targetAvatarUrl ?? fetchedAvatarUrl;
+
   const displayTarget = targetNickname || `用戶 #${targetUserId}`;
   const displaySelf = user?.role === 'GUEST'
     ? `訪客 #${user.userId}`
     : (nickname || `用戶 #${user?.userId ?? '?'}`);
+
+  // 沒有傳入 targetAvatarUrl 時，從 API 拿
+  useEffect(() => {
+    if (targetAvatarUrl) return;
+    fetch(`${CLIENT_BASE_URL}/api/v1/users/${targetUserId}/profile`)
+      .then(r => r.json())
+      .then(json => { if (json.code === 200 && json.data?.avatarUrl) setFetchedAvatarUrl(json.data.avatarUrl); })
+      .catch(() => {});
+  }, [targetUserId, targetAvatarUrl]);
 
   // 取得或建立私聊房間
   useEffect(() => {
@@ -225,11 +239,14 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.75rem' }}>
           <div style={{
-            width: 36, height: 36, borderRadius: '50%', background: '#e6e6e6',
+            width: 36, height: 36, borderRadius: '50%', overflow: 'hidden', flexShrink: 0,
+            background: effectiveTargetAvatar ? undefined : '#e6e6e6',
+            backgroundImage: effectiveTargetAvatar ? `url(${effectiveTargetAvatar})` : undefined,
+            backgroundSize: 'cover', backgroundPosition: 'center',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.9rem', fontWeight: 700, color: '#828282', marginRight: '0.6rem',
           }}>
-            {displayTarget.charAt(0).toUpperCase()}
+            {!effectiveTargetAvatar && displayTarget.charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontWeight: 600, fontSize: '0.95rem', color: '#1e1e1e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -276,13 +293,15 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
                   onClick={() => { if (!isSelf) window.location.href = `/users/${m.userId}`; }}
                   style={{
                     width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                    background: isSelf ? '#1c5373' : '#e6e6e6',
+                    background: m.avatarUrl ? undefined : (isSelf ? '#1c5373' : '#e6e6e6'),
+                    backgroundImage: m.avatarUrl ? `url(${m.avatarUrl})` : undefined,
+                    backgroundSize: 'cover', backgroundPosition: 'center',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.7rem', fontWeight: 700,
                     color: isSelf ? '#fff' : '#828282',
                     cursor: isSelf ? 'default' : 'pointer',
                   }}>
-                  {name.charAt(0).toUpperCase()}
+                  {!m.avatarUrl && name.charAt(0).toUpperCase()}
                 </div>
                 <div style={{ maxWidth: '72%' }}>
                   <p style={{ fontSize: '0.7rem', color: '#bbb', marginBottom: '0.15rem', textAlign: isSelf ? 'right' : 'left' }}>

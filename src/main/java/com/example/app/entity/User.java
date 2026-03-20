@@ -27,4 +27,9 @@ public class User {
 
     @TableLogic
     private Integer deleted;
+
+    /** useAvatar 未設定(null) 或 == 1 時返回 avatarUrl，只有明確設為 0 才隱藏 */
+    public String getEffectiveAvatarUrl() {
+        return Integer.valueOf(0).equals(useAvatar) ? null : avatarUrl;
+    }
 }

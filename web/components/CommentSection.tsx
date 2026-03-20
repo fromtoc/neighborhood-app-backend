@@ -14,6 +14,7 @@ interface Comment {
   parentId: number | null;
   userId: number;
   nickname: string | null;
+  avatarUrl?: string | null;
   content: string;
   likeCount: number;
   liked?: boolean | null;
@@ -76,16 +77,22 @@ function MiniAvatar({ name }: { name: string }) {
 }
 
 /** 大頭像 */
-function Avatar({ name, size = 36, self = false }: { name: string; size?: number; self?: boolean }) {
+function Avatar({ name, size = 36, self = false, avatarUrl }: { name: string; size?: number; self?: boolean; avatarUrl?: string | null }) {
+  const { user } = useAuth();
+  // self 模式下自動讀取當前用戶頭像
+  const effectiveUrl = avatarUrl ?? (self && user?.useAvatar !== false ? user?.photoURL : null);
   const bg = self ? '#1c5373' : hashColor(name);
   return (
     <div style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
-      background: bg, color: '#fff',
+      background: effectiveUrl ? undefined : bg,
+      backgroundImage: effectiveUrl ? `url(${effectiveUrl})` : undefined,
+      backgroundSize: 'cover', backgroundPosition: 'center',
+      color: '#fff',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.38, fontWeight: 700,
     }}>
-      {name.charAt(0).toUpperCase()}
+      {!effectiveUrl && name.charAt(0).toUpperCase()}
     </div>
   );
 }
@@ -177,7 +184,7 @@ function CommentCard({
       {/* 頭像欄 + thread 線 */}
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
         <div onClick={() => { if (!isSelf) window.location.href = `/users/${comment.userId}`; }} style={{ cursor: isSelf ? 'default' : 'pointer' }}>
-          <Avatar name={name} size={36} self={isSelf} />
+          <Avatar name={name} size={36} self={isSelf} avatarUrl={comment.avatarUrl} />
         </div>
         {(showLine || hasReplies) && (
           <div style={{ width: 2, flex: 1, minHeight: 12, background: '#e6e6e6', marginTop: 4 }} />
@@ -654,7 +661,7 @@ function ThreadPanel({
                 style={{ cursor: 'pointer', marginBottom: '0.75rem' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                  <Avatar name={aName} size={32} self={user?.userId === a.userId} />
+                  <Avatar name={aName} size={32} self={user?.userId === a.userId} avatarUrl={a.avatarUrl} />
                   <div>
                     <span style={{ fontWeight: 600, fontSize: '0.85rem', color: '#555' }}>{aName}</span>
                     <span style={{ fontSize: '0.72rem', color: '#bbb', marginLeft: '0.4rem' }}>{timeAgo(a.createdAt)}</span>
@@ -682,7 +689,7 @@ function ThreadPanel({
           {/* ── 當前留言（完整顯示，含互動按鈕） ── */}
           <div style={{ marginBottom: '0.5rem', paddingBottom: '0.75rem', borderBottom: '1px solid #f0f0f0' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
-              <Avatar name={name} size={40} self={isSelf} />
+              <Avatar name={name} size={40} self={isSelf} avatarUrl={rootComment.avatarUrl} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{name}</div>
                 <div style={{ fontSize: '0.72rem', color: '#bbb' }}>{timeAgo(rootComment.createdAt)}</div>

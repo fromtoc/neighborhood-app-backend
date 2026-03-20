@@ -11,6 +11,7 @@ export interface AuthUser {
   chiefNeighborhoodId?: number | null;
   displayName?: string | null;
   photoURL?: string | null;
+  useAvatar?: boolean;
 }
 
 export function saveAuth(accessToken: string, user: AuthUser) {

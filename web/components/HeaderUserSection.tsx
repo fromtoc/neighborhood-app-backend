@@ -69,7 +69,7 @@ export default function HeaderUserSection() {
           display: 'flex', alignItems: 'center', gap: '0.4rem',
         }}
       >
-        <Avatar name={initial} photoURL={user.photoURL} isGuest={isGuest} />
+        <Avatar name={initial} photoURL={user.useAvatar !== false ? user.photoURL : null} isGuest={isGuest} />
         {/* 桌機才顯示名字 */}
         <span className="header-username" style={{
           fontSize: '0.82rem',

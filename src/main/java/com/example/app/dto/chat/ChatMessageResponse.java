@@ -16,6 +16,7 @@ public class ChatMessageResponse {
     private Long userId;
     private String nickname;
     @Setter private String authorBadge;
+    @Setter private String avatarUrl;
     private String content;
     private String type;
     private LocalDateTime createdAt;

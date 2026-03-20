@@ -12,6 +12,7 @@ interface Post {
   images: string[];
   userId: number;
   authorName: string | null;
+  authorAvatarUrl?: string | null;
   createdAt: string;
 }
 
@@ -72,11 +73,14 @@ export default function HomeCommunityList({ neighborhoodId, liHref }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
                   <div style={{
                     width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                    background: avatarColor(post.userId), color: '#fff',
+                    background: post.authorAvatarUrl ? undefined : avatarColor(post.userId),
+                    backgroundImage: post.authorAvatarUrl ? `url(${post.authorAvatarUrl})` : undefined,
+                    backgroundSize: 'cover', backgroundPosition: 'center',
+                    color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '0.85rem', fontWeight: 700,
                   }}>
-                    {avatarLetter}
+                    {!post.authorAvatarUrl && avatarLetter}
                   </div>
                   <div>
                     <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#1e1e1e' }}>{authorName}</div>

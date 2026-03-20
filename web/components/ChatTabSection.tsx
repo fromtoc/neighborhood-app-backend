@@ -22,6 +22,7 @@ interface PrivateRoom {
   user2Id: number;
   otherNickname: string | null;
   otherBadge?: string | null;
+  otherAvatarUrl?: string | null;
   lastMessage: string | null;
   lastMessageNickname: string | null;
   lastMessageAt: string | null;
@@ -317,8 +318,13 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
                     setTimeout(() => fetchUnread(), 500);
                   }
                 }} style={chatItemStyle}>
-                  <div style={privateAvatarStyle}>
-                    {otherName.charAt(0).toUpperCase()}
+                  <div style={{
+                    ...privateAvatarStyle,
+                    background: room.otherAvatarUrl ? undefined : '#e6e6e6',
+                    backgroundImage: room.otherAvatarUrl ? `url(${room.otherAvatarUrl})` : undefined,
+                    backgroundSize: 'cover', backgroundPosition: 'center',
+                  }}>
+                    {!room.otherAvatarUrl && otherName.charAt(0).toUpperCase()}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -353,6 +359,7 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
           targetUserId={openPrivateTargetId}
           targetNickname={privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId)?.otherNickname}
           targetBadge={privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId)?.otherBadge}
+          targetAvatarUrl={privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId)?.otherAvatarUrl}
           onClose={() => {
             const room = privateRooms.find(r => getOtherUserId(r) === openPrivateTargetId);
             if (room && token) {

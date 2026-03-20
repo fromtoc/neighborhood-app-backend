@@ -21,6 +21,7 @@ public class PostResponse {
     private String authorName;
     private String authorRole;
     @Setter private String authorBadge;
+    @Setter private String authorAvatarUrl;
     private String title;
     private String content;
     private List<String> images;

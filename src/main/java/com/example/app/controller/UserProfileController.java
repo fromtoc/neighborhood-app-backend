@@ -115,7 +115,7 @@ public class UserProfileController {
         } catch (Exception ignored) {}
 
         java.util.List<MentionCandidate> candidates = users.stream().map(u ->
-                new MentionCandidate(u.getId(), u.getNickname(), u.getAvatarUrl(), badgeMap.get(u.getId()))
+                new MentionCandidate(u.getId(), u.getNickname(), effectiveAvatar(u), badgeMap.get(u.getId()))
         ).toList();
 
         return ApiResponse.success(candidates);
@@ -163,7 +163,7 @@ public class UserProfileController {
 
     record UpdateProfileRequest(String nickname, String bio, Boolean useAvatar) {}
 
-    @PutMapping("/me/profile")
+    @RequestMapping(value = "/me/profile", method = {RequestMethod.PUT, RequestMethod.PATCH})
     @Operation(summary = "更新自己的資料", security = @SecurityRequirement(name = "bearerAuth"))
     public ApiResponse<Void> updateMe(
             @AuthenticationPrincipal JwtClaims claims,
@@ -219,7 +219,7 @@ public class UserProfileController {
         }
 
         return ApiResponse.success(new UserProfileResponse(
-                user.getId(), nickname, user.getAvatarUrl(), user.getBio(),
+                user.getId(), nickname, effectiveAvatar(user), user.getBio(),
                 role, badge, postCount, followingCount, followerCount,
                 isFollowed, user.getCreatedAt()
         ));
@@ -283,6 +283,10 @@ public class UserProfileController {
             if (chief != null) return "LI_CHIEF";
         } catch (Exception ignored) {}
         return "USER";
+    }
+
+    private String effectiveAvatar(User user) {
+        return user.getEffectiveAvatarUrl();
     }
 
     private String resolveBadge(Long userId) {

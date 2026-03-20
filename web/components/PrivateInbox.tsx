@@ -11,6 +11,7 @@ interface PrivateRoom {
   user2Id: number;
   otherNickname: string | null;
   otherBadge?: string | null;
+  otherAvatarUrl?: string | null;
   lastMessage: string | null;
   lastMessageAt: string | null;
 }
@@ -34,7 +35,7 @@ export default function PrivateInbox() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(json => { if (json.code === 200) setRooms(json.data ?? []); })
+      .then(json => { console.log('[PrivateInbox] rooms:', JSON.stringify(json.data)); if (json.code === 200) setRooms(json.data ?? []); })
       .finally(() => setLoading(false));
   }, [user, token]);
 
@@ -135,10 +136,13 @@ export default function PrivateInbox() {
                 {/* 頭像 */}
                 <div style={{
                   width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-                  background: '#e6e6e6', display: 'flex', alignItems: 'center',
+                  background: room.otherAvatarUrl ? undefined : '#e6e6e6',
+                  backgroundImage: room.otherAvatarUrl ? `url(${room.otherAvatarUrl})` : undefined,
+                  backgroundSize: 'cover', backgroundPosition: 'center',
+                  display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: '1rem', color: '#828282', fontWeight: 700,
                 }}>
-                  {otherName.charAt(0).toUpperCase()}
+                  {!room.otherAvatarUrl && otherName.charAt(0).toUpperCase()}
                 </div>
 
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -186,6 +190,7 @@ export default function PrivateInbox() {
           targetUserId={openRoomTargetId}
           targetNickname={rooms.find(r => getOtherUserId(r) === openRoomTargetId)?.otherNickname}
           targetBadge={rooms.find(r => getOtherUserId(r) === openRoomTargetId)?.otherBadge}
+          targetAvatarUrl={rooms.find(r => getOtherUserId(r) === openRoomTargetId)?.otherAvatarUrl}
           onClose={() => {
             const room = rooms.find(r => getOtherUserId(r) === openRoomTargetId);
             if (room && token) {

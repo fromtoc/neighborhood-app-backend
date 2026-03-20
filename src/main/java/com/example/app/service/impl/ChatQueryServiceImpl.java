@@ -102,11 +102,13 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         List<Long> userIds = messages.stream().map(ChatMessage::getUserId).distinct().toList();
         Map<Long, String> nicknameMap = buildNicknameMap(userIds);
         Map<Long, String> badgeMap = buildBadgeMap(userIds);
+        Map<Long, String> avatarMap = buildAvatarMap(userIds);
 
         return messages.stream()
                 .map(m -> {
                     ChatMessageResponse resp = ChatMessageResponse.from(m, nicknameMap.get(m.getUserId()));
                     resp.setAuthorBadge(badgeMap.get(m.getUserId()));
+                    resp.setAvatarUrl(avatarMap.get(m.getUserId()));
                     return resp;
                 })
                 .toList();
@@ -163,8 +165,14 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         List<Long> otherIds = rooms.stream()
                 .map(r -> r.getUser1Id().equals(userId) ? r.getUser2Id() : r.getUser1Id())
                 .distinct().toList();
-        Map<Long, String> nicknameMap = userMapper.selectBatchIds(otherIds).stream()
+        List<User> otherUsers = userMapper.selectBatchIds(otherIds);
+        Map<Long, String> nicknameMap = otherUsers.stream()
                 .collect(Collectors.toMap(User::getId, u -> u.getNickname() != null ? u.getNickname() : "用戶 #" + u.getId()));
+        Map<Long, String> otherAvatarMap = new HashMap<>();
+        for (User u : otherUsers) {
+            String url = u.getEffectiveAvatarUrl();
+            if (url != null) otherAvatarMap.put(u.getId(), url);
+        }
         Map<Long, String> badgeMap = buildBadgeMap(otherIds);
 
         return rooms.stream()
@@ -172,6 +180,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
                     Long otherId = r.getUser1Id().equals(userId) ? r.getUser2Id() : r.getUser1Id();
                     ChatRoomResponse resp = ChatRoomResponse.from(r, nicknameMap.getOrDefault(otherId, "用戶 #" + otherId));
                     resp.setOtherBadge(badgeMap.get(otherId));
+                    resp.setOtherAvatarUrl(otherAvatarMap.get(otherId));
                     return resp;
                 })
                 .toList();
@@ -252,6 +261,8 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         ChatMessageResponse resp = ChatMessageResponse.from(msg);
         Map<Long, String> badgeMap = buildBadgeMap(List.of(userId));
         resp.setAuthorBadge(badgeMap.get(userId));
+        Map<Long, String> avMap = buildAvatarMap(List.of(userId));
+        resp.setAvatarUrl(avMap.get(userId));
         return resp;
     }
 
@@ -335,5 +346,15 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         } catch (Exception e) {
             return Map.of();
         }
+    }
+
+    private Map<Long, String> buildAvatarMap(List<Long> userIds) {
+        if (userIds.isEmpty()) return Map.of();
+        Map<Long, String> map = new HashMap<>();
+        for (User u : userMapper.selectBatchIds(userIds)) {
+            String url = u.getEffectiveAvatarUrl();
+            if (url != null) map.put(u.getId(), url);
+        }
+        return map;
     }
 }
