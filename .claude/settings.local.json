@@ -123,7 +123,8 @@
       "Bash(ssh app@172.233.93.221 \"docker logs app-gc-crawler --tail 10 2>&1; echo ''---''; docker compose -f ~/app/docker-compose.prod.yml ps gc-crawler 2>&1 | tail -3\")",
       "Bash(for i:*)",
       "Bash(do curl:*)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(/dev/null echo:*)"
     ]
   }
 }
