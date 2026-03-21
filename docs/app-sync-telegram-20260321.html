@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GoLocal App 對接 — Telegram 通知 Log 接口</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1e1e1e;background:#f8f9fa;line-height:1.7}
+.container{max-width:880px;margin:0 auto;padding:2rem 1.5rem}
+h1{font-size:1.5rem;font-weight:800;color:#1c5373;margin-bottom:.3rem}
+h1 small{font-size:.82rem;font-weight:400;color:#999;display:block;margin-top:.2rem}
+h2{font-size:1.15rem;font-weight:700;color:#1c5373;margin:1.8rem 0 .6rem;padding-bottom:.3rem;border-bottom:2px solid #e8e8e8}
+h3{font-size:.95rem;font-weight:700;color:#333;margin:1rem 0 .4rem}
+p,li{font-size:.9rem;color:#444}
+ul{padding-left:1.5rem;margin:.4rem 0}
+li{margin-bottom:.25rem}
+table{width:100%;border-collapse:collapse;margin:.7rem 0;font-size:.84rem}
+th,td{border:1px solid #e0e0e0;padding:.4rem .6rem;text-align:left}
+th{background:#f0f7ff;color:#1c5373;font-weight:600;white-space:nowrap}
+td{background:#fff}
+code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:.82rem;font-family:'SF Mono',Consolas,monospace;color:#c7254e}
+pre{background:#1e1e2e;color:#cdd6f4;padding:.8rem 1rem;border-radius:8px;overflow-x:auto;margin:.5rem 0;font-size:.78rem;line-height:1.5}
+pre code{background:none;color:inherit;padding:0}
+.jk{color:#89b4fa}.js{color:#a6e3a1}.jn{color:#fab387}.cm{color:#6c7086}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:.7rem;font-weight:600}
+.new{background:#dcfce7;color:#16a34a}
+.note{background:#fffbeb;border-left:3px solid #f59e0b;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.7rem 0;font-size:.84rem;color:#92400e}
+.info{background:#eff6ff;border-left:3px solid #3b82f6;padding:.6rem .8rem;border-radius:0 6px 6px 0;margin:.7rem 0;font-size:.84rem;color:#1e40af}
+hr{border:none;border-top:1px solid #e8e8e8;margin:1.5rem 0}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>GoLocal App 對接 — Telegram 通知 Log 接口
+<small>2026-03-21</small>
+</h1>
+
+<p>新增 Telegram 通知機制，App 端可以透過 API 將 log、錯誤、關鍵事件發送到 Telegram 群組，方便即時監控。</p>
+
+<!-- ========== 1. API ========== -->
+<h2>1. 發送 Log 到 Telegram <span class="badge new">新增</span></h2>
+
+<pre><code><span class="js">POST</span> /api/v1/telegram/log
+Authorization: Bearer {token}
+Content-Type: application/json</code></pre>
+
+<h3>Request Body</h3>
+<table>
+<tr><th>欄位</th><th>型別</th><th>必填</th><th>說明</th></tr>
+<tr><td><code>tag</code></td><td>String</td><td>否</td><td>標籤，預設 <code>"App"</code>。例如 <code>"Crash"</code>、<code>"Login"</code>、<code>"Payment"</code></td></tr>
+<tr><td><code>message</code></td><td>String</td><td>是</td><td>訊息內容，空白時不發送</td></tr>
+<tr><td><code>level</code></td><td>String</td><td>否</td><td>預設 <code>"info"</code>。設為 <code>"error"</code> 或 <code>"alert"</code> 會用告警格式</td></tr>
+</table>
+
+<h3>level 說明</h3>
+<table>
+<tr><th>level</th><th>Telegram 顯示格式</th><th>用途</th></tr>
+<tr><td><code>info</code></td><td>📢 <b>[tag]</b> + 訊息 + 時間</td><td>一般通知、操作紀錄</td></tr>
+<tr><td><code>error</code> / <code>alert</code></td><td>🚨 <b>[tag]</b> + 訊息 + 時間</td><td>錯誤、異常、需要關注的事件</td></tr>
+</table>
+
+<h3>範例 1 — 一般 Log</h3>
+<pre><code><span class="js">POST</span> /api/v1/telegram/log
+
+{
+  <span class="jk">"tag"</span>: <span class="js">"Login"</span>,
+  <span class="jk">"message"</span>: <span class="js">"用戶透過 Google 登入成功"</span>,
+  <span class="jk">"level"</span>: <span class="js">"info"</span>
+}</code></pre>
+
+<p>Telegram 群組收到：</p>
+<pre><code>📢 <b>[Login]</b>
+用戶透過 Google 登入成功
+👤 User#5
+<i>03-21 12:05:30</i></code></pre>
+
+<h3>範例 2 — 錯誤告警</h3>
+<pre><code><span class="js">POST</span> /api/v1/telegram/log
+
+{
+  <span class="jk">"tag"</span>: <span class="js">"Crash"</span>,
+  <span class="jk">"message"</span>: <span class="js">"NullPointerException at HomeFragment.onResume()\ndevice: Pixel 7, Android 14"</span>,
+  <span class="jk">"level"</span>: <span class="js">"error"</span>
+}</code></pre>
+
+<p>Telegram 群組收到：</p>
+<pre><code>🚨 <b>[Crash]</b>
+NullPointerException at HomeFragment.onResume()
+device: Pixel 7, Android 14
+👤 User#5
+<i>03-21 12:05:30</i></code></pre>
+
+<h3>Response</h3>
+<pre><code>{
+  <span class="jk">"code"</span>: <span class="jn">200</span>,
+  <span class="jk">"message"</span>: <span class="js">"success"</span>,
+  <span class="jk">"data"</span>: <span class="jn">null</span>
+}</code></pre>
+
+<hr>
+
+<!-- ========== 2. 使用建議 ========== -->
+<h2>2. App 端使用建議</h2>
+
+<h3>2.1 建議發送的事件</h3>
+<table>
+<tr><th>tag</th><th>level</th><th>時機</th></tr>
+<tr><td><code>Crash</code></td><td>error</td><td>App 捕捉到未處理的異常</td></tr>
+<tr><td><code>API Error</code></td><td>error</td><td>後端 API 回傳非預期的錯誤碼（如 500）</td></tr>
+<tr><td><code>Login</code></td><td>info</td><td>用戶登入成功 / 失敗（可選）</td></tr>
+<tr><td><code>Performance</code></td><td>alert</td><td>頁面載入超過 X 秒</td></tr>
+<tr><td><code>FCM</code></td><td>error</td><td>FCM token 註冊失敗</td></tr>
+<tr><td><code>Debug</code></td><td>info</td><td>開發期間需要追蹤的事件</td></tr>
+</table>
+
+<h3>2.2 注意事項</h3>
+<div class="note">
+<ul>
+<li>此 API <strong>需要登入</strong>（需帶 Authorization header），未登入會回 401</li>
+<li><code>message</code> 為空白時不會發送（直接回 200）</li>
+<li>訊息會自動附上當前用戶 ID（<code>User#xxx</code>）</li>
+<li>支援換行符 <code>\n</code>，可在 message 中帶多行資訊</li>
+<li>Telegram 訊息使用 HTML 格式，<strong>請勿在 message 中使用 HTML 標籤</strong>（如 <code>&lt;script&gt;</code>），會導致發送失敗</li>
+</ul>
+</div>
+
+<h3>2.3 頻率建議</h3>
+<div class="info">
+<ul>
+<li>Telegram Bot API 限制：同一群組每秒最多 <strong>20 條訊息</strong></li>
+<li>建議 App 端做 <strong>節流（throttle）</strong>：相同 tag 的 error 在 60 秒內只發一次</li>
+<li>不要對每個 API 請求都發 log，僅發送<strong>異常和關鍵事件</strong></li>
+</ul>
+</div>
+
+<hr>
+
+<!-- ========== 3. Android / iOS 範例 ========== -->
+<h2>3. 實作範例</h2>
+
+<h3>3.1 Android (Kotlin)</h3>
+<pre><code><span class="cm">// TelegramLogger.kt</span>
+<span class="jk">object</span> TelegramLogger {
+    <span class="jk">private val</span> client = OkHttpClient()
+    <span class="jk">private const val</span> URL = <span class="js">"https://api.room18.top/api/v1/telegram/log"</span>
+
+    <span class="jk">fun</span> send(token: String, tag: String, message: String, level: String = <span class="js">"info"</span>) {
+        <span class="jk">val</span> json = JSONObject().apply {
+            put(<span class="js">"tag"</span>, tag)
+            put(<span class="js">"message"</span>, message)
+            put(<span class="js">"level"</span>, level)
+        }
+        <span class="jk">val</span> body = json.toString()
+            .toRequestBody(<span class="js">"application/json"</span>.toMediaType())
+        <span class="jk">val</span> request = Request.Builder()
+            .url(URL)
+            .addHeader(<span class="js">"Authorization"</span>, <span class="js">"Bearer $token"</span>)
+            .post(body)
+            .build()
+
+        <span class="cm">// 在背景執行，不阻塞 UI</span>
+        CoroutineScope(Dispatchers.IO).launch {
+            <span class="jk">try</span> { client.newCall(request).execute().close() }
+            <span class="jk">catch</span> (_: Exception) { }
+        }
+    }
+
+    <span class="jk">fun</span> error(token: String, tag: String, message: String) =
+        send(token, tag, message, <span class="js">"error"</span>)
+}
+
+<span class="cm">// 使用</span>
+TelegramLogger.error(token, <span class="js">"Crash"</span>,
+    <span class="js">"${e.javaClass.simpleName}: ${e.message}\n${e.stackTrace.take(3).joinToString("\n")}"</span>)
+</code></pre>
+
+<h3>3.2 iOS (Swift)</h3>
+<pre><code><span class="cm">// TelegramLogger.swift</span>
+<span class="jk">struct</span> TelegramLogger {
+    <span class="jk">static let</span> url = URL(string: <span class="js">"https://api.room18.top/api/v1/telegram/log"</span>)!
+
+    <span class="jk">static func</span> send(token: String, tag: String, message: String, level: String = <span class="js">"info"</span>) {
+        <span class="jk">var</span> request = URLRequest(url: url)
+        request.httpMethod = <span class="js">"POST"</span>
+        request.addValue(<span class="js">"Bearer \(token)"</span>, forHTTPHeaderField: <span class="js">"Authorization"</span>)
+        request.addValue(<span class="js">"application/json"</span>, forHTTPHeaderField: <span class="js">"Content-Type"</span>)
+        request.httpBody = <span class="jk">try?</span> JSONSerialization.data(withJSONObject: [
+            <span class="js">"tag"</span>: tag,
+            <span class="js">"message"</span>: message,
+            <span class="js">"level"</span>: level
+        ])
+        URLSession.shared.dataTask(with: request).resume()
+    }
+
+    <span class="jk">static func</span> error(token: String, tag: String, message: String) {
+        send(token: token, tag: tag, message: message, level: <span class="js">"error"</span>)
+    }
+}
+
+<span class="cm">// 使用</span>
+TelegramLogger.error(token: token, tag: <span class="js">"Crash"</span>, message: <span class="js">"\(error)"</span>)
+</code></pre>
+
+<hr>
+
+<!-- ========== 4. 摘要 ========== -->
+<h2>4. API 摘要</h2>
+
+<table>
+<tr><th>端點</th><th>方法</th><th>認證</th><th>說明</th></tr>
+<tr><td><code>/api/v1/telegram/log</code></td><td>POST</td><td>需要</td><td>App 發送 log / 錯誤到 Telegram 群組</td></tr>
+</table>
+
+<hr>
+
+<p style="text-align:center;color:#999;font-size:.8rem;margin-top:2rem">GoLocal App 對接文件 — Telegram 通知 — 2026-03-21</p>
+
+</div>
+</body>
+</html>
