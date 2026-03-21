@@ -14,6 +14,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Google Geocoding API 地址轉座標實作。
@@ -25,13 +28,35 @@ import java.nio.charset.StandardCharsets;
 @RequiredArgsConstructor
 public class GoogleGeocodingClientImpl implements GeocodingClient {
 
+    private static final int DAILY_LIMIT = 1000;
+
     private final GoogleGeocodingProperties properties;
     private final ObjectMapper              objectMapper;
 
     private final RestClient restClient = RestClient.create();
+    private final AtomicInteger dailyCount = new AtomicInteger(0);
+    private final AtomicReference<LocalDate> countDate = new AtomicReference<>(LocalDate.now());
+
+    private int incrementAndGet() {
+        LocalDate today = LocalDate.now();
+        if (!today.equals(countDate.get())) {
+            countDate.set(today);
+            dailyCount.set(0);
+        }
+        return dailyCount.incrementAndGet();
+    }
 
     @Override
     public double[] geocode(String address) {
+        int count = incrementAndGet();
+        if (count > DAILY_LIMIT) {
+            log.warn("Google Geocoding 每日限額已達 {} 次，拒絕請求 address={}", DAILY_LIMIT, address);
+            throw new BusinessException(ResultCode.BAD_REQUEST, "地址查詢已達今日上限，請稍後再試");
+        }
+        if (count == DAILY_LIMIT) {
+            log.warn("Google Geocoding 今日已達 {} 次上限", DAILY_LIMIT);
+        }
+
         URI uri = UriComponentsBuilder.fromHttpUrl(properties.getBaseUrl())
                 .queryParam("address", address)
                 .queryParam("key", properties.getApiKey())
