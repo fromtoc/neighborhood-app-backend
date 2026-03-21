@@ -137,70 +137,88 @@ device: Pixel 7, Android 14
 
 <hr>
 
-<!-- ========== 3. Android / iOS 範例 ========== -->
-<h2>3. 實作範例</h2>
+<!-- ========== 3. React Native 範例 ========== -->
+<h2>3. React Native 實作範例</h2>
 
-<h3>3.1 Android (Kotlin)</h3>
-<pre><code><span class="cm">// TelegramLogger.kt</span>
-<span class="jk">object</span> TelegramLogger {
-    <span class="jk">private val</span> client = OkHttpClient()
-    <span class="jk">private const val</span> URL = <span class="js">"https://api.room18.top/api/v1/telegram/log"</span>
+<h3>3.1 TelegramLogger 工具</h3>
+<pre><code><span class="cm">// src/utils/telegramLogger.ts</span>
+<span class="jk">import</span> { API_BASE_URL } <span class="jk">from</span> <span class="js">'@/config'</span>;
 
-    <span class="jk">fun</span> send(token: String, tag: String, message: String, level: String = <span class="js">"info"</span>) {
-        <span class="jk">val</span> json = JSONObject().apply {
-            put(<span class="js">"tag"</span>, tag)
-            put(<span class="js">"message"</span>, message)
-            put(<span class="js">"level"</span>, level)
-        }
-        <span class="jk">val</span> body = json.toString()
-            .toRequestBody(<span class="js">"application/json"</span>.toMediaType())
-        <span class="jk">val</span> request = Request.Builder()
-            .url(URL)
-            .addHeader(<span class="js">"Authorization"</span>, <span class="js">"Bearer $token"</span>)
-            .post(body)
-            .build()
+<span class="jk">const</span> THROTTLE_MAP = <span class="jk">new</span> Map&lt;string, number&gt;();
+<span class="jk">const</span> THROTTLE_MS = <span class="jn">60000</span>; <span class="cm">// 相同 tag 60 秒內只發一次</span>
 
-        <span class="cm">// 在背景執行，不阻塞 UI</span>
-        CoroutineScope(Dispatchers.IO).launch {
-            <span class="jk">try</span> { client.newCall(request).execute().close() }
-            <span class="jk">catch</span> (_: Exception) { }
-        }
-    }
+<span class="jk">export async function</span> sendTelegramLog(
+  token: string,
+  tag: string,
+  message: string,
+  level: <span class="js">'info'</span> | <span class="js">'error'</span> | <span class="js">'alert'</span> = <span class="js">'info'</span>,
+) {
+  <span class="jk">if</span> (!message?.trim()) <span class="jk">return</span>;
 
-    <span class="jk">fun</span> error(token: String, tag: String, message: String) =
-        send(token, tag, message, <span class="js">"error"</span>)
+  <span class="cm">// 節流：相同 tag+level 60 秒內只發一次</span>
+  <span class="jk">const</span> throttleKey = <span class="js">`${tag}:${level}`</span>;
+  <span class="jk">const</span> last = THROTTLE_MAP.get(throttleKey) || <span class="jn">0</span>;
+  <span class="jk">if</span> (Date.now() - last &lt; THROTTLE_MS) <span class="jk">return</span>;
+  THROTTLE_MAP.set(throttleKey, Date.now());
+
+  <span class="jk">try</span> {
+    <span class="jk">await</span> fetch(<span class="js">`${API_BASE_URL}/api/v1/telegram/log`</span>, {
+      method: <span class="js">'POST'</span>,
+      headers: {
+        <span class="js">'Content-Type'</span>: <span class="js">'application/json'</span>,
+        <span class="js">'Authorization'</span>: <span class="js">`Bearer ${token}`</span>,
+      },
+      body: JSON.stringify({ tag, message, level }),
+    });
+  } <span class="jk">catch</span> {
+    <span class="cm">// 靜默失敗，不影響 App 正常運作</span>
+  }
 }
 
-<span class="cm">// 使用</span>
-TelegramLogger.error(token, <span class="js">"Crash"</span>,
-    <span class="js">"${e.javaClass.simpleName}: ${e.message}\n${e.stackTrace.take(3).joinToString("\n")}"</span>)
+<span class="cm">// 快捷方法</span>
+<span class="jk">export const</span> tgInfo  = (token: string, tag: string, msg: string) =>
+  sendTelegramLog(token, tag, msg, <span class="js">'info'</span>);
+<span class="jk">export const</span> tgError = (token: string, tag: string, msg: string) =>
+  sendTelegramLog(token, tag, msg, <span class="js">'error'</span>);
 </code></pre>
 
-<h3>3.2 iOS (Swift)</h3>
-<pre><code><span class="cm">// TelegramLogger.swift</span>
-<span class="jk">struct</span> TelegramLogger {
-    <span class="jk">static let</span> url = URL(string: <span class="js">"https://api.room18.top/api/v1/telegram/log"</span>)!
+<h3>3.2 使用範例</h3>
+<pre><code><span class="cm">// 捕捉全域錯誤</span>
+<span class="jk">import</span> { tgError } <span class="jk">from</span> <span class="js">'@/utils/telegramLogger'</span>;
+<span class="jk">import</span> { ErrorUtils } <span class="jk">from</span> <span class="js">'react-native'</span>;
+<span class="jk">import</span> { Platform } <span class="jk">from</span> <span class="js">'react-native'</span>;
 
-    <span class="jk">static func</span> send(token: String, tag: String, message: String, level: String = <span class="js">"info"</span>) {
-        <span class="jk">var</span> request = URLRequest(url: url)
-        request.httpMethod = <span class="js">"POST"</span>
-        request.addValue(<span class="js">"Bearer \(token)"</span>, forHTTPHeaderField: <span class="js">"Authorization"</span>)
-        request.addValue(<span class="js">"application/json"</span>, forHTTPHeaderField: <span class="js">"Content-Type"</span>)
-        request.httpBody = <span class="jk">try?</span> JSONSerialization.data(withJSONObject: [
-            <span class="js">"tag"</span>: tag,
-            <span class="js">"message"</span>: message,
-            <span class="js">"level"</span>: level
-        ])
-        URLSession.shared.dataTask(with: request).resume()
-    }
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  <span class="jk">const</span> msg = [
+    <span class="js">`${isFatal ? 'FATAL' : 'ERROR'}: ${error.message}`</span>,
+    error.stack?.split(<span class="js">'\n'</span>).slice(<span class="jn">0</span>, <span class="jn">5</span>).join(<span class="js">'\n'</span>),
+    <span class="js">`platform: ${Platform.OS} ${Platform.Version}`</span>,
+  ].join(<span class="js">'\n'</span>);
+  tgError(token, <span class="js">'Crash'</span>, msg);
+});
+</code></pre>
 
-    <span class="jk">static func</span> error(token: String, tag: String, message: String) {
-        send(token: token, tag: tag, message: message, level: <span class="js">"error"</span>)
-    }
+<pre><code><span class="cm">// API 呼叫失敗時</span>
+<span class="jk">import</span> { tgError } <span class="jk">from</span> <span class="js">'@/utils/telegramLogger'</span>;
+
+<span class="jk">async function</span> fetchPosts() {
+  <span class="jk">try</span> {
+    <span class="jk">const</span> res = <span class="jk">await</span> api.get(<span class="js">'/api/v1/posts'</span>);
+    <span class="jk">if</span> (res.code !== <span class="jn">200</span>) <span class="jk">throw new</span> Error(<span class="js">`API error: ${res.code} ${res.message}`</span>);
+  } <span class="jk">catch</span> (e) {
+    tgError(token, <span class="js">'API Error'</span>, <span class="js">`GET /posts 失敗: ${e.message}`</span>);
+  }
 }
+</code></pre>
 
-<span class="cm">// 使用</span>
-TelegramLogger.error(token: token, tag: <span class="js">"Crash"</span>, message: <span class="js">"\(error)"</span>)
+<pre><code><span class="cm">// 一般通知</span>
+<span class="jk">import</span> { tgInfo } <span class="jk">from</span> <span class="js">'@/utils/telegramLogger'</span>;
+
+<span class="cm">// 用戶登入成功</span>
+tgInfo(token, <span class="js">'Login'</span>, <span class="js">`Google 登入成功`</span>);
+
+<span class="cm">// FCM token 註冊</span>
+tgInfo(token, <span class="js">'FCM'</span>, <span class="js">`Token 註冊成功: ${fcmToken.slice(0, 20)}...`</span>);
 </code></pre>
 
 <hr>
