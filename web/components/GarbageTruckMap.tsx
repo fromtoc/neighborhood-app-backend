@@ -79,7 +79,7 @@ function MaskOutside({ geojsonData }: { geojsonData: any }) {
   );
 }
 
-/** fitBounds + 多 zoom 半級讓邊界盡量填滿 */
+/** fitBounds 讓邊界填滿地圖 */
 function FitAndRestrict({ geojsonData }: { geojsonData: any }) {
   const map = useMap();
   useEffect(() => {
@@ -88,13 +88,10 @@ function FitAndRestrict({ geojsonData }: { geojsonData: any }) {
       const layer = L.geoJSON(geojsonData);
       const bounds = layer.getBounds();
       if (bounds.isValid()) {
-        // 先用 fitBounds 取得最佳整數 zoom
-        map.fitBounds(bounds, { padding: [10, 10] });
-        // 再用 fractional zoom 多放大 0.5 級填滿留白
-        const idealZoom = map.getBoundsZoom(bounds, false, L.point(10, 10));
-        map.setZoom(idealZoom + 0.3, { animate: false });
-        map.setMaxBounds(bounds.pad(0.15));
-        map.setMinZoom(idealZoom - 1);
+        map.fitBounds(bounds, { padding: [20, 20] });
+        map.setMaxBounds(bounds.pad(0.3));
+        const minZoom = map.getBoundsZoom(bounds, false, L.point(20, 20));
+        map.setMinZoom(minZoom - 1);
       }
     } catch {}
   }, [geojsonData, map]);
