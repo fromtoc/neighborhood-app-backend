@@ -2,7 +2,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --prefer-offline
+RUN npm ci --prefer-offline && npm i --no-save @next/swc-linux-x64-musl 2>/dev/null || true
 
 # ── Stage 2: Build ─────────────────────────────────────────────
 FROM node:20-alpine AS builder
