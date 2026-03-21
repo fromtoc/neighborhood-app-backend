@@ -16,9 +16,6 @@ let CONFIG = {
 
 let cachedCars = [];
 let lastUpdate = null;
-let cachedRoutingIds = [];
-let routingIdsUpdatedAt = 0;
-const ROUTING_IDS_TTL = 10 * 60 * 1000; // 10 分鐘
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function refreshSession() {
@@ -67,26 +64,17 @@ async function updateData() {
             "Referer": "https://route.tyoem.gov.tw/"
         };
 
-        const now = Date.now();
-        if (cachedRoutingIds.length === 0 || now - routingIdsUpdatedAt > ROUTING_IDS_TTL) {
-            let allRoutingIds = [];
-            for (let i = 1; i <= 13; i++) {
-                const gid = `lagi2-${i.toString().padStart(3, '0')}`;
-                const res = await fetch("https://route.tyoem.gov.tw/web/dataManagerAgentWeb.jsp", {
-                    method: "POST", headers, body: `dcfid=lagifQueryRouteByTown&gid=${gid}&random_form=${CONFIG.RANDOM_FORM}`
-                });
-                const json = await res.json();
-                if (json.result) json.result.forEach(r => allRoutingIds.push(r.routing_id));
-                await sleep(150);
-            }
-            const freshIds = [...new Set(allRoutingIds)];
-            if (freshIds.length > 0) {
-                cachedRoutingIds = freshIds;
-                routingIdsUpdatedAt = now;
-                console.log(`📋 路線 ID 更新: ${freshIds.length} 條 (下次更新: ${new Date(now + ROUTING_IDS_TTL).toLocaleTimeString()})`);
-            }
+        let allRoutingIds = [];
+        for (let i = 1; i <= 13; i++) {
+            const gid = `lagi2-${i.toString().padStart(3, '0')}`;
+            const res = await fetch("https://route.tyoem.gov.tw/web/dataManagerAgentWeb.jsp", {
+                method: "POST", headers, body: `dcfid=lagifQueryRouteByTown&gid=${gid}&random_form=${CONFIG.RANDOM_FORM}`
+            });
+            const json = await res.json();
+            if (json.result) json.result.forEach(r => allRoutingIds.push(r.routing_id));
+            await sleep(150);
         }
-        const uniqueIds = cachedRoutingIds;
+        const uniqueIds = [...new Set(allRoutingIds)];
 
         let rawCarData = [];
         const chunkSize = 15;
