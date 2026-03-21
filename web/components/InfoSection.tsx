@@ -19,7 +19,7 @@ type SubTab = 'district' | 'li' | 'garbage' | 'guide';
 export default function InfoSection({ neighborhoodId, city, district, liName }: Props) {
   const searchParams = useSearchParams();
   const subParam = searchParams.get('sub');
-  const initialSub: SubTab = subParam === 'li' ? 'li' : (subParam === 'garbage' && city === '桃園市') ? 'garbage' : subParam === 'guide' ? 'guide' : 'district';
+  const initialSub: SubTab = subParam === 'li' ? 'li' : subParam === 'garbage' ? 'garbage' : subParam === 'guide' ? 'guide' : 'district';
   const [subTab, setSubTab] = useState<SubTab>(initialSub);
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
@@ -44,11 +44,9 @@ export default function InfoSection({ neighborhoodId, city, district, liName }: 
         <button style={tabStyle(subTab === 'li')} onClick={() => setSubTab('li')}>
           {liName}
         </button>
-        {city === '桃園市' && (
-          <button style={tabStyle(subTab === 'garbage')} onClick={() => setSubTab('garbage')}>
-            垃圾車
-          </button>
-        )}
+        <button style={tabStyle(subTab === 'garbage')} onClick={() => setSubTab('garbage')}>
+          垃圾車
+        </button>
         <button style={tabStyle(subTab === 'guide')} onClick={() => setSubTab('guide')}>
           巷口說明書
         </button>
@@ -76,7 +74,7 @@ export default function InfoSection({ neighborhoodId, city, district, liName }: 
         />
       )}
 
-      {subTab === 'garbage' && city === '桃園市' && (
+      {subTab === 'garbage' && (
         <GarbageTruckMap neighborhoodId={neighborhoodId} city={city} />
       )}
 
