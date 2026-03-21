@@ -125,6 +125,20 @@ export default function GarbageTruckMap({ neighborhoodId, city }: Props) {
   return <GarbageTruckMapInner neighborhoodId={neighborhoodId} />;
 }
 
+/** 接收 selectedCarId，飛到該車並打開 Popup */
+function FlyToTruck({ carId, markerRefs }: { carId: string | null; markerRefs: React.MutableRefObject<Record<string, L.Marker>> }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!carId) return;
+    const marker = markerRefs.current[carId];
+    if (marker) {
+      map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.5 });
+      setTimeout(() => marker.openPopup(), 500);
+    }
+  }, [carId, map, markerRefs]);
+  return null;
+}
+
 function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [center, setCenter] = useState<[number, number] | null>(null);
@@ -133,6 +147,8 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
   const [geojsonStr, setGeojsonStr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const markerRefs = useRef<Record<string, L.Marker>>({});
+  const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
 
   const geojsonData = useMemo(() => {
     if (!geojsonStr) return null;
@@ -220,7 +236,12 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
           )}
 
           {trucks.map((t) => t.lat !== 0 && t.lng !== 0 && (
-            <Marker key={t.carId} position={[t.lat, t.lng]} icon={truckIcon}>
+            <Marker
+              key={t.carId}
+              position={[t.lat, t.lng]}
+              icon={truckIcon}
+              ref={(ref) => { if (ref) markerRefs.current[t.carId] = ref; }}
+            >
               <Popup>
                 <div style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
                   <strong>{t.carId}</strong>
@@ -234,6 +255,8 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
               </Popup>
             </Marker>
           ))}
+
+          <FlyToTruck carId={selectedCarId} markerRefs={markerRefs} />
         </MapContainer>
       </div>
 
@@ -258,10 +281,16 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           {trucks.map((t) => (
-            <div key={t.carId} style={{
-              background: '#fff', border: '1px solid #eee', borderRadius: 8,
-              padding: '0.5rem 0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
+            <div
+              key={t.carId}
+              onClick={() => setSelectedCarId(prev => prev === t.carId ? null : t.carId)}
+              style={{
+                background: selectedCarId === t.carId ? '#f0f7ff' : '#fff',
+                border: selectedCarId === t.carId ? '1px solid #1c5373' : '1px solid #eee',
+                borderRadius: 8, cursor: 'pointer',
+                padding: '0.5rem 0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}
+            >
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>🚛 {t.carId}</div>
                 <div style={{ fontSize: '0.75rem', color: '#888', marginTop: 2 }}>{t.addr || '位置更新中'}</div>
