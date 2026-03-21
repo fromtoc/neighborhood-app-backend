@@ -199,7 +199,7 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
 
   return (
     <div>
-      <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: '0.5rem' }}>
+      <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: '0.5rem', position: 'relative', zIndex: 0 }}>
         <MapContainer
           center={mapCenter as [number, number]}
           zoom={16}
