@@ -113,6 +113,10 @@ web:
   # 與 Next.js /api/revalidate 共用的 secret
   revalidate-secret: ${REVALIDATE_SECRET:}
 
+telegram:
+  bot-token: ${TELEGRAM_BOT_TOKEN:}
+  chat-id: ${TELEGRAM_CHAT_ID:}
+
 cwa:
   api-key: ${CWA_API_KEY:CWA-000248A6-64BE-4F2D-B284-DC2E4E9EAE2D}
 
