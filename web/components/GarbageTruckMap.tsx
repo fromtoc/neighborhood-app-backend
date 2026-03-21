@@ -15,12 +15,16 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const truckIcon = L.divIcon({
-  html: '<div style="font-size:1.6rem;text-align:center">🚛</div>',
-  className: '',
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+function makeTruckIcon(highlight = false) {
+  return L.divIcon({
+    html: `<div style="font-size:1.6rem;text-align:center;${highlight ? 'filter:hue-rotate(180deg) drop-shadow(0 0 6px #1c5373);transform:scale(1.3)' : ''}">\u{1F69B}</div>`,
+    className: '',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+const truckIcon = makeTruckIcon(false);
+const truckIconHighlight = makeTruckIcon(true);
 
 interface Truck {
   carId: string;
@@ -125,20 +129,6 @@ export default function GarbageTruckMap({ neighborhoodId, city }: Props) {
   return <GarbageTruckMapInner neighborhoodId={neighborhoodId} />;
 }
 
-/** 接收 selectedCarId，飛到該車並打開 Popup */
-function FlyToTruck({ carId, markerRefs }: { carId: string | null; markerRefs: React.MutableRefObject<Record<string, L.Marker>> }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!carId) return;
-    const marker = markerRefs.current[carId];
-    if (marker) {
-      map.flyTo(marker.getLatLng(), Math.max(map.getZoom(), 16), { duration: 0.5 });
-      setTimeout(() => marker.openPopup(), 500);
-    }
-  }, [carId, map, markerRefs]);
-  return null;
-}
-
 function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
   const [trucks, setTrucks] = useState<Truck[]>([]);
   const [center, setCenter] = useState<[number, number] | null>(null);
@@ -147,7 +137,6 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
   const [geojsonStr, setGeojsonStr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval>>();
-  const markerRefs = useRef<Record<string, L.Marker>>({});
   const [selectedCarId, setSelectedCarId] = useState<string | null>(null);
 
   const geojsonData = useMemo(() => {
@@ -239,8 +228,8 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
             <Marker
               key={t.carId}
               position={[t.lat, t.lng]}
-              icon={truckIcon}
-              ref={(ref) => { if (ref) markerRefs.current[t.carId] = ref; }}
+              icon={selectedCarId === t.carId ? truckIconHighlight : truckIcon}
+              zIndexOffset={selectedCarId === t.carId ? 1000 : 0}
             >
               <Popup>
                 <div style={{ fontSize: '0.85rem', lineHeight: 1.5 }}>
@@ -255,8 +244,6 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
               </Popup>
             </Marker>
           ))}
-
-          <FlyToTruck carId={selectedCarId} markerRefs={markerRefs} />
         </MapContainer>
       </div>
 
