@@ -6,10 +6,9 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -35,12 +34,19 @@ public class TelegramService {
         if (!enabled) return;
         try {
             String url = String.format(
-                "https://api.telegram.org/bot%s/sendMessage?chat_id=%s&text=%s&parse_mode=HTML",
-                properties.getBotToken(),
-                properties.getChatId(),
-                URLEncoder.encode(message, StandardCharsets.UTF_8)
+                "https://api.telegram.org/bot%s/sendMessage",
+                properties.getBotToken()
             );
-            restClient.get().uri(url).retrieve().toBodilessEntity();
+            restClient.post()
+                .uri(url)
+                .header("Content-Type", "application/json")
+                .body(Map.of(
+                    "chat_id", properties.getChatId(),
+                    "text", message,
+                    "parse_mode", "HTML"
+                ))
+                .retrieve()
+                .toBodilessEntity();
         } catch (Exception e) {
             log.warn("[Telegram] 發送失敗: {}", e.getMessage());
         }
