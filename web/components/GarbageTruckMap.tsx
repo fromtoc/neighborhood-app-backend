@@ -142,7 +142,8 @@ function GarbageTruckMapInner({ neighborhoodId }: { neighborhoodId: number }) {
       );
       const json = await res.json();
       if (json.code === 200 && json.data) {
-        setTrucks(json.data.trucks || []);
+        const all: Truck[] = json.data.trucks || [];
+        setTrucks(all.filter(t => t.cleanStatus?.includes('清運中')));
         if (json.data.center) {
           setCenter([json.data.center.lat, json.data.center.lng]);
         }
