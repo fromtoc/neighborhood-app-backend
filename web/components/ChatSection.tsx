@@ -119,7 +119,7 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
     if (!files || !token) return;
     setUploading(true);
     try {
-      for (const file of files) {
+      for (const file of Array.from(files)) {
         if (pendingImages.length >= 9) break;
         const formData = new FormData();
         formData.append('file', file);
