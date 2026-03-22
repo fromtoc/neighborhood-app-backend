@@ -17,6 +17,7 @@ interface ChatMessage {
   avatarUrl?: string | null;
   content: string;
   type: string;
+  images?: string[] | null;
   createdAt: string;
 }
 
@@ -42,6 +43,9 @@ export default function DistrictChatSection({ city, district, neighborhoodId }: 
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const stompRef = useRef<import('@stomp/stompjs').Client | null>(null);
 
@@ -99,41 +103,52 @@ export default function DistrictChatSection({ city, district, neighborhoodId }: 
     return () => { stompRef.current = null; client.deactivate(); };
   }, [room, token]);
 
+  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || !token) return;
+    setUploading(true);
+    try {
+      for (const file of files) {
+        if (pendingImages.length >= 9) break;
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${CLIENT_BASE_URL}/api/v1/images/upload`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+        });
+        const json = await res.json();
+        if (json.code === 200 && json.data?.url) setPendingImages(prev => [...prev, json.data.url]);
+      }
+    } catch { setError('圖片上傳失敗'); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || !token) return;
+    if (!input.trim() && pendingImages.length === 0) return;
+    if (!token) return;
     if (!room) { setError('聊天室尚未載入，請重新整理'); return; }
     setSending(true);
     setError('');
+    const payload: Record<string, unknown> = { content: applyMentions(input.trim(), mentions) };
+    if (pendingImages.length > 0) payload.images = pendingImages;
     try {
       const stomp = stompRef.current;
       if (stomp?.connected) {
-        stomp.publish({
-          destination: `/app/chat.send/${room.id}`,
-          body: JSON.stringify({ content: applyMentions(input.trim(), mentions) }),
-        });
-        setInput('');
+        stomp.publish({ destination: `/app/chat.send/${room.id}`, body: JSON.stringify(payload) });
+        setInput(''); setPendingImages([]);
       } else {
         const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${room.id}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: applyMentions(input.trim(), mentions) }),
+          body: JSON.stringify(payload),
         });
         const json = await res.json();
-        if (json.code === 200) {
-          setMessages(prev => [...prev, json.data]);
-          setInput('');
-        } else if (json.code === 401) {
-          dispatchAuthExpired();
-        } else {
-          setError(`發送失敗（${json.code}）：${json.message ?? '未知錯誤'}`);
-        }
+        if (json.code === 200) { setMessages(prev => [...prev, json.data]); setInput(''); setPendingImages([]); }
+        else if (json.code === 401) dispatchAuthExpired();
+        else setError(`發送失敗（${json.code}）：${json.message ?? '未知錯誤'}`);
       }
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSending(false);
-    }
+    } catch (e) { setError((e as Error).message); }
+    finally { setSending(false); }
   }
 
   const isGuest = user?.role === 'GUEST';
@@ -173,16 +188,33 @@ export default function DistrictChatSection({ city, district, neighborhoodId }: 
             </span>
           </div>
           {error && <p style={{ color: '#e53e3e', fontSize: '0.8rem', marginBottom: '0.4rem' }}>{error}</p>}
-          <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem' }}>
+          {pendingImages.length > 0 && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+              {pendingImages.map((url, i) => (
+                <div key={i} style={{ position: 'relative', width: 60, height: 60 }}>
+                  <img src={url} alt="" style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid #e6e6e6' }} />
+                  <button onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
+                    style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#e53e3e', color: '#fff', border: 'none', fontSize: '0.65rem', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple style={{ display: 'none' }} onChange={handleImageSelect} />
+            <button type="button" disabled={uploading || pendingImages.length >= 9}
+              onClick={() => fileInputRef.current?.click()}
+              style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: pendingImages.length >= 9 ? 'default' : 'pointer', padding: '0.2rem', color: pendingImages.length >= 9 ? '#ccc' : '#1c5373' }}>
+              {uploading ? '⏳' : '📷'}
+            </button>
             <MentionInput value={input} onChange={setInput}
               onMentionsChange={setMentions}
               neighborhoodId={neighborhoodId} scope="district"
               placeholder="說點什麼..." maxLength={500} disabled={sending}
               onSubmit={() => handleSend(new Event('submit') as any)}
               style={{ padding: '0.6rem 0.75rem', border: '1px solid #e6e6e6', borderRadius: 8 }} />
-            <button type="submit" disabled={!input.trim() || sending}
-              style={{ background: input.trim() ? '#1c5373' : '#e6e6e6', color: input.trim() ? '#fff' : '#bbb',
-                border: 'none', borderRadius: 8, padding: '0 1rem', fontSize: '0.9rem', cursor: input.trim() ? 'pointer' : 'default' }}>
+            <button type="submit" disabled={(!input.trim() && pendingImages.length === 0) || sending}
+              style={{ background: (input.trim() || pendingImages.length > 0) ? '#1c5373' : '#e6e6e6', color: (input.trim() || pendingImages.length > 0) ? '#fff' : '#bbb',
+                border: 'none', borderRadius: 8, padding: '0 1rem', fontSize: '0.9rem', cursor: (input.trim() || pendingImages.length > 0) ? 'pointer' : 'default' }}>
               {sending ? '…' : '送出'}
             </button>
           </form>
@@ -224,7 +256,18 @@ function MessageBubble({ msg, isSelf, selfName }: { msg: ChatMessage; isSelf: bo
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.4rem', flexDirection: isSelf ? 'row-reverse' : 'row' }}>
           <div style={{ background: isSelf ? '#A6D785' : '#f0f4f7', color: '#1a1a1a',
             padding: '0.5rem 0.75rem', borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-            fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}><MentionText text={msg.content} /></div>
+            fontSize: '0.9rem', lineHeight: 1.5, wordBreak: 'break-word' }}>
+            {msg.content && <MentionText text={msg.content} />}
+            {msg.images && msg.images.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: msg.content ? '0.4rem' : 0 }}>
+                {msg.images.map((url, i) => (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                    <img src={url} alt="" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 6, objectFit: 'cover', cursor: 'pointer' }} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
           <span style={{ fontSize: '0.68rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
         </div>
       </div>

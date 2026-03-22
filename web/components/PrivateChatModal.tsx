@@ -16,6 +16,7 @@ interface ChatMessage {
   avatarUrl?: string | null;
   content: string;
   type: string;
+  images?: string[] | null;
   createdAt: string;
 }
 
@@ -315,7 +316,16 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
                       borderRadius: isSelf ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                       fontSize: '0.88rem', lineHeight: 1.5, wordBreak: 'break-word',
                     }}>
-                      <MentionText text={m.content} />
+                      {m.content && <MentionText text={m.content} />}
+                      {m.images && m.images.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: m.content ? '0.4rem' : 0 }}>
+                          {m.images.map((url, i) => (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                              <img src={url} alt="" style={{ maxWidth: 180, maxHeight: 180, borderRadius: 6, objectFit: 'cover', cursor: 'pointer' }} />
+                            </a>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <span style={{ fontSize: '0.65rem', color: '#bbb', whiteSpace: 'nowrap', flexShrink: 0 }}>{time}</span>
                   </div>
