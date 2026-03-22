@@ -37,6 +37,9 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [pendingImages, setPendingImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -181,29 +184,51 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
     };
   }, [roomId, token]);
 
+  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || !token) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (pendingImages.length >= 9) break;
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${CLIENT_BASE_URL}/api/v1/images/upload`, {
+          method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+        });
+        const json = await res.json();
+        if (json.code === 200 && json.data) setPendingImages(prev => [...prev, json.data]);
+      }
+    } catch { setError('圖片上傳失敗'); }
+    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || !roomId || !token) return;
+    if (!input.trim() && pendingImages.length === 0) return;
+    if (!roomId || !token) return;
     setSending(true);
     setError('');
+    const payload: Record<string, unknown> = { content: input.trim() };
+    if (pendingImages.length > 0) payload.images = pendingImages;
     try {
       const stomp = stompRef.current;
       if (stomp?.connected) {
         stomp.publish({
           destination: `/app/chat.send/${roomId}`,
-          body: JSON.stringify({ content: input.trim() }),
+          body: JSON.stringify(payload),
         });
-        setInput('');
+        setInput(''); setPendingImages([]);
       } else {
         const res = await fetch(`${CLIENT_BASE_URL}/api/v1/chat/rooms/${roomId}/messages`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ content: input.trim() }),
+          body: JSON.stringify(payload),
         });
         const json = await res.json();
         if (json.code === 200) {
           setMessages(prev => [...prev, json.data]);
-          setInput('');
+          setInput(''); setPendingImages([]);
         } else if (json.code === 401) {
           dispatchAuthExpired();
         } else {
@@ -343,33 +368,52 @@ export default function PrivateChatModal({ targetUserId, targetNickname, targetB
 
         {/* 輸入區 */}
         {roomId && (
-          <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder={`傳訊給 ${displayTarget}...`}
-              maxLength={500}
-              disabled={sending}
-              style={{
-                flex: 1, padding: '0.55rem 0.75rem',
-                border: '1px solid #e6e6e6', borderRadius: 8,
-                fontSize: '0.9rem', outline: 'none',
-              }}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || sending}
-              style={{
-                background: input.trim() ? '#1c5373' : '#e6e6e6',
-                color: input.trim() ? '#fff' : '#bbb',
-                border: 'none', borderRadius: 8,
-                padding: '0 1rem', fontSize: '0.9rem',
-                cursor: input.trim() ? 'pointer' : 'default',
-              }}
-            >
-              {sending ? '…' : '傳送'}
-            </button>
-          </form>
+          <div style={{ marginTop: '0.5rem' }}>
+            {pendingImages.length > 0 && (
+              <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
+                {pendingImages.map((url, i) => (
+                  <div key={i} style={{ position: 'relative', width: 50, height: 50 }}>
+                    <img src={url} alt="" style={{ width: 50, height: 50, objectFit: 'cover', borderRadius: 5, border: '1px solid #e6e6e6' }} />
+                    <button onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
+                      style={{ position: 'absolute', top: -5, right: -5, width: 16, height: 16, borderRadius: '50%', background: '#e53e3e', color: '#fff', border: 'none', fontSize: '0.6rem', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <form onSubmit={handleSend} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple style={{ display: 'none' }} onChange={handleImageSelect} />
+              <button type="button" disabled={uploading || pendingImages.length >= 9}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: pendingImages.length >= 9 ? 'default' : 'pointer', padding: '0.2rem', color: pendingImages.length >= 9 ? '#ccc' : '#1c5373' }}>
+                {uploading ? '⏳' : '📷'}
+              </button>
+              <input
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                placeholder={`傳訊給 ${displayTarget}...`}
+                maxLength={500}
+                disabled={sending}
+                style={{
+                  flex: 1, padding: '0.55rem 0.75rem',
+                  border: '1px solid #e6e6e6', borderRadius: 8,
+                  fontSize: '0.9rem', outline: 'none',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={(!input.trim() && pendingImages.length === 0) || sending}
+                style={{
+                  background: (input.trim() || pendingImages.length > 0) ? '#1c5373' : '#e6e6e6',
+                  color: (input.trim() || pendingImages.length > 0) ? '#fff' : '#bbb',
+                  border: 'none', borderRadius: 8,
+                  padding: '0 1rem', fontSize: '0.9rem',
+                  cursor: (input.trim() || pendingImages.length > 0) ? 'pointer' : 'default',
+                }}
+              >
+                {sending ? '…' : '傳送'}
+              </button>
+            </form>
+          </div>
         )}
       </div>
     </div>
