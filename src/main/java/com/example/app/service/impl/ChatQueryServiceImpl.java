@@ -189,6 +189,12 @@ public class ChatQueryServiceImpl implements ChatQueryService {
     @Override
     @Transactional
     public ChatMessageResponse sendMessage(Long roomId, Long userId, String content) {
+        return sendMessage(roomId, userId, content, null);
+    }
+
+    @Override
+    @Transactional
+    public ChatMessageResponse sendMessage(Long roomId, Long userId, String content, java.util.List<String> images) {
         String nickname = resolveNickname(userId);
 
         ChatMessage msg = new ChatMessage();
@@ -196,7 +202,8 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         msg.setUserId(userId);
         msg.setNickname(nickname);
         msg.setContent(content);
-        msg.setType("text");
+        msg.setType(images != null && !images.isEmpty() ? "image" : "text");
+        msg.setImages(images);
         chatMessageMapper.insert(msg);
 
         // 更新 chat_room 的 last_message 快取

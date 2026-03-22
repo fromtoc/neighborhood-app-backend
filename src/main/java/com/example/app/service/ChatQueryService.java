@@ -36,6 +36,9 @@ public interface ChatQueryService {
     /** 發送訊息（REST fallback，WebSocket 優先） */
     ChatMessageResponse sendMessage(Long roomId, Long userId, String content);
 
+    /** 發送訊息（含圖片） */
+    ChatMessageResponse sendMessage(Long roomId, Long userId, String content, java.util.List<String> images);
+
     /** 查詢使用者在多個聊天室的未讀數量 */
     Map<Long, Integer> getUnreadCounts(Long userId, List<Long> roomIds);
 

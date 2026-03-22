@@ -105,13 +105,18 @@ public class ChatController {
     public ApiResponse<ChatMessageResponse> sendMessage(
             @PathVariable Long roomId,
             @AuthenticationPrincipal JwtClaims claims,
-            @RequestBody Map<String, String> body
+            @RequestBody Map<String, Object> body
     ) {
         if (claims == null) throw new BusinessException(ResultCode.UNAUTHORIZED, "請先登入");
-        String content = body.get("content");
-        if (content == null || content.isBlank())
+        String content = body.get("content") != null ? body.get("content").toString() : null;
+        if ((content == null || content.isBlank()) && body.get("images") == null)
             throw new BusinessException(ResultCode.BAD_REQUEST, "訊息內容不得為空");
-        ChatMessageResponse msg = chatQueryService.sendMessage(roomId, claims.getUserId(), content);
+
+        @SuppressWarnings("unchecked")
+        List<String> images = body.get("images") instanceof List ? (List<String>) body.get("images") : null;
+
+        ChatMessageResponse msg = chatQueryService.sendMessage(roomId, claims.getUserId(),
+                content != null ? content : "", images);
         // 廣播給所有訂閱此房間的客戶端（與 WebSocket 發送一致）
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, msg);
         return ApiResponse.success(msg);

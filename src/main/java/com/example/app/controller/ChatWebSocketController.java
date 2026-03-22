@@ -32,7 +32,7 @@ public class ChatWebSocketController {
     @MessageMapping("/chat.send/{roomId}")
     public void sendMessage(
             @DestinationVariable Long roomId,
-            @Payload Map<String, String> payload,
+            @Payload Map<String, Object> payload,
             Principal principal
     ) {
         if (principal == null) {
@@ -43,12 +43,16 @@ public class ChatWebSocketController {
         JwtClaims claims = (JwtClaims) ((org.springframework.security.authentication
                 .UsernamePasswordAuthenticationToken) principal).getPrincipal();
 
-        String content = payload.get("content");
+        String content = payload.get("content") != null ? payload.get("content").toString() : "";
 
-        if (content == null || content.isBlank()) return;
-        if (content.length() > 500) content = content.substring(0, 500);
+        @SuppressWarnings("unchecked")
+        java.util.List<String> images = payload.get("images") instanceof java.util.List
+                ? (java.util.List<String>) payload.get("images") : null;
 
-        ChatMessageResponse msg = chatQueryService.sendMessage(roomId, claims.getUserId(), content);
+        if ((content == null || content.isBlank()) && (images == null || images.isEmpty())) return;
+        if (content != null && content.length() > 500) content = content.substring(0, 500);
+
+        ChatMessageResponse msg = chatQueryService.sendMessage(roomId, claims.getUserId(), content, images);
 
         // 廣播給所有訂閱此房間的客戶端
         messagingTemplate.convertAndSend("/topic/rooms/" + roomId, msg);

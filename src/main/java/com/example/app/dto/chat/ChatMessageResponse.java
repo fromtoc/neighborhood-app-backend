@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Builder
@@ -19,6 +20,7 @@ public class ChatMessageResponse {
     @Setter private String avatarUrl;
     private String content;
     private String type;
+    private List<String> images;
     private LocalDateTime createdAt;
 
     public static ChatMessageResponse from(ChatMessage m) {
@@ -33,6 +35,7 @@ public class ChatMessageResponse {
                 .nickname(nickname)
                 .content(m.getContent())
                 .type(m.getType())
+                .images(m.getImages())
                 .createdAt(m.getCreatedAt())
                 .build();
     }
