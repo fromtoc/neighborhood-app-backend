@@ -20,19 +20,23 @@ public interface UserDeviceTokenMapper extends BaseMapper<UserDeviceToken> {
 
     /** 取得某些 neighborhood 所有使用者的 FCM token（district 用） */
     @Select("""
+            <script>
             SELECT t.token FROM user_device_token t
             JOIN `user` u ON u.id = t.user_id
             WHERE u.default_neighborhood_id IN
               <foreach item='id' collection='neighborhoodIds' open='(' separator=',' close=')'>#{id}</foreach>
               AND u.deleted = 0
+            </script>
             """)
     List<String> findTokensByNeighborhoodIds(@Param("neighborhoodIds") List<Long> neighborhoodIds);
 
     /** 取得指定 userIds 的 FCM token */
     @Select("""
+            <script>
             SELECT token FROM user_device_token
             WHERE user_id IN
               <foreach item='id' collection='userIds' open='(' separator=',' close=')'>#{id}</foreach>
+            </script>
             """)
     List<String> findTokensByUserIds(@Param("userIds") List<Long> userIds);
 
