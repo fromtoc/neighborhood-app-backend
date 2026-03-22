@@ -207,10 +207,12 @@ public class ChatQueryServiceImpl implements ChatQueryService {
         chatMessageMapper.insert(msg);
 
         // 更新 chat_room 的 last_message 快取
+        String preview = (content != null && !content.isBlank()) ? content
+                : (images != null && !images.isEmpty()) ? "[圖片]" : "";
         ChatRoom room = chatRoomMapper.selectById(roomId);
         ChatRoom patch = new ChatRoom();
         patch.setId(roomId);
-        patch.setLastMessage(content.length() > 50 ? content.substring(0, 50) + "…" : content);
+        patch.setLastMessage(preview.length() > 50 ? preview.substring(0, 50) + "…" : preview);
         patch.setLastMessageNickname(nickname);
         patch.setLastMessageUserId(userId);
         patch.setLastMessageAt(LocalDateTime.now());
@@ -218,7 +220,7 @@ public class ChatQueryServiceImpl implements ChatQueryService {
 
         // 通知
         if (room != null) {
-            String shortContent = content.length() > 80 ? content.substring(0, 80) + "…" : content;
+            String shortContent = preview.length() > 80 ? preview.substring(0, 80) + "…" : preview;
             if ("private".equals(room.getType())) {
                 // 私訊：通知對方
                 Long recipientId = userId.equals(room.getUser1Id()) ? room.getUser2Id() : room.getUser1Id();
