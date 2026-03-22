@@ -41,17 +41,17 @@ class ChatWebSocketControllerTest {
     @Test
     void sendMessage_authenticated_broadcastsToTopic() {
         Long roomId = 10L;
-        Map<String, String> payload = Map.of("content", "Hello");
+        Map<String, Object> payload = Map.of("content", "Hello");
         ChatMessageResponse response = ChatMessageResponse.builder()
                 .id(1L).roomId(roomId).userId(1L).nickname("小明")
                 .content("Hello").type("TEXT").createdAt(LocalDateTime.now())
                 .build();
 
-        when(chatQueryService.sendMessage(roomId, 1L, "Hello")).thenReturn(response);
+        when(chatQueryService.sendMessage(roomId, 1L, "Hello", null)).thenReturn(response);
 
         controller.sendMessage(roomId, payload, principal);
 
-        verify(chatQueryService).sendMessage(roomId, 1L, "Hello");
+        verify(chatQueryService).sendMessage(roomId, 1L, "Hello", null);
         verify(messagingTemplate).convertAndSend(eq("/topic/rooms/" + roomId), eq(response));
     }
 
