@@ -116,7 +116,7 @@ export default function DistrictChatSection({ city, district, neighborhoodId }: 
           method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
         });
         const json = await res.json();
-        if (json.code === 200 && json.data?.url) setPendingImages(prev => [...prev, json.data.url]);
+        if (json.code === 200 && json.data) setPendingImages(prev => [...prev, json.data]);
       }
     } catch { setError('圖片上傳失敗'); }
     finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }

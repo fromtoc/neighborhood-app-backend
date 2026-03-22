@@ -129,8 +129,8 @@ export default function ChatSection({ neighborhoodId, neighborhoodName }: Props)
           body: formData,
         });
         const json = await res.json();
-        if (json.code === 200 && json.data?.url) {
-          setPendingImages(prev => [...prev, json.data.url]);
+        if (json.code === 200 && json.data) {
+          setPendingImages(prev => [...prev, json.data]);
         }
       }
     } catch {
