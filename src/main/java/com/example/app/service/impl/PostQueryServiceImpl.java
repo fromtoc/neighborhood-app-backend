@@ -64,7 +64,7 @@ public class PostQueryServiceImpl implements PostQueryService {
     @Override
     public PageResult<PostResponse> listByNeighborhood(Long neighborhoodId, String type, int page, int size, Long currentUserId) {
         LambdaQueryWrapper<Post> wrapper = new LambdaQueryWrapper<Post>()
-                .ge(Post::getStatus, 1);
+                .eq(Post::getStatus, 1);
 
         if ("info".equals(type)) {
             List<Long> districtNhIds = getDistrictNeighborhoodIds(neighborhoodId);
