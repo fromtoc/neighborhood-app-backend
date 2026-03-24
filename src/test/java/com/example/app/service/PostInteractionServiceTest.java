@@ -10,6 +10,7 @@ import com.example.app.mapper.PostCommentMapper;
 import com.example.app.mapper.PostLikeMapper;
 import com.example.app.mapper.PostMapper;
 import com.example.app.mapper.UserMapper;
+import com.example.app.service.NotificationService;
 import com.example.app.service.impl.PostInteractionServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,10 +28,11 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class PostInteractionServiceTest {
 
-    @Mock PostLikeMapper    postLikeMapper;
-    @Mock PostCommentMapper postCommentMapper;
-    @Mock PostMapper        postMapper;
-    @Mock UserMapper        userMapper;
+    @Mock PostLikeMapper        postLikeMapper;
+    @Mock PostCommentMapper     postCommentMapper;
+    @Mock PostMapper            postMapper;
+    @Mock UserMapper            userMapper;
+    @Mock NotificationService   notificationService;
 
     @InjectMocks PostInteractionServiceImpl service;
 
