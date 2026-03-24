@@ -92,6 +92,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/chat/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/places/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/places").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/banners/**").permitAll()
+                        .requestMatchers("/api/v1/admin/banners/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex
