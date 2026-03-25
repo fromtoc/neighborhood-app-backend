@@ -194,6 +194,12 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
 
   return (
     <div>
+      {/* 頁面標題 */}
+      <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+        <span style={{ fontSize: '20px', fontWeight: 700, color: '#1a1a1a' }}>聊聊</span>
+        <span style={{ fontSize: '16px', fontWeight: 400, color: '#999' }}>Chat</span>
+      </div>
+
       {/* 公開聊天室 Section */}
       <div style={{ marginBottom: '16px' }}>
         <div style={sectionHeaderStyle}>公開聊天室</div>
@@ -212,7 +218,9 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
             setTimeout(() => fetchUnread(), 500);
           }
         }} style={chatItemStyle}>
-          <div style={{ ...groupAvatarStyle, background: '#C8A951' }}>🌐</div>
+          <div style={{ ...groupAvatarStyle, background: '#C8A951', color: '#fff', fontSize: '1.4rem' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={chatNameStyle}>{district} 來聊聊</div>
             <div style={chatPreviewStyle}>
@@ -246,7 +254,9 @@ export default function ChatTabSection({ neighborhoodId, neighborhoodName, city,
             setTimeout(() => fetchUnread(), 500);
           }
         }} style={chatItemStyle}>
-          <div style={{ ...groupAvatarStyle, background: '#1c5373' }}>👥</div>
+          <div style={{ ...groupAvatarStyle, background: '#1c5373', color: '#fff', fontSize: '1.4rem' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={chatNameStyle}>{neighborhoodName} 來聊聊</div>
             <div style={chatPreviewStyle}>

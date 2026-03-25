@@ -183,17 +183,13 @@ export default function UserProfilePage() {
 
       {/* 統計 */}
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
+        display: 'grid', gridTemplateColumns: '1fr 1fr',
         background: '#fff', border: '1px solid #e8e8e8', borderRadius: 16,
         marginBottom: '1.25rem', textAlign: 'center', padding: '0.75rem 0',
       }}>
         <div>
           <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.postCount}</div>
           <div style={{ fontSize: '0.78rem', color: '#999' }}>貼文</div>
-        </div>
-        <div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.followerCount}</div>
-          <div style={{ fontSize: '0.78rem', color: '#999' }}>粉絲</div>
         </div>
         <div>
           <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.followingCount}</div>

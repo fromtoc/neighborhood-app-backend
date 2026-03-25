@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import CommunitySection from './CommunitySection';
+import AnimatedTabs from './AnimatedTabs';
 
 const GarbageTruckMap = dynamic(() => import('./GarbageTruckMap'), { ssr: false });
 
@@ -22,35 +23,17 @@ export default function InfoSection({ neighborhoodId, city, district, liName }: 
   const initialSub: SubTab = subParam === 'li' ? 'li' : subParam === 'garbage' ? 'garbage' : subParam === 'guide' ? 'guide' : 'district';
   const [subTab, setSubTab] = useState<SubTab>(initialSub);
 
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: '0.45rem 1.1rem',
-    borderRadius: 8,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-    fontWeight: active ? 700 : 400,
-    background: active ? '#1c5373' : '#f0f0f0',
-    color: active ? '#fff' : '#555',
-    transition: 'background 0.15s, color 0.15s',
-  });
+  const infoTabs = [
+    { key: 'district', label: district },
+    { key: 'li', label: liName },
+    { key: 'garbage', label: '垃圾車' },
+    { key: 'guide', label: '巷口說明書' },
+  ];
 
   return (
     <>
       {/* 子 Tab */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        <button style={tabStyle(subTab === 'district')} onClick={() => setSubTab('district')}>
-          {district}
-        </button>
-        <button style={tabStyle(subTab === 'li')} onClick={() => setSubTab('li')}>
-          {liName}
-        </button>
-        <button style={tabStyle(subTab === 'garbage')} onClick={() => setSubTab('garbage')}>
-          垃圾車
-        </button>
-        <button style={tabStyle(subTab === 'guide')} onClick={() => setSubTab('guide')}>
-          巷口說明書
-        </button>
-      </div>
+      <AnimatedTabs tabs={infoTabs} activeKey={subTab} onTabChange={(key) => setSubTab(key as SubTab)} />
 
       {subTab === 'district' && (
         <CommunitySection

@@ -142,9 +142,13 @@ public class RssNewsAggregatorService {
             String postTitle  = "【" + src + "】" + title;
             String postContent = buildContent(body, link, src, pubDate);
 
+            // 建立 extra_json（sourceUrl + source）
+            String extraJson = buildExtraJson(link, src);
+
             for (Long nhId : targets) {
                 Post post = support.buildPost(nhId, systemUserId, "district_info", postTitle, postContent, null);
                 if (imageUrl != null) post.setImagesJson("[\"" + imageUrl + "\"]");
+                if (extraJson != null) post.setExtraJson(extraJson);
                 postMapper.insert(post);
                 created++;
                 if (notificationService != null) {
@@ -171,6 +175,14 @@ public class RssNewsAggregatorService {
         if (url.contains("tvbs.com.tw"))  return "TVBS";
         if (url.contains("yahoo.com"))    return "Yahoo新聞";
         return "新聞";
+    }
+
+    private static String buildExtraJson(String link, String source) {
+        if (link == null || link.isBlank()) return null;
+        // 手動組 JSON 避免引入額外依賴
+        String escapedLink = link.replace("\\", "\\\\").replace("\"", "\\\"");
+        String escapedSource = source.replace("\\", "\\\\").replace("\"", "\\\"");
+        return "{\"sourceUrl\":\"" + escapedLink + "\",\"source\":\"" + escapedSource + "\"}";
     }
 
     private static String buildContent(String summary, String link, String source, String pubDate) {

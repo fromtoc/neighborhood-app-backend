@@ -230,7 +230,7 @@ export default function ProfilePage() {
         {!loading && profile && !isGuest && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: `repeat(${profile.followerCount != null ? 4 : 2}, 1fr)`,
+            gridTemplateColumns: 'repeat(3, 1fr)',
             marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #f0f0f0',
             textAlign: 'center',
           }}>
@@ -242,12 +242,6 @@ export default function ProfilePage() {
               <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.bookmarkCount}</span>
               <span style={{ fontSize: '0.75rem', color: '#999' }}>收藏</span>
             </button>
-            {profile.followerCount != null && (
-              <div style={statBtnStyle}>
-                <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.followerCount}</span>
-                <span style={{ fontSize: '0.75rem', color: '#999' }}>粉絲</span>
-              </div>
-            )}
             {profile.followingCount != null && (
               <div style={statBtnStyle}>
                 <span style={{ fontSize: '1.2rem', fontWeight: 700, color: '#1e1e1e' }}>{profile.followingCount}</span>

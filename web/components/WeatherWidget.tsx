@@ -97,6 +97,7 @@ export default function WeatherWidget({ city, lat, lng }: { city?: string; lat?:
             minWidth: 100,
             background: '#fff',
             border: '1px solid #e6e6e6',
+            borderTop: '2px solid #1C5373',
             borderRadius: 10,
             padding: '0.65rem 0.6rem',
             textAlign: 'center',

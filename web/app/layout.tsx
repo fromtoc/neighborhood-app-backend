@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/components/AuthProvider';
 import { NotificationProvider } from '@/components/NotificationProvider';
@@ -7,8 +7,15 @@ import HeaderUserSection from '@/components/HeaderUserSection';
 import NeighborhoodSwitcher from '@/components/NeighborhoodSwitcher';
 import SearchBar from '@/components/SearchBar';
 import SiteNav from '@/components/SiteNav';
+import BottomTabBar from '@/components/BottomTabBar';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -61,19 +68,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </NotificationProvider>
         </AuthProvider>
 
-        <footer
-          style={{
-            textAlign: 'center',
-            padding: '1.5rem',
-            color: '#bbb',
-            fontSize: '0.8rem',
-            borderTop: '1px solid #e6e6e6',
-            background: '#fff',
-          }}
-        >
+        <footer className="site-footer">
           © {new Date().getFullYear()}{' '}
           <span style={{ color: '#1c5373', fontWeight: 600 }}>巷口 GoLocal</span>
         </footer>
+
+        <BottomTabBar />
       </body>
     </html>
   );

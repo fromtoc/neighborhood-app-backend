@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CreatePlaceForm from './CreatePlaceForm';
 import PlaceEditButton from './PlaceEditButton';
+import AnimatedTabs from './AnimatedTabs';
 
 const SHOP_CATEGORIES = ['全部', '美食', '飲品', '生活百貨', '美容美髮', '醫療保健', '修繕服務', '教育學習', '寵物', '3C家電', '服飾'];
 const SORT_OPTIONS: { label: string; value: string }[] = [
@@ -109,29 +110,22 @@ export default function ShopsSection({ neighborhoodId, city, district, liName, i
 
   const currentSortLabel = SORT_OPTIONS.find(o => o.value === sortOrder)?.label ?? '最新到最舊';
 
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    padding: '0.45rem 1.1rem',
-    borderRadius: 8,
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '0.88rem',
-    fontWeight: active ? 700 : 400,
-    background: active ? '#1c5373' : '#f0f0f0',
-    color: active ? '#fff' : '#555',
-    transition: 'background 0.15s, color 0.15s',
-  });
+  const shopTabs = [
+    { key: 'district', label: district },
+    { key: 'li', label: liName },
+  ];
+
+  const handleShopTabChange = (key: string) => {
+    setSubTab(key as SubTab);
+    setSearchInput('');
+    setSearchText('');
+    setSelectedCategory('全部');
+  };
 
   return (
     <div className="section">
       {/* Sub tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        <button style={tabStyle(subTab === 'district')} onClick={() => { setSubTab('district'); setSearchInput(''); setSearchText(''); setSelectedCategory('全部'); }}>
-          {district}
-        </button>
-        <button style={tabStyle(subTab === 'li')} onClick={() => { setSubTab('li'); setSearchInput(''); setSearchText(''); setSelectedCategory('全部'); }}>
-          {liName}
-        </button>
-      </div>
+      <AnimatedTabs tabs={shopTabs} activeKey={subTab} onTabChange={handleShopTabChange} />
 
       {/* 店家優惠 */}
       <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid #eee' }}>

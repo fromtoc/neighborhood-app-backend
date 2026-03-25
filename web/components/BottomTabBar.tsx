@@ -7,18 +7,18 @@ import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { IconHome, IconNewspaper, IconGroup, IconStore, IconChat } from './icons/TabIcons';
 
+const ICON_SIZE = 24;
 const ACTIVE_COLOR = '#D4911C';
-const INACTIVE_COLOR = '#828282';
+const INACTIVE_COLOR = '#6B7280';
 
 const NAV_ITEMS = [
-  { key: 'home',      href: '/',          tab: 'home',      label: '主頁',  Icon: IconHome },
-  { key: 'info',      href: '/news',       tab: 'info',      label: '資訊',  Icon: IconNewspaper },
-  { key: 'community', href: '/community',  tab: 'community', label: '社群',  Icon: IconGroup },
-  { key: 'shops',     href: '/shops',      tab: 'shops',     label: '店家',  Icon: IconStore },
-  { key: 'chat',      href: '/chat',       tab: 'chat',      label: '聊聊',  Icon: IconChat },
+  { key: 'home',      tab: 'home',      label: '主頁',  Icon: IconHome },
+  { key: 'info',      tab: 'info',      label: '資訊',  Icon: IconNewspaper },
+  { key: 'community', tab: 'community', label: '社群',  Icon: IconGroup },
+  { key: 'shops',     tab: 'shops',     label: '店家',  Icon: IconStore },
+  { key: 'chat',      tab: 'chat',      label: '聊聊',  Icon: IconChat },
 ];
 
-// 判斷是否在里頁面（3段 dynamic path）
 function parseLiPath(pathname: string): { city: string; district: string; li: string } | null {
   const parts = pathname.split('/').filter(Boolean);
   if (parts.length === 3) {
@@ -31,7 +31,7 @@ function parseLiPath(pathname: string): { city: string; district: string; li: st
   return null;
 }
 
-function NavInner() {
+function BottomTabBarInner() {
   const pathname     = usePathname();
   const searchParams = useSearchParams();
   const currentTab   = searchParams.get('tab') ?? 'home';
@@ -40,7 +40,6 @@ function NavInner() {
   const [chatUnread, setChatUnread] = useState(0);
   const roomIdsRef = useRef<number[]>([]);
 
-  // 取得所有聊天室 ID（只在里變化時重新取）
   const fetchRoomIds = useCallback(async () => {
     if (!token || !liInfo) return;
     try {
@@ -63,7 +62,6 @@ function NavInner() {
     } catch {}
   }, [token, liInfo?.city, liInfo?.district, liInfo?.li]);
 
-  // 查未讀數
   const fetchUnread = useCallback(async () => {
     if (!token || roomIdsRef.current.length === 0) return;
     try {
@@ -78,16 +76,13 @@ function NavInner() {
     } catch {}
   }, [token]);
 
-  // 初始化 room IDs 後查未讀
   useEffect(() => {
     fetchRoomIds().then(() => fetchUnread());
   }, [fetchRoomIds, fetchUnread]);
 
-  // 監聽事件 + 定期刷新
   useEffect(() => {
     const onTotal = (e: Event) => setChatUnread((e as CustomEvent).detail ?? 0);
     const onUpdate = () => {
-      // 如果 roomIds 還沒初始化，先初始化再查
       if (roomIdsRef.current.length === 0) {
         fetchRoomIds().then(() => fetchUnread());
       } else {
@@ -105,7 +100,7 @@ function NavInner() {
   }, [fetchUnread, fetchRoomIds]);
 
   return (
-    <nav className="site-nav">
+    <nav className="bottom-tab-bar">
       {NAV_ITEMS.map(item => {
         let href: string;
         let isActive: boolean;
@@ -115,25 +110,20 @@ function NavInner() {
           href     = item.tab === 'home' ? base : `${base}?tab=${item.tab}`;
           isActive = currentTab === item.tab;
         } else {
-          href     = item.href;
-          isActive = pathname === item.href;
+          href     = '/';
+          isActive = false;
         }
 
         const color = isActive ? ACTIVE_COLOR : INACTIVE_COLOR;
 
         return (
-          <Link key={item.key} href={href} className={isActive ? 'active' : ''} style={{ position: 'relative' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center' }}><item.Icon size={18} color={color} /></span>
-            <span>{item.label}</span>
+          <Link key={item.key} href={href} className={`bottom-tab-item${isActive ? ' active' : ''}`}>
+            <span className="bottom-tab-icon">
+              <item.Icon size={ICON_SIZE} color={color} />
+            </span>
+            <span className="bottom-tab-label">{item.label}</span>
             {item.key === 'chat' && chatUnread > 0 && (
-              <span style={{
-                position: 'absolute', top: -2, right: -6,
-                background: '#ef4444', color: '#fff',
-                borderRadius: '50%', fontSize: '0.58rem', fontWeight: 700,
-                minWidth: 16, height: 16,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                padding: '0 3px', lineHeight: 1,
-              }}>
+              <span className="bottom-tab-badge">
                 {chatUnread > 99 ? '99+' : chatUnread}
               </span>
             )}
@@ -144,10 +134,10 @@ function NavInner() {
   );
 }
 
-export default function SiteNav() {
+export default function BottomTabBar() {
   return (
-    <Suspense fallback={<nav className="site-nav" />}>
-      <NavInner />
+    <Suspense fallback={null}>
+      <BottomTabBarInner />
     </Suspense>
   );
 }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { stripMentionFormat } from './MentionText';
+import { IconElephant } from './icons/TabIcons';
 
 interface Post {
   id: number;
@@ -67,10 +68,13 @@ export default function HomeInfoList({ neighborhoodId, liHref }: Props) {
     <div style={{ margin: '2rem 0 1.25rem' }}>
       {/* Section header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-        <h2 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#1e1e1e' }}>
-          相關資訊
-        </h2>
-        <Link href={`${liHref}?tab=info`} style={{ fontSize: '0.75rem', color: '#1c5373' }}>更多 ›</Link>
+        <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.35rem' }}>
+          <IconElephant size={22} color="#1C5373" />
+          <h2 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#1e1e1e', margin: 0 }}>
+            相關資訊
+          </h2>
+        </div>
+        <Link href={`${liHref}?tab=info`} style={{ fontSize: '0.75rem', color: '#1c5373' }}>更多 &gt;</Link>
       </div>
 
       {/* Post list */}
