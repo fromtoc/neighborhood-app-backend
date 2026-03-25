@@ -1,6 +1,7 @@
 package com.example.app.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.example.app.aggregator.DemographicsAggregatorService;
 import com.example.app.common.exception.BusinessException;
 import com.example.app.common.result.ApiResponse;
 import com.example.app.common.result.ResultCode;
@@ -22,6 +23,7 @@ public class DemographicsController {
 
     private final NeighborhoodDemographicsMapper demographicsMapper;
     private final NeighborhoodMapper neighborhoodMapper;
+    private final DemographicsAggregatorService aggregatorService;
 
     @GetMapping("/{id}/demographics")
     @Operation(summary = "取得該里最新人口統計資料")
@@ -59,6 +61,19 @@ public class DemographicsController {
                 Map.entry("marryCount", demo.getMarryCount()),
                 Map.entry("divorceCount", demo.getDivorceCount())
         ));
+    }
+
+    @PostMapping("/demographics/fetch")
+    @Operation(summary = "手動觸發抓取戶政資料（管理員用）")
+    public ApiResponse<Map<String, Object>> triggerFetch(
+            @RequestParam(defaultValue = "") String period
+    ) {
+        if (period.isBlank()) {
+            aggregatorService.scheduledFetch();
+            return ApiResponse.success(Map.of("message", "已觸發抓取最新資料"));
+        }
+        int count = aggregatorService.fetchAndStore(period);
+        return ApiResponse.success(Map.of("message", "完成", "period", period, "updated", count));
     }
 
     /** "11502" → "114年2月" */
