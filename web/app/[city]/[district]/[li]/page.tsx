@@ -126,7 +126,7 @@ export default async function LiPage({ params, searchParams }: Props) {
           />
           <HomeBanner variant="middle" />
           <HomeCommunityList neighborhoodId={liDetail.id} liHref={base} />
-          <DemographicsWidget neighborhoodId={liDetail.id} />
+          <DemographicsWidget neighborhoodId={liDetail.id} neighborhoodName={liDetail.name} />
         </>
       )}
 

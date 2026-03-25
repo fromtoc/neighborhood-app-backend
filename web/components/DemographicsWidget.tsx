@@ -18,9 +18,10 @@ interface Demographics {
 
 interface Props {
   neighborhoodId: number;
+  neighborhoodName?: string;
 }
 
-export default function DemographicsWidget({ neighborhoodId }: Props) {
+export default function DemographicsWidget({ neighborhoodId, neighborhoodName }: Props) {
   const [data, setData] = useState<Demographics | null>(null);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export default function DemographicsWidget({ neighborhoodId }: Props) {
           marginBottom: '0.75rem',
         }}>
           <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e1e1e', margin: 0 }}>
-            人口統計
+            {neighborhoodName ? `${neighborhoodName} 人口統計` : '人口統計'}
           </h3>
           <span style={{ fontSize: '0.68rem', color: '#bbb' }}>
             {data.periodLabel}

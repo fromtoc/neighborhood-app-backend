@@ -121,7 +121,7 @@ function Dashboard({ detail, onSwitch }: { detail: LiDetail; onSwitch: () => voi
       <HomeCommunityList neighborhoodId={detail.id} liHref={liHref} />
 
       {/* 人口統計 */}
-      <DemographicsWidget neighborhoodId={detail.id} />
+      <DemographicsWidget neighborhoodId={detail.id} neighborhoodName={detail.name} />
     </>
   );
 }
