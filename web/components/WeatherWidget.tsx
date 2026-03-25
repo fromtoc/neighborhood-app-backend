@@ -39,7 +39,7 @@ function periodLabel(startTime: string): string {
   if (hour >= 6 && hour < 18) {
     return isToday ? '今日白天' : '明日白天';
   }
-  return '今晚明晨';
+  return isToday ? '今晚明晨' : '明日晚上';
 }
 
 /** "2024-03-07 12:00:00" → "3/7(五)" */
