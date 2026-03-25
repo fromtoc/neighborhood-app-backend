@@ -119,6 +119,8 @@ public class NcdrAggregatorService {
             String event       = text(info, "event");
             String description = text(info, "description");
             String headline    = text(info, "headline");
+            String onset       = text(info, "onset");
+            String effective   = text(info, "effective");
             String expires     = text(info, "expires");
             String senderName  = text(info, "senderName");
             String urgency     = text(info, "urgency");
@@ -162,6 +164,9 @@ public class NcdrAggregatorService {
             String title = headline.isBlank() ? event : headline;
             String content = buildContent(description, expires, senderName);
             String urgencyVal = resolveUrgency(urgency, event);
+            // effectiveAt: 優先用 onset，其次 effective
+            String effectiveAt = !onset.isBlank() ? onset : effective;
+            String extraJson = buildAlertExtraJson(effectiveAt, expires, senderName);
 
             for (MatchedArea m : matched) {
                 String dedup = m.nhId + ":" + m.type;
@@ -179,9 +184,11 @@ public class NcdrAggregatorService {
                 if (existing != null) {
                     existing.setContent(content);
                     existing.setUrgency(urgencyVal);
+                    if (extraJson != null) existing.setExtraJson(extraJson);
                     postMapper.updateById(existing);
                 } else {
                     Post post = support.buildPost(m.nhId, systemUserId, m.type, title, content, urgencyVal);
+                    if (extraJson != null) post.setExtraJson(extraJson);
                     postMapper.insert(post);
                     created++;
                     if (notificationService != null) {
@@ -209,6 +216,27 @@ public class NcdrAggregatorService {
         if (s.contains("大雨") || s.contains("豪雨") || s.contains("停水") ||
             s.contains("強風") || s.contains("低溫") || s.contains("淹水")) return "medium";
         return "normal";
+    }
+
+    private static String buildAlertExtraJson(String effectiveAt, String expires, String source) {
+        StringBuilder sb = new StringBuilder("{");
+        boolean hasField = false;
+        if (effectiveAt != null && !effectiveAt.isBlank()) {
+            sb.append("\"effectiveAt\":\"").append(effectiveAt.replace("\"", "\\\"")).append("\"");
+            hasField = true;
+        }
+        if (expires != null && !expires.isBlank()) {
+            if (hasField) sb.append(",");
+            sb.append("\"expiresAt\":\"").append(expires.replace("\"", "\\\"")).append("\"");
+            hasField = true;
+        }
+        if (source != null && !source.isBlank()) {
+            if (hasField) sb.append(",");
+            sb.append("\"source\":\"").append(source.replace("\"", "\\\"")).append("\"");
+            hasField = true;
+        }
+        sb.append("}");
+        return hasField ? sb.toString() : null;
     }
 
     private static String buildContent(String desc, String expires, String sender) {

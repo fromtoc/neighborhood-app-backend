@@ -87,8 +87,14 @@ public class WaterAlertAggregatorService {
                 String content = buildContent(county, statusName, statusCode, date, note);
                 String urgency = statusCode >= 4 ? "urgent" : statusCode >= 2 ? "medium" : "normal";
 
+                // 水情公告用 date 作為 effectiveAt
+                String extraJson = date != null && !date.isBlank()
+                    ? "{\"effectiveAt\":\"" + date.replace("\"", "\\\"") + "\",\"source\":\"經濟部水利署\"}"
+                    : "{\"source\":\"經濟部水利署\"}";
+
                 for (Long nhId : nhIds) {
                     Post post = support.buildPost(nhId, systemUserId, "district_info", title, content, urgency);
+                    post.setExtraJson(extraJson);
                     postMapper.insert(post);
                     created++;
                     if (notificationService != null) {
