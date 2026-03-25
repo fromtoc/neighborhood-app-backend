@@ -6,6 +6,7 @@ import HomeCommunityList from './HomeCommunityList';
 import HomeBanner from './HomeBanner';
 import WeatherWidget from './WeatherWidget';
 import HomeInfoList from './HomeInfoList';
+import DemographicsWidget from './DemographicsWidget';
 import { getLastNeighborhood, saveLastNeighborhood } from '@/lib/last-neighborhood';
 import { CLIENT_BASE_URL } from '@/lib/api';
 
@@ -118,6 +119,9 @@ function Dashboard({ detail, onSwitch }: { detail: LiDetail; onSwitch: () => voi
       <HomeBanner variant="middle" />
 
       <HomeCommunityList neighborhoodId={detail.id} liHref={liHref} />
+
+      {/* 人口統計 */}
+      <DemographicsWidget neighborhoodId={detail.id} />
     </>
   );
 }

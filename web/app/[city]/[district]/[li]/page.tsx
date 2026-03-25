@@ -7,6 +7,7 @@ import WeatherWidget from '@/components/WeatherWidget';
 import HomeBanner from '@/components/HomeBanner';
 import HomeInfoList from '@/components/HomeInfoList';
 import HomeCommunityList from '@/components/HomeCommunityList';
+import DemographicsWidget from '@/components/DemographicsWidget';
 import CommunitySection from '@/components/CommunitySection';
 import CommunityTabSection from '@/components/CommunityTabSection';
 import InfoSection from '@/components/InfoSection';
@@ -125,6 +126,7 @@ export default async function LiPage({ params, searchParams }: Props) {
           />
           <HomeBanner variant="middle" />
           <HomeCommunityList neighborhoodId={liDetail.id} liHref={base} />
+          <DemographicsWidget neighborhoodId={liDetail.id} />
         </>
       )}
 
