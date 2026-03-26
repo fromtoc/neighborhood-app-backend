@@ -80,12 +80,10 @@ export default async function DistrictPage({ params }: Props) {
   return (
     <>
       {/* Breadcrumb */}
-      <div className="location-bar" style={{ margin: '-1.5rem -1.5rem 1.5rem', padding: '0.5rem 1.5rem' }}>
-        <div className="inner">
-          <Link href={`/${encodeURIComponent(city)}`}>{city}</Link>
-          <span className="sep">›</span>
-          <span style={{ color: '#1c5373', fontWeight: 600 }}>{district}</span>
-        </div>
+      <div style={{ padding: '0.6rem 0', marginBottom: '0.75rem', borderBottom: '1px solid #e5e5e5', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#999' }}>
+        <Link href={`/${encodeURIComponent(city)}`} style={{ color: '#1c5373' }}>{city}</Link>
+        <span>›</span>
+        <span style={{ color: '#1c5373', fontWeight: 600 }}>{district}</span>
       </div>
 
       {/* Hero */}

@@ -42,46 +42,16 @@ export default function DemographicsWidget({ neighborhoodId, neighborhoodName }:
   ];
 
   return (
-    <div style={{ margin: '1.25rem 0' }}>
+    <div style={{ margin: '1rem 0', textAlign: 'center' }}>
       <div style={{
-        background: '#fff', border: '1px solid #e6e6e6', borderRadius: 12,
-        padding: '1rem',
+        borderTop: '1px solid rgba(28, 83, 115, 0.15)',
+        paddingTop: '0.75rem',
       }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          marginBottom: '0.75rem',
-        }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1e1e1e', margin: 0 }}>
-            {neighborhoodName ? `${neighborhoodName} 人口統計` : '人口統計'}
-          </h3>
-          <span style={{ fontSize: '0.68rem', color: '#bbb' }}>
-            {data.periodLabel}
-          </span>
+        <div style={{ fontSize: '0.78rem', color: '#666' }}>
+          {neighborhoodName}・戶數 {data.householdCount.toLocaleString()}・人口 {data.populationTotal.toLocaleString()}・出生總數 {data.birthTotal.toLocaleString()}
         </div>
-
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {stats.map(s => (
-            <div key={s.label} style={{
-              flex: 1, textAlign: 'center',
-              background: '#f8f9f9', borderRadius: 8,
-              padding: '0.6rem 0.4rem',
-            }}>
-              <div style={{ fontSize: '1.2rem', marginBottom: '0.2rem' }}>{s.icon}</div>
-              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1c5373' }}>
-                {s.value}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#888', marginTop: '0.15rem' }}>
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{
-          marginTop: '0.6rem', fontSize: '0.62rem', color: '#bbb',
-          textAlign: 'right',
-        }}>
-          資料來源：內政部戶政司
+        <div style={{ fontSize: '0.6rem', color: '#bbb', marginTop: '0.3rem' }}>
+          資料來源：戶政司
         </div>
       </div>
     </div>

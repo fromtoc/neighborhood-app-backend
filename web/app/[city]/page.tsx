@@ -50,10 +50,8 @@ export default async function CityPage({ params }: Props) {
   return (
     <>
       {/* Breadcrumb */}
-      <div className="location-bar" style={{ margin: '-1.5rem -1.5rem 1.5rem', padding: '0.5rem 1.5rem' }}>
-        <div className="inner">
-          <span style={{ color: '#1c5373', fontWeight: 600 }}>{city}</span>
-        </div>
+      <div style={{ padding: '0.6rem 0', marginBottom: '0.75rem', borderBottom: '1px solid #e5e5e5', fontSize: '0.85rem' }}>
+        <span style={{ color: '#1c5373', fontWeight: 600 }}>{city}</span>
       </div>
 
       {/* Hero */}

@@ -13,8 +13,9 @@ import CommunityTabSection from '@/components/CommunityTabSection';
 import InfoSection from '@/components/InfoSection';
 import ChatTabSection from '@/components/ChatTabSection';
 import SaveNeighborhood from '@/components/SaveNeighborhood';
-import SwitchNeighborhoodLink from '@/components/SwitchNeighborhoodLink';
+import NeighborhoodSwitcher from '@/components/NeighborhoodSwitcher';
 import FollowButton from '@/components/FollowButton';
+import SwitchNeighborhoodLink from '@/components/SwitchNeighborhoodLink';
 import ShopsSection from '@/components/ShopsSection';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://golocal.tw';
@@ -100,13 +101,13 @@ export default async function LiPage({ params, searchParams }: Props) {
 
       <SaveNeighborhood city={city} district={district} li={liName} />
 
-      {/* 麵包屑 */}
-      <div className="location-bar" style={{ margin: '-1.5rem -1.5rem 1.5rem', padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="inner">
-          <Link href={`/${encodeURIComponent(city)}`}>{city}</Link>
-          <span className="sep">›</span>
-          <Link href={`/${encodeURIComponent(city)}/${encodeURIComponent(district)}`}>{district}</Link>
-          <span className="sep">›</span>
+      {/* 麵包屑（桌面版顯示） */}
+      <div className="desktop-breadcrumb" style={{ padding: '0.6rem 0', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e5e5' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#999' }}>
+          <Link href={`/${encodeURIComponent(city)}`} style={{ color: '#1c5373' }}>{city}</Link>
+          <span>›</span>
+          <Link href={`/${encodeURIComponent(city)}/${encodeURIComponent(district)}`} style={{ color: '#1c5373' }}>{district}</Link>
+          <span>›</span>
           <span style={{ color: '#1c5373', fontWeight: 600 }}>{liName}</span>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -114,6 +115,13 @@ export default async function LiPage({ params, searchParams }: Props) {
           <SwitchNeighborhoodLink />
         </div>
       </div>
+
+      {/* 里選擇器（手機版僅主頁顯示） */}
+      {tab === 'home' && (
+        <div className="mobile-neighborhood-selector">
+          <NeighborhoodSwitcher />
+        </div>
+      )}
 
       {/* 主頁 */}
       {tab === 'home' && (
@@ -132,25 +140,45 @@ export default async function LiPage({ params, searchParams }: Props) {
 
       {/* 資訊 */}
       {tab === 'info' && (
+        <>
+        <div className="mobile-page-title">
+          <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1C5373' }}>資訊</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#999', marginLeft: '0.4rem' }}>Info</span>
+        </div>
         <InfoSection
           neighborhoodId={liDetail.id}
           city={city}
           district={district}
           liName={liName}
         />
+        </>
       )}
 
       {/* 社群 */}
       {tab === 'community' && (
+        <>
+        <div className="mobile-page-title">
+          <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1C5373' }}>社群</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#999', marginLeft: '0.4rem' }}>Social</span>
+        </div>
         <CommunityTabSection
           neighborhoodId={liDetail.id}
           district={district}
           liName={liName}
         />
+        </>
       )}
 
       {/* 店家 */}
-      {tab === 'shops' && <ShopsSectionWrapper neighborhoodId={liDetail.id} city={city} district={district} liName={liName} />}
+      {tab === 'shops' && (
+        <>
+        <div className="mobile-page-title">
+          <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1C5373' }}>店家</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#999', marginLeft: '0.4rem' }}>Shops</span>
+        </div>
+        <ShopsSectionWrapper neighborhoodId={liDetail.id} city={city} district={district} liName={liName} />
+        </>
+      )}
 
       {/* 聊聊 */}
       {tab === 'chat' && (

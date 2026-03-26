@@ -137,6 +137,18 @@ export default function HomeCommunityList({ neighborhoodId, liHref }: Props) {
           );
         })}
       </div>
+
+      {/* 看更多社群貼文（匹配 app 風格） */}
+      <Link href={`${liHref}?tab=community`} style={{
+        display: 'block', textAlign: 'center',
+        padding: '0.65rem', marginTop: '0.75rem',
+        border: '1px solid #e5e5e5', borderRadius: 10,
+        background: '#fff', color: '#1C5373',
+        fontSize: '0.85rem', fontWeight: 600,
+        textDecoration: 'none',
+      }}>
+        看更多社群貼文 &gt;
+      </Link>
     </div>
   );
 }

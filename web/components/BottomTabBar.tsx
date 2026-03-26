@@ -6,6 +6,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import { CLIENT_BASE_URL } from '@/lib/api';
 import { IconHome, IconNewspaper, IconGroup, IconStore, IconChat } from './icons/TabIcons';
+import { getLastNeighborhood } from '@/lib/last-neighborhood';
 
 const ICON_SIZE = 24;
 const ACTIVE_COLOR = '#D4911C';
@@ -105,10 +106,18 @@ function BottomTabBarInner() {
         let href: string;
         let isActive: boolean;
 
-        if (liInfo && item.tab) {
-          const base = `/${encodeURIComponent(liInfo.city)}/${encodeURIComponent(liInfo.district)}/${encodeURIComponent(liInfo.li)}`;
+        // 優先用 URL 路徑，其次用 localStorage 的上次里
+        const info = liInfo || (() => {
+          try {
+            const last = getLastNeighborhood();
+            return last?.city && last?.district && last?.li ? last : null;
+          } catch { return null; }
+        })();
+
+        if (info && item.tab) {
+          const base = `/${encodeURIComponent(info.city)}/${encodeURIComponent(info.district)}/${encodeURIComponent(info.li)}`;
           href     = item.tab === 'home' ? base : `${base}?tab=${item.tab}`;
-          isActive = currentTab === item.tab;
+          isActive = liInfo ? currentTab === item.tab : false;
         } else {
           href     = '/';
           isActive = false;

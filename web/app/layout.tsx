@@ -50,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   <span className="brand-blue">巷口</span>{' '}
                   <span className="brand-orange">GoLocal</span>
                 </a>
-                <NeighborhoodSwitcher />
+                <span className="header-neighborhood-switcher"><NeighborhoodSwitcher /></span>
                 <div style={{ flex: 1 }} />
                 <SearchBar />
                 <NotificationBell />

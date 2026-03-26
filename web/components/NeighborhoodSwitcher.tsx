@@ -85,7 +85,7 @@ export default function NeighborhoodSwitcher() {
           display: 'flex', alignItems: 'center', gap: '0.3rem',
         }}
       >
-        <span style={{ fontSize: '0.9rem' }}>&#x1F4CD;</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><circle cx="12" cy="10" r="3" stroke="#EF4444" strokeWidth="2"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#EF4444" strokeWidth="2" fill="none"/></svg>
         {villageLabel(active)}
       </button>
     );
@@ -103,11 +103,9 @@ export default function NeighborhoodSwitcher() {
           display: 'flex', alignItems: 'center', gap: '0.3rem',
         }}
       >
-        <span style={{ fontSize: '0.9rem' }}>&#x1F4CD;</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><circle cx="12" cy="10" r="3" stroke="#EF4444" strokeWidth="2"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" stroke="#EF4444" strokeWidth="2" fill="none"/></svg>
         {villageLabel(active)}
-        <span style={{ fontSize: '0.65rem', color: '#999', marginLeft: '0.1rem' }}>
-          {open ? '\u25B2' : '\u25BC'}
-        </span>
+        <svg width="10" height="10" viewBox="0 0 10 10" style={{ flexShrink: 0, opacity: 0.5 }}><path d={open ? "M2 7L5 3L8 7" : "M2 3L5 7L8 3"} stroke="#999" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
 
       {open && (

@@ -84,32 +84,36 @@ export default function WeatherWidget({ city, lat, lng }: { city?: string; lat?:
   if (!periods) return null;
 
   return (
-    <div style={{ margin: '1rem 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e1e1e' }}>地區氣象</span>
-        {city && <span style={{ fontSize: '0.78rem', color: '#828282' }}>{city}</span>}
+    <div style={{ margin: '0.75rem 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '1rem' }}>🌤️</span>
+          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1C5373' }}>地區氣象</span>
+        </div>
+        {city && <span style={{ fontSize: '0.75rem', color: '#999' }}>{city}</span>}
       </div>
 
-      <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: 2 }}>
+      <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', paddingBottom: 2 }}>
         {periods.map(p => (
           <div key={p.label} style={{
-            flex: '0 0 calc(33.33% - 0.35rem)',
-            minWidth: 100,
+            flex: '1 1 0',
+            minWidth: 0,
             background: '#fff',
-            border: '1px solid #e6e6e6',
+            border: '1px solid #e5e5e5',
             borderTop: '2px solid #1C5373',
-            borderRadius: 10,
-            padding: '0.65rem 0.6rem',
-            textAlign: 'center',
+            borderRadius: 12,
+            padding: '0.5rem 0.4rem',
           }}>
-            <div style={{ fontSize: '0.65rem', color: '#1c5373', fontWeight: 700, marginBottom: '0.1rem' }}>{p.label}</div>
-            <div style={{ fontSize: '0.6rem', color: '#bbb', marginBottom: '0.4rem' }}>{p.dateStr}</div>
-            <div style={{ fontSize: '1.4rem', lineHeight: 1, marginBottom: '0.25rem' }}>{cwaIcon(p.wxCode, p.wx)}</div>
-            <div style={{ fontSize: '0.6rem', color: '#828282', marginBottom: '0.3rem' }}>
-              {p.wx.length > 8 ? p.wx.slice(0, 8) + '…' : p.wx} {p.pop}%
+            <div style={{ fontSize: '0.7rem', color: '#1C5373', fontWeight: 700, marginBottom: '0.15rem' }}>{p.label}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '0.2rem' }}>
+              <span style={{ fontSize: '1.1rem', lineHeight: 1 }}>{cwaIcon(p.wxCode, p.wx)}</span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e1e1e' }}>{p.minT}-{p.maxT}°C</span>
             </div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e1e1e' }}>
-              {p.minT} - {p.maxT}°C
+            <div style={{ fontSize: '0.58rem', color: '#999', display: 'flex', alignItems: 'center', gap: '2px' }}>
+              <span>☂</span> {p.pop}%
+            </div>
+            <div style={{ fontSize: '0.55rem', color: '#bbb', marginTop: '0.1rem' }}>
+              {p.wx.length > 6 ? p.wx.slice(0, 6) + '…' : p.wx}
             </div>
           </div>
         ))}

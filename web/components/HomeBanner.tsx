@@ -105,7 +105,7 @@ export default function HomeBanner({ variant = 'top' }: Props) {
   if (hasApi) {
     const item = bannerItems[current];
     return (
-      <div style={{ margin: '1.25rem -1.5rem', position: 'relative', overflow: 'hidden' }}>
+      <div style={{ margin: '0.5rem -1rem', position: 'relative', overflow: 'hidden' }}>
         <div
           onClick={handleClick}
           style={{
@@ -158,7 +158,7 @@ export default function HomeBanner({ variant = 'top' }: Props) {
   // Fallback: static slides
   const s = fallbackSlides[current];
   return (
-    <div style={{ margin: '1.25rem -1.5rem', position: 'relative', overflow: 'hidden' }}>
+    <div style={{ margin: '0.5rem -1rem', position: 'relative', overflow: 'hidden' }}>
       <div style={{
         background: s.bg,
         padding: '1.1rem 1.5rem',

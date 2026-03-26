@@ -7,6 +7,7 @@ import HomeBanner from './HomeBanner';
 import WeatherWidget from './WeatherWidget';
 import HomeInfoList from './HomeInfoList';
 import DemographicsWidget from './DemographicsWidget';
+import NeighborhoodSwitcher from './NeighborhoodSwitcher';
 import { getLastNeighborhood, saveLastNeighborhood } from '@/lib/last-neighborhood';
 import { CLIENT_BASE_URL } from '@/lib/api';
 
@@ -82,13 +83,13 @@ function Dashboard({ detail, onSwitch }: { detail: LiDetail; onSwitch: () => voi
 
   return (
     <>
-      {/* 麵包屑 */}
-      <div className="location-bar" style={{ margin: '-1.5rem -1.5rem 0', padding: '0.5rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div className="inner">
-          <Link href={cityHref}>{detail.city}</Link>
-          <span className="sep">›</span>
-          <Link href={districtHref}>{detail.district}</Link>
-          <span className="sep">›</span>
+      {/* 麵包屑（桌面版） */}
+      <div className="desktop-breadcrumb" style={{ padding: '0.6rem 0', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e5e5e5' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: '#999' }}>
+          <Link href={cityHref} style={{ color: '#1c5373' }}>{detail.city}</Link>
+          <span>›</span>
+          <Link href={districtHref} style={{ color: '#1c5373' }}>{detail.district}</Link>
+          <span>›</span>
           <span style={{ color: '#1c5373', fontWeight: 600 }}>{detail.name}</span>
         </div>
         <button
@@ -101,6 +102,11 @@ function Dashboard({ detail, onSwitch }: { detail: LiDetail; onSwitch: () => voi
         >
           切換
         </button>
+      </div>
+
+      {/* 里選擇器（手機版） */}
+      <div className="mobile-neighborhood-selector">
+        <NeighborhoodSwitcher />
       </div>
 
       {/* Banner 1 */}
